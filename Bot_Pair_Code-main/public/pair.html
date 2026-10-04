@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Link WhatsApp</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main class="card">
+      <h1>Link your WhatsApp to the bot</h1>
+      <p class="muted">
+        This page is private. Only use it on your own server. Never share the code or QR with anyone.
+      </p>
+
+      <label for="token">Access token</label>
+      <input id="token" type="password" autocomplete="off" placeholder="PAIR_ACCESS_TOKEN from the server's .env" />
+
+      <div class="tabs" role="tablist">
+        <button type="button" id="tab-code" class="tab active" role="tab" aria-selected="true">Pairing code</button>
+        <button type="button" id="tab-qr" class="tab" role="tab" aria-selected="false">QR code</button>
+      </div>
+
+      <section id="panel-code">
+        <label for="number">WhatsApp number with country code</label>
+        <input id="number" type="tel" inputmode="tel" placeholder="+15551234567" autocomplete="off" />
+        <button type="button" id="start-code" class="primary">Get pairing code</button>
+        <p class="muted small">
+          On your phone: WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead.
+        </p>
+      </section>
+
+      <section id="panel-qr" hidden>
+        <button type="button" id="start-qr" class="primary">Show QR code</button>
+        <p class="muted small">On your phone: WhatsApp → Settings → Linked devices → Link a device, then scan.</p>
+      </section>
+
+      <div id="result" class="result" aria-live="polite"></div>
+      <img id="qr" class="qr" alt="QR code to scan with WhatsApp" hidden />
+      <button type="button" id="copy" class="secondary" hidden>Copy code</button>
+    </main>
+    <script src="app.js"></script>
+  </body>
+</html>

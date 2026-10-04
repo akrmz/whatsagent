@@ -1,0 +1,31 @@
+{
+  "name": "whatsapp-bot-pairing",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Self-hosted page that links a WhatsApp account to the bot (pairing code or QR) and saves the session locally.",
+  "main": "index.js",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint .",
+    "check": "node --check index.js && npm test"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "awesome-phonenumber": "7.8.0",
+    "express": "5.2.1",
+    "helmet": "8.3.0",
+    "pino": "10.4.0",
+    "qrcode": "1.5.4"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0"
+  }
+}

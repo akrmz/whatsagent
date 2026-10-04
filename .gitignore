@@ -1,0 +1,32 @@
+# ---- Secrets -------------------------------------------------------------
+.env
+.env.*
+!.env.example
+
+# ---- WhatsApp sessions (full account credentials!) -----------------------
+**/session/
+**/session.*/
+**/sessions/
+**/qr_sessions/
+**/pair-sessions/
+creds.json
+
+# ---- Runtime state written by the bot -------------------------------------
+MD-main/data/*.json
+MD-main/baileys_store.json
+MD-main/assets/mention_custom.*
+
+# ---- Temp files, logs, dependencies ---------------------------------------
+**/tmp/
+**/temp/
+**/logs/
+*.log
+npm-debug.log*
+node_modules/
+
+# ---- Editors / OS ---------------------------------------------------------
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

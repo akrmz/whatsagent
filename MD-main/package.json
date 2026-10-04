@@ -1,0 +1,32 @@
+{
+  "name": "whatsapp-bot",
+  "version": "2.1.0",
+  "private": true,
+  "description": "Multi-device WhatsApp bot built on Baileys, with auto-loaded commands and centralized permissions.",
+  "main": "index.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "check": "node src/check.js",
+    "check:demo": "node src/check.js --demo",
+    "test": "node --test \"test/**/*.test.js\"",
+    "lint": "eslint ."
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.131.0",
+    "@whiskeysockets/baileys": "6.7.24",
+    "mumaker": "2.0.0",
+    "node-webpmux": "3.2.1",
+    "pino": "10.4.0",
+    "pino-pretty": "13.2.0",
+    "sharp": "0.35.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "globals": "17.13.0"
+  }
+}

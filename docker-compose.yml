@@ -1,0 +1,59 @@
+# Run from the repository root:
+#   docker compose up -d --build                      # bot only
+#   docker compose --profile pairing up -d --build    # bot + pairing page (only while pairing)
+# See docs/DEPLOYMENT.md.
+
+name: whatsapp-bot
+
+services:
+  bot:
+    build: ./MD-main
+    image: whatsapp-bot:latest
+    container_name: whatsapp-bot
+    restart: unless-stopped
+    env_file: ./MD-main/.env
+    environment:
+      # Paths inside the container; keep these as they are.
+      SESSION_DIR: /app/session
+      DATA_DIR: /app/data
+      TMP_DIR: /app/tmp
+      HEALTH_HOST: 0.0.0.0
+      HEALTH_PORT: "3000"
+      FFMPEG_PATH: ffmpeg
+      YTDLP_PATH: /app/bin/yt-dlp
+      FONT_FILE: /usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf
+    volumes:
+      - session:/app/session
+      - data:/app/data
+    ports:
+      - "127.0.0.1:3000:3000" # health check, reachable from the host only
+    mem_limit: 768m
+    stop_grace_period: 15s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  pairing:
+    profiles: ["pairing"]
+    build: ./Bot_Pair_Code-main
+    image: whatsapp-bot-pairing:latest
+    container_name: whatsapp-bot-pairing
+    restart: unless-stopped
+    env_file: ./Bot_Pair_Code-main/.env
+    environment:
+      HOST: 0.0.0.0
+      PORT: "8000"
+      SESSION_OUTPUT_DIR: /session
+      PAIR_WORK_DIR: /app/pair-sessions
+    volumes:
+      - session:/session # the same volume the bot reads its session from
+    ports:
+      - "127.0.0.1:8000:8000" # put nginx/Caddy with HTTPS in front to reach it from outside
+    mem_limit: 384m
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+volumes:
+  session:
+  data:
