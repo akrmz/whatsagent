@@ -17,6 +17,7 @@ const { startHealthServer } = require("./core/health");
 const { createAi } = require("./services/ai");
 const { probeTools } = require("./services/tools");
 const { sudoList } = require("./services/settings");
+const { startReminderLoop } = require("./services/reminders");
 
 const COMMANDS_DIR = path.join(__dirname, "commands");
 const LISTENERS_DIR = path.join(__dirname, "listeners");
@@ -100,6 +101,7 @@ async function start() {
   const dispatcher = createDispatcher(app);
   const connection = createConnection(app, dispatcher, baileysLogger);
   const health = startHealthServer(app);
+  const stopReminders = startReminderLoop(app);
   app.connection = connection;
 
   let shuttingDown = false;
@@ -107,6 +109,7 @@ async function start() {
     if (shuttingDown) return;
     shuttingDown = true;
     log.info({ signal }, "shutting down");
+    stopReminders();
     connection.stop();
     app.state.flush();
     health?.close();

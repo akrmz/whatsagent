@@ -5,6 +5,7 @@ const path = require("node:path");
 const { spawn } = require("node:child_process");
 const { withTempDir } = require("../core/media");
 const { UserError } = require("../core/errors");
+const { LRU } = require("../core/lru");
 
 /**
  * Downloads media with yt-dlp (https://github.com/yt-dlp/yt-dlp), run without a shell.
@@ -17,10 +18,21 @@ const HOSTS = {
   tiktok: ["tiktok.com"],
   facebook: ["facebook.com", "fb.watch"],
   instagram: ["instagram.com", "instagr.am"],
+  twitter: ["twitter.com", "x.com"],
+  reddit: ["reddit.com", "redd.it"],
+  soundcloud: ["soundcloud.com"],
+  pinterest: ["pinterest.com", "pin.it"],
+  vimeo: ["vimeo.com"],
+  dailymotion: ["dailymotion.com", "dai.ly"],
+  twitch: ["twitch.tv"],
+  threads: ["threads.net", "threads.com"],
+  snapchat: ["snapchat.com"],
 };
 
-/** Returns the URL if it is https/http and its host belongs to `site`, else null. */
-function matchSiteUrl(text, site) {
+/** Sites whose links are music; .dl sends these as audio. */
+const AUDIO_SITES = new Set(["soundcloud"]);
+
+function firstUrl(text) {
   const m = String(text || "").match(/https?:\/\/[^\s<>"']+/i);
   if (!m) return null;
   let url;
@@ -30,14 +42,34 @@ function matchSiteUrl(text, site) {
     return null;
   }
   if (!/^https?:$/.test(url.protocol) || url.username || url.password) return null;
+  return url;
+}
+
+const hostIn = (host, site) => HOSTS[site].some((h) => host === h || host.endsWith(`.${h}`));
+
+/** Returns the URL if it is https/http and its host belongs to `site`, else null. */
+function matchSiteUrl(text, site) {
+  const url = firstUrl(text);
+  return url && hostIn(url.hostname.toLowerCase(), site) ? url.toString() : null;
+}
+
+/** Finds the first link in the text on any supported site. @returns {{ site, url } | null} */
+function detectSite(text) {
+  const url = firstUrl(text);
+  if (!url) return null;
   const host = url.hostname.toLowerCase();
-  const ok = HOSTS[site].some((h) => host === h || host.endsWith(`.${h}`));
-  return ok ? url.toString() : null;
+  const site = Object.keys(HOSTS).find((s) => hostIn(host, s));
+  return site ? { site, url: url.toString() } : null;
 }
 
 function run(bin, args, timeoutMs) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true });
+    // Force UTF-8 so non-Latin titles (Arabic, emoji …) survive on every OS, and decode
+    // the stream as UTF-8 so characters split across chunks are not corrupted.
+    const env = { ...process.env, PYTHONIOENCODING: "utf-8", PYTHONUTF8: "1" };
+    const proc = spawn(bin, args, { stdio: ["ignore", "pipe", "pipe"], windowsHide: true, env });
+    proc.stdout.setEncoding("utf8");
+    proc.stderr.setEncoding("utf8");
     let out = "";
     let err = "";
     const timer = setTimeout(() => proc.kill("SIGKILL"), timeoutMs);
@@ -142,4 +174,49 @@ async function download(config, { target, kind, search = false, maxItems = 1, ha
   });
 }
 
-module.exports = { download, isAvailable, matchSiteUrl, HOSTS };
+/**
+ * Searches YouTube without downloading anything.
+ * @returns {Promise<Array<{ id, url, title, seconds, channel, views }>>}
+ */
+async function search(config, query, count = 5) {
+  const n = Math.min(10, Math.max(1, count));
+  const args = [
+    "--ignore-config",
+    "--no-cache-dir",
+    "--no-warnings",
+    "--flat-playlist",
+    "--use-extractors",
+    "all,-generic",
+    "--socket-timeout",
+    "20",
+    "--print",
+    "%(id)s\t%(duration)s\t%(channel,uploader)s\t%(view_count)s\t%(title)s",
+  ];
+  if (config.tools.ytdlpCookies) args.push("--cookies", config.tools.ytdlpCookies);
+  args.push("--", `ytsearch${n}:${String(query).slice(0, 200)}`);
+  const { code, out, err } = await run(config.tools.ytdlp, args, 60 * 1000);
+  if (code !== 0 && !out.trim()) throw new UserError(explain(err));
+  return out
+    .split("\n")
+    .map((line) => line.split("\t"))
+    .filter((f) => f.length >= 5 && /^[\w-]{6,20}$/.test(f[0]))
+    .map(([id, duration, channel, views, ...title]) => ({
+      id,
+      url: `https://youtu.be/${id}`,
+      title: title.join("\t"),
+      seconds: Number(duration) || 0,
+      channel: channel === "NA" ? "" : channel,
+      views: Number(views) || 0,
+    }));
+}
+
+// The last .yts results per chat+user, so ".play 2" / ".video 2" can pick one.
+const lastSearch = new LRU({ max: 2000, ttlMs: 30 * 60 * 1000 });
+const rememberSearch = (ctx, results) => lastSearch.set(`${ctx.chatId}|${ctx.sender}`, results);
+/** Returns the URL of result #n from this user's last search in this chat, or null. */
+function recallSearch(ctx, n) {
+  const results = lastSearch.get(`${ctx.chatId}|${ctx.sender}`);
+  return results?.[n - 1]?.url || null;
+}
+
+module.exports = { download, search, isAvailable, matchSiteUrl, detectSite, rememberSearch, recallSearch, HOSTS, AUDIO_SITES };

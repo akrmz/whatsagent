@@ -23,6 +23,9 @@ const DENIED = {
   groupAdmin: "❌ Only group admins can use this command.",
 };
 
+// Network failures from Node itself (DNS, resets) mean "the external service is down", not a bug.
+const NETWORK_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EPIPE"]);
+
 function createDispatcher(app) {
   const { config, log } = app;
   const cooldowns = new LRU({ max: 20000 });
@@ -95,7 +98,7 @@ function createDispatcher(app) {
     } catch (err) {
       if (err instanceof UserError || err instanceof MediaError) {
         await ctx.reply(`❌ ${err.message}`).catch(() => {});
-      } else if (err instanceof HttpError) {
+      } else if (err instanceof HttpError || NETWORK_CODES.has(err?.code)) {
         log.warn({ command: command.name, err: err.message }, "external service failed");
         await ctx.reply("❌ The external service used by this command is not responding. Try again later.").catch(() => {});
       } else {

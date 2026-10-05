@@ -201,6 +201,29 @@ async function toSticker(buffer, { animated = false, crop = false, pack, author,
   });
 }
 
+const AUDIO_FORMATS = {
+  // WhatsApp music player
+  mp3: { ext: "mp3", args: ["-c:a", "libmp3lame", "-q:a", "4"], mimetype: "audio/mpeg" },
+  // WhatsApp voice note (push-to-talk): Opus in Ogg, mono, 48 kHz
+  opus: { ext: "ogg", args: ["-c:a", "libopus", "-b:a", "48k", "-ac", "1", "-ar", "48000", "-application", "voip"], mimetype: "audio/ogg; codecs=opus" },
+};
+
+/**
+ * Extracts/converts the audio of a video, voice note or audio file.
+ * @returns {Promise<{ buffer: Buffer, mimetype: string }>}
+ */
+async function toAudio(buffer, { format = "mp3", ffmpegPath = "ffmpeg", tmpDir, maxSeconds = 1800 }) {
+  const f = AUDIO_FORMATS[format];
+  if (!f) throw new MediaError(`Unknown audio format ${format}`);
+  return withTempDir(tmpDir, async (dir) => {
+    const input = path.join(dir, "input");
+    const out = path.join(dir, `out.${f.ext}`);
+    fs.writeFileSync(input, buffer);
+    await runFfmpeg(ffmpegPath, [...SAFE_INPUT, "-i", input, "-vn", "-map", "0:a:0", "-t", String(maxSeconds), ...f.args, out], { timeoutMs: 180000 });
+    return { buffer: fs.readFileSync(out), mimetype: f.mimetype };
+  });
+}
+
 /** Converts a WebP sticker (or any image) to PNG using sharp. */
 async function toPng(buffer) {
   const sharp = require("sharp");
@@ -232,6 +255,7 @@ module.exports = {
   runFfmpeg,
   SAFE_INPUT,
   toSticker,
+  toAudio,
   addStickerExif,
   toPng,
   sniff,

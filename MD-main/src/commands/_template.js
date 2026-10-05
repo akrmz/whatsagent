@@ -16,7 +16,7 @@ module.exports = {
   // Optional. Other names that run the same command. Must be unique across all commands.
   aliases: ["ex"],
 
-  // Required. Groups the command in .help (general, admin, owner, sticker, image,
+  // Required. Groups the command in .help (general, tools, info, admin, owner, sticker, image,
   // textmaker, download, ai, fun, misc, anime, games — or a new one).
   category: "general",
 

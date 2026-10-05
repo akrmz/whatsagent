@@ -8,6 +8,20 @@ const Anthropic = AnthropicModule.default || AnthropicModule;
 // Models that accept the server-side refusal fallback ("default" routing).
 const FALLBACK_MODELS = new Set(["claude-opus-5-5", "claude-opus-5", "claude-fable-5-1", "claude-sonnet-5-5"]);
 const MAX_INPUT_CHARS = 4000;
+const MAX_IMAGES = 4;
+const IMAGE_SIDE = 1568; // larger images are downscaled by the API anyway
+
+/** Normalises any image sharp can read (JPEG, PNG, WebP stickers …) to a small JPEG content block. */
+async function imageBlock(buffer) {
+  const sharp = require("sharp");
+  const jpeg = await sharp(buffer, { animated: false, limitInputPixels: 64e6 })
+    .rotate()
+    .resize({ width: IMAGE_SIDE, height: IMAGE_SIDE, fit: "inside", withoutEnlargement: true })
+    .flatten({ background: "#ffffff" })
+    .jpeg({ quality: 85 })
+    .toBuffer();
+  return { type: "image", source: { type: "base64", media_type: "image/jpeg", data: jpeg.toString("base64") } };
+}
 
 /**
  * Claude via the official Anthropic SDK. Returns null when ANTHROPIC_API_KEY is not set,
@@ -19,17 +33,21 @@ function createAi(config, log) {
 
   /**
    * @param {string} prompt
-   * @param {{ system?: string, history?: Array<{role:'user'|'assistant', content:string}> }} [opts]
+   * @param {{ system?: string, history?: Array<{role:'user'|'assistant', content:string}>, images?: Buffer[] }} [opts]
+   *   images: photos to show Claude (any format sharp reads; re-encoded to JPEG, max 1568 px)
    * @returns {Promise<string>}
    */
-  async function ask(prompt, { system = config.ai.persona, history = [] } = {}) {
+  async function ask(prompt, { system = config.ai.persona, history = [], images = [] } = {}) {
     const text = String(prompt || "").slice(0, MAX_INPUT_CHARS);
+    const content = images.length
+      ? [...(await Promise.all(images.slice(0, MAX_IMAGES).map(imageBlock))), { type: "text", text }]
+      : text;
     const params = {
       model: config.ai.model,
       max_tokens: config.ai.maxTokens,
       system,
       output_config: { effort: config.ai.effort },
-      messages: [...history, { role: "user", content: text }],
+      messages: [...history, { role: "user", content }],
     };
     let response;
     try {

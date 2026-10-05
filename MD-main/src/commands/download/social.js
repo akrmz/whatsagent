@@ -17,7 +17,49 @@ function socialDownloader(site, label, maxItems = 1) {
 
 const base = { category: "download", cooldown: 30, requires: ["ytdlp"], usage: "<link>" };
 
+// Sites whose posts can contain several videos.
+const MULTI = new Set(["instagram", "twitter", "threads", "reddit"]);
+const SITE_LIST = Object.keys(ytdlp.HOSTS).join(", ");
+
+async function universal(ctx) {
+  const found = ytdlp.detectSite(ctx.text);
+  if (!found) {
+    return ctx.reply(`Send a link from one of these sites:\n${SITE_LIST}\n\nUsage: ${ctx.prefix}${ctx.commandName} <link>`);
+  }
+  const audio = ytdlp.AUDIO_SITES.has(found.site);
+  if (audio && !ctx.app.capabilities.ffmpeg) return ctx.reply("ffmpeg is not installed on the server, so audio can't be downloaded.");
+  await ctx.react("🔄");
+  const items = await ytdlp.download(ctx.config, {
+    target: found.url,
+    kind: audio ? "audio" : "video",
+    maxItems: MULTI.has(found.site) ? 10 : 1,
+    hasFfmpeg: ctx.app.capabilities.ffmpeg,
+  });
+  for (const item of items) {
+    if (audio) await ctx.reply({ audio: item.buffer, mimetype: "audio/mpeg", fileName: "audio.mp3" });
+    else await ctx.reply({ video: item.buffer, mimetype: "video/mp4", caption: item.title ? `📝 ${item.title.slice(0, 200)}` : undefined });
+  }
+  return undefined;
+}
+
 module.exports = [
+  {
+    ...base,
+    name: "dl",
+    aliases: ["download", "get"],
+    description: `Downloads the video (or SoundCloud audio) from a link on any supported site: ${SITE_LIST}.`,
+    examples: [".dl https://x.com/…/status/…", ".dl https://www.reddit.com/r/…"],
+    externalService: "the linked site, via yt-dlp",
+    run: universal,
+  },
+  {
+    ...base,
+    name: "twitter",
+    aliases: ["x", "tw"],
+    description: "Downloads the videos of a post on X (Twitter).",
+    externalService: "X/Twitter via yt-dlp",
+    run: socialDownloader("twitter", "X (Twitter)", 10),
+  },
   {
     ...base,
     name: "tiktok",

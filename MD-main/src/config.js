@@ -124,6 +124,14 @@ function buildConfig(env = process.env) {
 
   const aiEffort = r.oneOf("AI_EFFORT", "low", ["low", "medium", "high", "xhigh", "max"]);
 
+  const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+  const timezone = r.str("TIMEZONE", systemZone);
+  try {
+    new Intl.DateTimeFormat("en", { timeZone: timezone });
+  } catch {
+    problems.push(`TIMEZONE must be an IANA time zone such as Africa/Cairo or Europe/London (got "${timezone}")`);
+  }
+
   const githubRepo = r.str("GITHUB_REPO");
   if (githubRepo && !/^[\w.-]+\/[\w.-]+$/.test(githubRepo)) {
     problems.push(`GITHUB_REPO must look like owner/repository (got "${githubRepo}")`);
@@ -139,6 +147,7 @@ function buildConfig(env = process.env) {
       markOnline: r.bool("MARK_ONLINE", true),
       stickerPack: r.str("STICKER_PACK", r.str("BOT_NAME", "WhatsApp Bot")),
       stickerAuthor: r.str("STICKER_AUTHOR", ""),
+      timezone,
     },
     owners: {
       numbers: Object.freeze([...new Set(ownerNumbers)]),
