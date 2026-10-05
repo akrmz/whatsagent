@@ -1,6 +1,6 @@
 # WhatsApp Bot
 
-A self-hosted, multi-device WhatsApp bot with about 150 commands: group moderation, stickers, downloads, AI chat, games and more. It also includes a small private web page for linking your WhatsApp account.
+A self-hosted, multi-device WhatsApp bot with about 180 commands: group moderation, stickers, downloads from 13 sites, AI chat (also about photos), reminders, polls, QR codes, prayer times, weather, Wikipedia, games and more. It also includes a small private web page for linking your WhatsApp account.
 
 > ⚠️ **Unofficial.** This project uses [Baileys](https://github.com/WhiskeySockets/Baileys), an unofficial, reverse-engineered WhatsApp Web library. It is not affiliated with or endorsed by WhatsApp or Meta. Automating a WhatsApp account can break WhatsApp's Terms of Service, and **the account may be banned**. Use a separate number, don't spam, and use it at your own risk.
 

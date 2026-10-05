@@ -81,7 +81,7 @@ What you get for free:
 |---|---|---|
 | `name` | yes | Lowercase letters, digits, dashes. Unique. |
 | `aliases` | no | Extra names. Unique across all commands. |
-| `category` | yes | `general`, `admin`, `owner`, `sticker`, `image`, `textmaker`, `download`, `ai`, `fun`, `misc`, `anime`, `games`, or a new one (it appears at the end of `.help`). |
+| `category` | yes | `general`, `tools`, `info`, `admin`, `owner`, `sticker`, `image`, `textmaker`, `download`, `ai`, `fun`, `misc`, `anime`, `games`, or a new one (it appears at the end of `.help`). |
 | `description` | yes | One or two sentences for `.help <command>`. |
 | `usage` | no | Arguments, e.g. `<city>`, `[on|off]`, `(reply to an image)`. |
 | `examples` | no | Strings starting with `.`; the dot is replaced by the configured prefix in `.help`. |

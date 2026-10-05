@@ -33,7 +33,7 @@ Then run `npm ci --omit=dev` again.
 A command file has bad metadata or a name/alias that another command already uses. The message names the file and the problem. Fix it, then run `npm run check`.
 
 ### A command is missing from `.help`
-It is disabled because something it needs is not configured. The startup log has a line `command disabled: requirement not configured` with `missing: [...]`. `npm run check` also prints the list. Set the API key in `.env`, or install the tool (ffmpeg / yt-dlp / fonts), then restart.
+It is disabled because something it needs is not configured. The startup log has a line `command disabled: requirement not configured` with `missing: [...]`. `npm run check` and the owner command `.doctor` also print the list, with what to install or set for each. Set the API key in `.env`, or install the tool (ffmpeg / yt-dlp / fonts), then restart.
 
 ## Connection and pairing
 
@@ -87,6 +87,14 @@ Commands that remove members, delete messages or change group settings need the 
 
 ### Stickers: `ffmpeg is not installed` / `.sticker` missing
 Install ffmpeg (`sudo apt-get install -y ffmpeg`) and restart. Docker images include it.
+
+### yt-dlp (or ffmpeg) is installed but its commands are missing from `.help`
+The bot checks every tool once at startup and hides commands whose tool it can't run. To see exactly why:
+- send `.doctor` (owner), or run `npm run check` on the server. Both print `✓`/`✗` per tool with the path that was tried and the reason, e.g. `… does not exist. Check YTDLP_PATH`, `… is not executable. Run: chmod +x …`.
+- `YTDLP_PATH` may be a program name found in `PATH` (`yt-dlp`) or a full path. `~/…` works (since 2.2.0; older versions treated `~` literally, so `YTDLP_PATH=~/.local/bin/yt-dlp` was "not found").
+- Under PM2 or systemd, `PATH` is often shorter than in your terminal. Use the full path (`which yt-dlp` shows it).
+- Restart the bot after installing a tool. `.doctor` says "found now, restart to enable" when a tool appeared after startup.
+- Without ffmpeg, `.video`, `.tiktok`, `.dl` … still work (single-file formats only); `.song`, `.spotify`, stickers, `.toaudio` and `.tovn` need ffmpeg.
 
 ### Downloads: `.song`, `.video`, `.tiktok` … fail
 - `yt-dlp is not installed`: install it ([DEPLOYMENT.md §5.1](DEPLOYMENT.md#51-install-nodejs-22-ffmpeg-fonts-git-and-yt-dlp)).
