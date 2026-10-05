@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 
 /**
@@ -15,6 +16,23 @@ class ConfigError extends Error {
     this.name = "ConfigError";
     this.problems = problems;
   }
+}
+
+/**
+ * Expands a leading "~" to the home directory. Shells do this, but .env files and
+ * Node's spawn() do not, so "YTDLP_PATH=~/.local/bin/yt-dlp" would otherwise point at
+ * a folder literally named "~".
+ */
+function expandHome(value) {
+  if (value === "~") return os.homedir();
+  if (value.startsWith("~/") || value.startsWith("~\\")) return path.join(os.homedir(), value.slice(2));
+  return value;
+}
+
+/** A program name ("ffmpeg") is looked up in PATH; anything with a slash is a file path. */
+function toolPath(value) {
+  const v = expandHome(value);
+  return /[\\/]/.test(v) ? path.resolve(v) : v;
 }
 
 function loadEnvFile(file = path.resolve(".env")) {
@@ -128,9 +146,9 @@ function buildConfig(env = process.env) {
     },
     pairingNumber,
     paths: {
-      session: path.resolve(r.str("SESSION_DIR", "session")),
-      data: path.resolve(r.str("DATA_DIR", "data")),
-      tmp: path.resolve(r.str("TMP_DIR", "tmp")),
+      session: path.resolve(expandHome(r.str("SESSION_DIR", "session"))),
+      data: path.resolve(expandHome(r.str("DATA_DIR", "data"))),
+      tmp: path.resolve(expandHome(r.str("TMP_DIR", "tmp"))),
     },
     log: {
       level: r.oneOf("LOG_LEVEL", "info", ["fatal", "error", "warn", "info", "debug", "trace", "silent"]),
@@ -153,10 +171,10 @@ function buildConfig(env = process.env) {
       antideleteMediaBytes: r.int("ANTIDELETE_MAX_MEDIA_MB", 10, 0, 100) * 1024 * 1024,
     },
     tools: {
-      ffmpeg: r.str("FFMPEG_PATH", "ffmpeg"),
-      ytdlp: r.str("YTDLP_PATH", "yt-dlp"),
-      ytdlpCookies: r.str("YTDLP_COOKIES") ? path.resolve(r.str("YTDLP_COOKIES")) : "",
-      fontFile: r.str("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
+      ffmpeg: toolPath(r.str("FFMPEG_PATH", "ffmpeg")),
+      ytdlp: toolPath(r.str("YTDLP_PATH", "yt-dlp")),
+      ytdlpCookies: r.str("YTDLP_COOKIES") ? path.resolve(expandHome(r.str("YTDLP_COOKIES"))) : "",
+      fontFile: toolPath(r.str("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
     },
     ai: {
       // Claude via the official Anthropic SDK. AI commands are disabled when no key is set.
@@ -197,4 +215,4 @@ function deepFreeze(obj) {
   return Object.freeze(obj);
 }
 
-module.exports = { buildConfig, loadEnvFile, ConfigError };
+module.exports = { buildConfig, loadEnvFile, ConfigError, expandHome, toolPath };

@@ -1,8 +1,6 @@
 "use strict";
 
-const fs = require("node:fs");
 const path = require("node:path");
-const { spawn } = require("node:child_process");
 const pino = require("pino");
 const { buildConfig, loadEnvFile, ConfigError } = require("./config");
 const { createLogger } = require("./logger");
@@ -17,28 +15,23 @@ const { createDispatcher } = require("./core/dispatcher");
 const { createConnection } = require("./core/connection");
 const { startHealthServer } = require("./core/health");
 const { createAi } = require("./services/ai");
-const ytdlp = require("./services/ytdlp");
+const { probeTools } = require("./services/tools");
 const { sudoList } = require("./services/settings");
 
 const COMMANDS_DIR = path.join(__dirname, "commands");
 const LISTENERS_DIR = path.join(__dirname, "listeners");
 
-function binaryWorks(bin, args) {
-  return new Promise((resolve) => {
-    const p = spawn(bin, args, { stdio: "ignore", windowsHide: true });
-    p.on("error", () => resolve(false));
-    p.on("close", (code) => resolve(code === 0));
-  });
-}
-
-/** Which optional features can run. Commands list what they need in `requires`. */
+/**
+ * Which optional features can run. Commands list what they need in `requires`.
+ * Also returns a per-tool report (path, version or the exact problem) for logs and .doctor.
+ */
 async function detectCapabilities(config, ai) {
-  const [ffmpeg, yt] = await Promise.all([binaryWorks(config.tools.ffmpeg, ["-version"]), ytdlp.isAvailable(config.tools.ytdlp)]);
-  return {
-    ffmpeg,
-    ytdlp: yt && ffmpeg,
+  const tools = await probeTools(config);
+  const capabilities = {
+    ffmpeg: tools.ffmpeg.ok,
+    ytdlp: tools.ytdlp.ok,
     ai: Boolean(ai),
-    font: fs.existsSync(config.tools.fontFile),
+    font: tools.font.ok,
     newsApi: Boolean(config.keys.newsApi),
     openWeather: Boolean(config.keys.openWeather),
     tenor: Boolean(config.keys.tenor),
@@ -47,6 +40,8 @@ async function detectCapabilities(config, ai) {
     remini: Boolean(config.keys.remini),
     githubRepo: Boolean(config.githubRepo),
   };
+  Object.defineProperty(capabilities, "tools", { value: tools, enumerable: false });
+  return capabilities;
 }
 
 /** Builds the shared application object without connecting to WhatsApp. */
@@ -96,6 +91,10 @@ async function start() {
     { commands: app.commands.list.length, disabled: app.commands.disabled.map((d) => d.name), capabilities: app.capabilities },
     `${config.bot.name} starting`,
   );
+  for (const [name, t] of Object.entries(app.capabilities.tools || {})) {
+    if (t.ok) log.info({ tool: name, path: t.path, version: t.version }, "tool found");
+    else log.warn({ tool: name }, `${name} unavailable: ${t.problem}`);
+  }
 
   const baileysLogger = pino({ level: config.log.baileysLevel });
   const dispatcher = createDispatcher(app);

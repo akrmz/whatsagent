@@ -10,7 +10,7 @@ function youtube(kind) {
     const url = ytdlp.matchSiteUrl(ctx.text, "youtube");
     const query = ctx.commandName === "spotify" ? `${ctx.text} official audio` : ctx.text;
     await ctx.react("🔎");
-    const [item] = await ytdlp.download(ctx.config, { target: url || query.slice(0, 200), search: !url, kind });
+    const [item] = await ytdlp.download(ctx.config, { target: url || query.slice(0, 200), search: !url, kind, hasFfmpeg: ctx.app.capabilities.ffmpeg });
     if (kind === "audio") {
       return ctx.reply({ audio: item.buffer, mimetype: "audio/mpeg", fileName: `${safeName(item.title)}.mp3` });
     }
@@ -33,6 +33,7 @@ module.exports = [
     description: "Finds a song on YouTube (or uses your YouTube link) and sends it as audio.",
     usage: "<song name | YouTube link>",
     examples: [".play adele hello", ".song https://youtu.be/…"],
+    requires: ["ytdlp", "ffmpeg"],
     run: youtube("audio"),
   },
   {
@@ -40,6 +41,7 @@ module.exports = [
     name: "spotify",
     description: "Finds a track by name and sends it as audio (searched on YouTube; Spotify links are not downloaded).",
     usage: "<song or artist>",
+    requires: ["ytdlp", "ffmpeg"],
     run: youtube("audio"),
   },
   {

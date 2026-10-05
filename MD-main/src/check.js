@@ -55,6 +55,9 @@ async function main() {
 
   console.log(`✓ configuration valid`);
   console.log(`✓ ${app.commands.list.length} commands and ${[...app.listeners.byEvent.values()].flat().length} listeners loaded`);
+  for (const [name, t] of Object.entries(real.tools || {})) {
+    console.log(t.ok ? `✓ ${name}: ${t.path}${t.version ? ` (${t.version})` : ""}` : `✗ ${name}: ${t.problem}`);
+  }
   console.log(`  capabilities not available here: ${missing.join(", ") || "none"}`);
   console.log(`  commands that will be disabled at startup: ${disabled.join(", ") || "none"}`);
   console.log("\n----- generated .help -----\n");

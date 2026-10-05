@@ -85,9 +85,11 @@ function explain(stderr) {
  * @param {'audio'|'video'} opts.kind
  * @param {boolean} [opts.search]  search YouTube for the query instead of using a URL
  * @param {number} [opts.maxItems] allow up to N items from a post/carousel (default 1)
+ * @param {boolean} [opts.hasFfmpeg] ffmpeg available (needed for audio and for merging video+audio)
  * @returns {Promise<Array<{ buffer: Buffer, title: string, ext: string }>>}
  */
-async function download(config, { target, kind, search = false, maxItems = 1 }) {
+async function download(config, { target, kind, search = false, maxItems = 1, hasFfmpeg = true }) {
+  if (kind === "audio" && !hasFfmpeg) throw new UserError("ffmpeg is not installed on the server, so audio can't be extracted.");
   const maxBytes = config.limits.downloadBytes;
   return withTempDir(config.paths.tmp, async (dir) => {
     const args = [
@@ -118,7 +120,9 @@ async function download(config, { target, kind, search = false, maxItems = 1 }) 
     if (kind === "audio") {
       args.push("-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "5");
     } else {
-      args.push("-f", "b[ext=mp4][height<=720]/bv*[height<=720]+ba/b", "--merge-output-format", "mp4");
+      // Without ffmpeg only ready-made (single-file) formats can be used.
+      if (hasFfmpeg) args.push("-f", "b[ext=mp4][height<=720]/bv*[height<=720]+ba/b", "--merge-output-format", "mp4");
+      else args.push("-f", "b[ext=mp4][height<=720]/b[height<=720]/b");
     }
     args.push("--", search ? `ytsearch1:${target}` : target);
 

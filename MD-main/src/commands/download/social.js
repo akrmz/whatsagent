@@ -7,7 +7,7 @@ function socialDownloader(site, label, maxItems = 1) {
     const url = ytdlp.matchSiteUrl(ctx.text, site);
     if (!url) return ctx.reply(`Please send a valid ${label} link.\nUsage: ${ctx.prefix}${ctx.commandName} <link>`);
     await ctx.react("🔄");
-    const items = await ytdlp.download(ctx.config, { target: url, kind: "video", maxItems });
+    const items = await ytdlp.download(ctx.config, { target: url, kind: "video", maxItems, hasFfmpeg: ctx.app.capabilities.ffmpeg });
     for (const item of items) {
       await ctx.reply({ video: item.buffer, mimetype: "video/mp4", caption: item.title ? `📝 ${item.title.slice(0, 200)}` : undefined });
     }
