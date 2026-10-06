@@ -14,7 +14,7 @@ const BASMALA = "بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّ
 function fakeQuran(url) {
   const page = Number(url.match(/\/page\/(\d+)\//)[1]);
   const surah = page === 1 ? { number: 1, name: "سُورَةُ ٱلْفَاتِحَةِ" } : { number: page, name: `سورة ${page}` };
-  const text = page === 1 ? `﻿${BASMALA}` : page === 187 ? "بَرَآءَةٌۭ مِّنَ ٱللَّهِ" : `${BASMALA} قُلْ هُوَ ٱللَّهُ أَحَدٌ`;
+  const text = page === 1 ? `${String.fromCharCode(0xfeff)}${BASMALA}` /* with a byte-order mark, as the API sends it */ : page === 187 ? "بَرَآءَةٌۭ مِّنَ ٱللَّهِ" : `${BASMALA} قُلْ هُوَ ٱللَّهُ أَحَدٌ`;
   return Promise.resolve({ data: { ayahs: [{ text, numberInSurah: 1, juz: Math.ceil(page / 20), surah }] } });
 }
 
