@@ -34,7 +34,8 @@ function hasSession(dir) {
  *  - with no session it waits and checks SESSION_DIR every 10 s, so a session saved by the
  *    pairing service is picked up without restarting
  */
-function createConnection(app, dispatcher, baileysLogger) {
+/** onOpen(sock): optional, called (not awaited) each time the connection opens. */
+function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
   const { config, log } = app;
   let sock = null;
   let stopped = false;
@@ -179,6 +180,7 @@ function createConnection(app, dispatcher, baileysLogger) {
         setState("open");
         app.identity.link(current.user?.id, current.user?.lid);
         log.info({ as: maskJid(current.user?.id) }, "connected to WhatsApp");
+        if (onOpen) Promise.resolve().then(() => onOpen(current)).catch((err) => log.warn({ err: err.message }, "after-connect task failed"));
         return;
       }
 

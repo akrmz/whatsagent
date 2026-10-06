@@ -13,6 +13,7 @@ const { LRU } = require("./core/lru");
 const { loadCommands, loadListeners, LoaderError } = require("./core/loader");
 const { createDispatcher } = require("./core/dispatcher");
 const { createConnection } = require("./core/connection");
+const { syncIdentities } = require("./services/identity-sync");
 const { startHealthServer } = require("./core/health");
 const { createAi, createMedia, mediaProviders } = require("./services/ai");
 const { probeTools } = require("./services/tools");
@@ -165,7 +166,8 @@ async function start() {
 
   const baileysLogger = pino({ level: config.log.baileysLevel });
   const dispatcher = createDispatcher(app);
-  const connection = createConnection(app, dispatcher, baileysLogger);
+  // On each connect, learn the owner/sudo LIDs so they are recognized in LID-only messages.
+  const connection = createConnection(app, dispatcher, baileysLogger, { onOpen: (sock) => syncIdentities(app, sock) });
   const health = startHealthServer(app);
   const stopReminders = startReminderLoop(app);
   const stopAutoUpdate = startAutoUpdate(app);
