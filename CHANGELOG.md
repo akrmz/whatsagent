@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.15.0 — 2026-10-06
+
+### Added
+- **`.khatma`: a shared group khatma** (ختمة جماعية). Members take one of the 30 juz' (`.khatma take` / `.khatma take 5`), mark it read (`.khatma done`) or give it back (`.khatma drop 5`). `.khatma` shows the board with a progress bar and mentions. Completion is announced and the next khatma is numbered. Each juz' start (surah and verse) and page range come from `assets/quran-juz-ar.json`, built from alquran.cloud's `/meta`. Arabic digits are accepted (`.khatma take ٥`).
+- **`.autojumuah`: a Friday reminder** every week at a chosen time (default 09:00): the verse 62:9, the sunnahs of the day, and the salawat texts from Hisn al-Muslim. The verse is bundled exactly as returned by alquran.cloud (quran-uthmani). `.autojumuah now` previews it.
+- `.autos` lists both. `.autos off` also stops the Friday reminder. The khatma is removed only when the bot leaves the group.
+
+### Changed
+- `.khatma` was an alias of `.autowird`; it is now the group khatma. `.autowird` / `.dailywird` are unchanged.
+
+### Checked
+- 4 tests (162 in total).
+
 ## 2.14.0 — 2026-10-06
 
 ### Added
