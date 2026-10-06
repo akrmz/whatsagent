@@ -103,6 +103,8 @@ test(".autotafsir every 3 posts the first verse immediately and the next one 3 h
   quran.randomAyahTafsir = async () => "📖 FIRST VERSE";
   try {
     const t = realBot();
+    // Quiet hours are tested above; off here so the result doesn't depend on the time of day.
+    await t.send({ text: ".autotafsir quiet off", chat: GROUP, sender: USER });
     const before = Date.now();
     await t.send({ text: ".autotafsir every 3", chat: GROUP, sender: USER });
     const texts = t.sock.sent.map((s) => s.content.text);

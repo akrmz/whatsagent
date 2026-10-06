@@ -9,6 +9,7 @@ const { LRU } = require("../core/lru");
 const { heavy } = require("../core/jobs");
 const { HOSTS, AUDIO_SITES, hostIn } = require("./sites");
 const cookies = require("./cookies");
+const sharelinks = require("./sharelinks");
 
 /**
  * Downloads media with yt-dlp (https://github.com/yt-dlp/yt-dlp), run without a shell.
@@ -108,6 +109,8 @@ function explain(stderr) {
 async function download(config, { target, kind, search = false, maxItems = 1, hasFfmpeg = true }) {
   if (kind === "audio" && !hasFfmpeg) throw new UserError("ffmpeg is not installed on the server, so audio can't be extracted.");
   const maxBytes = config.limits.downloadBytes;
+  // Facebook "Share" links (facebook.com/share/r/…) → the real post, which yt-dlp can open.
+  if (!search) target = await sharelinks.resolve(target);
   return withTempDir(config.paths.tmp, async (dir) => {
     const args = [
       "--ignore-config",
