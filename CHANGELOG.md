@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.14.0 — 2026-10-06
+
+### Added
+- **`.recap`** (also `.catchup`, `.missed`): "what did I miss?" in a group. The AI summarizes the last 100 messages (10–200): topics, decisions, open questions. Recent group text is kept in memory only (200 messages per group, 500 characters each, at most 300 groups; never on disk; commands are skipped) and only when an AI key is set.
+
+### Fixed
+- **Automatic posts kept trying in groups the bot had left.** When the bot leaves (`.leave`, `.leavegroup`) or is removed from a group, its adhkar, prayer alerts, tafsir/dua/hadith posts, wird, announcements, group schedule, captcha (and its pending questions) and recap memory there are now stopped. `.leavegroup` says what it stopped.
+- **Failed repeating posts retried every 10 minutes forever.** They now back off (10, 20, 40 … minutes, up to every 6 hours). Posts whose content source is down keep retrying; posts that can't be *sent* to the chat 12 times in a row are stopped.
+
+### Changed
+- `.autos off` and the leave clean-up share one code path (`services/automations.js`).
+
+### Checked
+- 4 tests (158 in total).
+
 ## 2.13.0 — 2026-10-06
 
 ### Fixed (found by checking the code against Baileys 6.7.24's real event format)

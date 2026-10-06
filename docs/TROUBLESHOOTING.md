@@ -125,6 +125,8 @@ They need a **Gemini** or **OpenAI** key (Claude can't draw pictures or listen t
 - Before 2.10.1, a server running on UTC (most VPSs) with no `TIMEZONE` made the bot use UTC: adhkar came 2–3 hours off for Egypt/Saudi Arabia, and the repeating posts were held as "night" (quiet hours 23:00–07:00 UTC) until 10:00 Egypt time. Now the owner's country is used in that case.
 - `.autoazkar on` doesn't send anything right away; it sends at the next morning or evening time shown in the reply. Use `.azkar` for the adhkar now. `.autotafsir every N` and `.autoazkar dua every N` send the first one immediately.
 - Repeating posts wait during quiet hours (default 23:00–07:00). Change them with `.autotafsir quiet 00:00-06:00`, or turn them off with `.autotafsir quiet off`.
+- If the verse or hadith service is down, the post is retried after 10 minutes, then less often (up to every 6 hours), until it works again. If *sending* to the chat fails 12 times in a row (about 2 days), that post is stopped; the log says `auto post stopped`. Set it again with `.autotafsir every N`.
+- When the bot leaves or is removed from a group, all its automatic posts there are stopped. Adding the bot back doesn't restart them; set them again.
 
 ### `.gcschedule` didn't close or open the group
 The bot must be a group admin at that moment. Times use `TIMEZONE` (`.vars TIMEZONE`). If the bot was offline at the time, it applies the change when it comes back, up to 3 hours late, once per day. A time that had already passed when you set it starts the next day.
