@@ -13,7 +13,7 @@ How to use the bot from WhatsApp, and every configuration option.
 | `ffmpeg` | Install ffmpeg (included in the Docker image) |
 | `ytdlp` | Install yt-dlp (included in the Docker image) |
 | `font` | Install a bold TTF font, e.g. `fonts-dejavu-core` (included in the Docker image), or set `FONT_FILE` |
-| `ai` | Set `ANTHROPIC_API_KEY` |
+| `ai` | An API key for Claude, Gemini or an OpenAI-compatible service: send `.setai gemini <key>` in a private chat (see [Setting up the AI](#setting-up-the-ai)) |
 | `newsApi` / `tenor` / `telegramBot` / `removeBg` / `remini` / `githubRepo` | Set `NEWSAPI_KEY` / `TENOR_KEY` / `TELEGRAM_BOT_TOKEN` / `REMOVEBG_API_KEY` / `REMINI_API_KEY` / `GITHUB_REPO` |
 
 The 🛠️ Tools and 📚 Info & search commands (`.calc`, `.qr`, `.remind`, `.poll`, `.weather`, `.wiki`, `.prayer` …) need no API keys.
@@ -48,10 +48,59 @@ In a group where the bot is an admin, group admins can enable:
 | `.antilink on` | Deletes messages that contain links | `delete` (default), `kick`, `warn` |
 | `.antibadword on` | Deletes messages that contain bad words | `delete`, `kick`, `warn` |
 | `.antitag on` | Deletes messages that mention more than half the group | `delete`, `kick` |
+| `.antispam on` | Deletes messages from a member who sends more than 6 messages in 10 seconds (change with `.antispam set 8 15`) | `delete` (default), `warn`, `kick` (`.antispam action warn`) |
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
 
 Welcome and goodbye messages: `.welcome on`, then optionally `.welcome set Hi {user}, welcome to {group}! Please read: {description}`. Goodbye works the same with `{user}` and `{group}`.
+
+## Changing settings from WhatsApp
+
+The owner can change most settings from a chat with the bot, without editing `.env` or restarting:
+
+| Command | What it does |
+|---|---|
+| `.vars` | Lists every setting you can change, its current value (keys are hidden as •••••) and whether it was set from chat (✏️). `.vars ai`, `.vars keys`, `.vars limits` show one group; `.vars GEMINI_MODEL` explains one setting. |
+| `.setvar NAME value` | Changes a setting. It is checked first (an invalid value is not saved), applied at once, and kept across restarts. Commands that become available or disabled are listed. |
+| `.delvar NAME` | Removes the chat value, so the one in `.env` (or the default) is used again. |
+| `.restart` | Restarts the bot (only `MARK_ONLINE` and `LOG_LEVEL` need it). Works under PM2 or Docker. |
+
+Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_SECONDS 900`, `.setvar TIMEZONE Africa/Cairo`, `.setvar YTDLP_PATH ~/.local/bin/yt-dlp` (the program is started once to check it before saving), `.setvar NEWSAPI_KEY <key>`.
+
+- Values are saved in `DATA_DIR/env-overrides.json` (readable only by the bot's user) and override `.env`. Back it up with the rest of `data/`.
+- **Keys and tokens only in a private chat with the bot.** In a group they are refused. If you send them from the bot's own WhatsApp account, the bot deletes the message for you; otherwise delete it yourself after the bot confirms.
+- Some settings can only be changed in `.env` on the server, on purpose: `OWNER_NUMBERS`, `OWNER_LIDS`, `PAIRING_NUMBER`, the folders, `UPDATE_REMOTE`/`UPDATE_BRANCH` and the health server. Changing them from a chat could lock you out, or let someone who takes over your WhatsApp point `.update` at their own code.
+
+## Setting up the AI
+
+`.ai`, `.summarize` and the group chatbot can use **Claude** (Anthropic), **Gemini** (Google) or any **OpenAI-compatible** service (OpenAI, Groq, OpenRouter, DeepSeek, Mistral …). In a private chat with the bot:
+
+| Command | What it does |
+|---|---|
+| `.setai` | Shows which AI and model are in use and which keys are set. |
+| `.setai gemini <key>` | Saves a Gemini key and switches to Gemini. The key is tested with a free request first; a wrong key is not saved. Same for `claude` and `openai`. Get a key: Gemini at aistudio.google.com/apikey (free tier), Claude at console.anthropic.com, OpenAI at platform.openai.com/api-keys. |
+| `.setai openai <key> https://api.groq.com/openai/v1` | Uses an OpenAI-compatible service (the URL must be https). |
+| `.setai claude` | Switches between providers whose keys are already saved. `.setai auto` uses the first one that has a key (Claude, then Gemini, then OpenAI). |
+| `.aimodel` | Lists the models your key can use (numbered). `.aimodel flash` filters the list; `.aimodel 3` or `.aimodel gemini-3.5-flash-lite` switches. Each provider remembers its own model. |
+
+Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other OpenAI-compatible services, pick a model with `.aimodel`. `AI_MAX_TOKENS` (`.setvar AI_MAX_TOKENS 2048`) limits answer length; `AI_EFFORT` applies to Claude only.
+
+## Cookies for downloads (YouTube, Instagram …)
+
+Some videos only download when logged in: age-restricted or members-only YouTube videos, YouTube's "Sign in to confirm you're not a bot", private Instagram, Facebook or X posts. Give the bot your login cookies for that site:
+
+1. On a computer, install the browser extension **Get cookies.txt LOCALLY** (or **Cookie-Editor**). Use a spare account if you can: sites may block accounts used for automated downloads.
+2. Log in to the site. For **YouTube**, open a private/incognito window, log in, open youtube.com, export, then close the window. Cookies from a normal window get replaced by YouTube within hours.
+3. Export the cookies as **cookies.txt** (Netscape format), or as JSON / "Header String" in Cookie-Editor.
+4. In a **private chat** with the bot, send the file with the caption `.setcookie youtube` (or reply to the file with it). You can also paste the text: `.setcookie instagram sessionid=…; csrftoken=…`.
+
+| Command | What it does |
+|---|---|
+| `.setcookie <site>` | Saves cookies for one site: `youtube`, `instagram`, `facebook`, `tiktok`, `twitter` (x), `reddit`, `soundcloud`, `pinterest`, `vimeo`, `dailymotion`, `twitch`, `threads`, `snapchat`. Only cookies for that site's own domains are kept (a full browser export does not store your bank or email cookies). Tells you whether a logged-in session was found and when it expires. |
+| `.cookies` | Lists the sites with cookies, whether they contain a login, and the expiry date. Values are never shown. |
+| `.delcookie <site>` / `.delcookie all` | Deletes them. |
+
+Cookies are stored in `DATA_DIR/cookies/<site>.txt` (mode 600). yt-dlp uses a site's own file for links from that site, and `YTDLP_COOKIES` (from `.env`) for all other sites. yt-dlp refreshes the file as it uses it, which keeps the login alive. **Cookies are as good as your password**: anyone with them is logged in as you. Remove them with `.delcookie` when you no longer need them.
 
 ## All commands
 
@@ -85,15 +134,25 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.afk` | `.away` | Marks you as away. When someone mentions or replies to you, the bot tells them; your next message clears it. | everyone | `.afk sleeping` |
+| `.age` | `.birthday` `.datediff` | Calculates an age (or time since a date) and the days to the next birthday. | everyone | `.age 2000-05-14` |
+| `.base64` | `.b64` | Encodes text to Base64 or decodes it back. | everyone | `.base64 encode hello` |
 | `.calc` | `.calculate` `.math` | Calculates a maths expression: + - * / % ^ !, brackets, sqrt, sin/cos/tan (degrees), log, ln, abs, round, min, max, pi, e. | everyone | `.calc (12+8)*3/4` |
 | `.currency` | `.convert` `.cur` `.exchange` | Converts money between currencies with today's exchange rate. | everyone | `.currency 100 usd egp` |
+| `.delnote` | `.rmnote` `.clearnote` | Deletes a saved note. In groups, only admins can. | everyone | `.delnote` |
 | `.getpp` | `.pp` `.avatar` `.pfp` | Sends the profile picture of the person you mention or reply to (or yours). Add "group" for the group photo. | everyone | `.getpp @someone` |
+| `.hash` | – | Shows the MD5, SHA-1, SHA-256 and SHA-512 hashes of a text (or the replied message). | everyone | `.hash hello` |
+| `.note` | `.getnote` | Shows a saved note (same as sending #name). | everyone | `.note rules` |
+| `.notes` | `.listnotes` | Lists the notes saved in this chat. | everyone | `.notes` |
+| `.password` | `.pass` `.genpass` | Generates a strong random password (cryptographically secure). Best used in a private chat. | everyone | `.password` |
 | `.poll` | `.vote` | Creates a native WhatsApp poll. Separate the question and 2–12 options with \|. Add "multi" first to allow several answers. | everyone | `.poll Pizza or burgers? \| Pizza \| Burgers` |
 | `.qr` | `.qrcode` `.toqr` | Makes a QR code image from text or a link. You can also reply to a message to encode it. | everyone | `.qr https://example.com` |
 | `.readqr` | `.scanqr` `.qrread` | Reads the QR code in an image or sticker you send or reply to. | everyone | `.readqr` _(reply to an image)_ |
 | `.remind` | `.reminder` `.remindme` | Reminds you in this chat after a delay (s, m, h, d, w; up to 60 days). Survives bot restarts. | everyone | `.remind 10m check the oven` |
+| `.save` | `.savenote` `.addnote` | Saves a note in this chat (rules, links, FAQ …). Anyone can then send #name to see it. In groups, only admins can save. | everyone | `.save rules Be kind. No spam.` |
+| `.short` | `.shorturl` `.tinyurl` `.shorten` | Shortens a long link with TinyURL. | everyone | `.short https://example.com/a/very/long/link` |
 | `.toaudio` | `.tomp3` `.mp3convert` | Extracts the sound of a video (or converts a voice note/audio file) to an MP3 you can play or save. _Needs: ffmpeg._ | everyone | `.toaudio` _(reply to a video or audio)_ |
 | `.tovn` | `.toptt` `.tovoice` | Turns a video, song or audio file into a WhatsApp voice note. _Needs: ffmpeg._ | everyone | `.tovn` _(reply to a video or audio)_ |
+| `.unit` | `.units` `.conv` | Converts units: length, weight, volume, area (incl. feddan), speed, temperature, data, time, energy. | everyone | `.unit 10 km to mi` |
 
 ### Info & search
 
@@ -112,6 +171,7 @@ This list is generated from the command files themselves.
 |---|---|---|---|---|
 | `.antibadword` | – | Deletes messages from non-admins that contain bad words. Action: delete, kick or warn. The bot must be a group admin. | group admins (groups) | `.antibadword on` |
 | `.antilink` | – | Deletes links posted by non-admins. Action: delete, kick or warn. The bot must be a group admin. | group admins (groups) | `.antilink on` |
+| `.antispam` | `.antiflood` | Stops flooding: when a member sends more than N messages in S seconds, the extra messages are deleted and the member is warned or removed. Admins are never affected. The bot must be a group admin. | group admins (groups) | `.antispam on` |
 | `.antitag` | – | Deletes messages from non-admins that mention most of the group. Action: delete or kick. The bot must be a group admin. | group admins (groups) | `.antitag on` |
 | `.ban` | – | Stops a user from using the bot anywhere. Owners can never be banned. | owner, sudo | `.ban @someone` |
 | `.chatbot` | – | Turns the AI chatbot on or off in this group. When on, it answers messages that mention or reply to the bot. _Needs: ai._ | group admins (groups) | `.chatbot on` |
@@ -151,16 +211,23 @@ This list is generated from the command files themselves.
 | `.autotyping` | – | Shows a 'typing…' indicator when the bot receives messages. | owner | `.autotyping on` |
 | `.clearsession` | `.clearsesi` | Deletes cached encryption key files from the session folder (keeps creds.json). Only for fixing persistent 'waiting for this message' errors; restart the bot afterwards. | owner | `.clearsession confirm` |
 | `.cleartmp` | – | Deletes leftover temporary files. | owner, sudo | `.cleartmp` |
+| `.cookies` | `.listcookies` `.cookie` | Shows which sites have saved cookies, whether they contain a login, and when it expires (values are never shown). | owner | `.cookies` |
+| `.delcookie` | `.delcookies` `.rmcookie` | Deletes the saved cookies of a site (or all). | owner | `.delcookie youtube` |
+| `.delvar` | `.unset` `.resetvar` | Removes a setting made with .setvar, so the value from .env (or the default) is used again. | owner | `.delvar PREFIX` |
 | `.doctor` | `.diag` `.diagnose` `.status` | Health report: connection, memory, tools (yt-dlp, ffmpeg …) checked live, and which commands are disabled and why. | owner | `.doctor` |
 | `.leave` | `.leavegc` `.exit` | Makes the bot leave this group. | owner (groups) | `.leave` |
 | `.mention` | – | Turns the automatic reply on or off for messages that mention the bot in groups. | owner | `.mention on` |
 | `.mode` | – | Public: everyone can use commands. Private: only owner and sudo (group moderation keeps working). | owner | `.mode private` |
 | `.pmblocker` | – | Blocks anyone who is not owner/sudo and messages the bot privately (they get a notice first). | owner | `.pmblocker on` |
+| `.restart` | `.reboot` | Restarts the bot (needed for a few settings). Works when the bot runs under PM2 or Docker, which start it again. | owner | `.restart` |
+| `.setcookie` | `.setcookies` `.addcookie` | Saves login cookies for one site so downloads that need a login work (age-restricted/members YouTube, private Instagram …). Sites: youtube, tiktok, facebook, instagram, twitter, reddit, soundcloud, pinterest, vimeo, dailymotion, twitch, threads, snapchat. | owner (private chat) | `.setcookie youtube (caption of a cookies.txt file)` |
 | `.setmention` | – | Sets what the bot replies when mentioned: reply to a text, sticker, image, video or audio (max 1 MB). | owner | `.setmention` _(reply to a message)_ |
 | `.setpp` | – | Sets the bot's profile picture from the image you reply to. | owner | `.setpp` _(reply to an image)_ |
 | `.settings` | – | Shows the bot's global settings and, in a group, that group's protection settings. | owner, sudo | `.settings` |
+| `.setvar` | `.set` `.setenv` | Changes a setting from WhatsApp — AI keys and models, bot name, prefix, API keys, limits, tool paths. Applied immediately, saved across restarts, overrides .env. Secrets only in private chat. | owner | `.setvar BOT_NAME Akram Bot` |
 | `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. | owner | `.sudo add @friend` |
 | `.update` | – | Checks GitHub for a newer version of the bot and of yt-dlp (nightly). '.update now' installs them: the bot is fast-forwarded from your repository, validated, rolled back if the check fails, and restarted. | owner | `.update` |
+| `.vars` | `.getvar` `.env` `.config` | Lists the settings you can change from chat with their current values (keys are hidden) and where each comes from. | owner | `.vars` |
 | `.vv` | – | Reveals the view-once photo or video you reply to (owner only, to protect other people's privacy). | owner | `.vv` _(reply to a view-once message)_ |
 
 ### Stickers
@@ -226,7 +293,10 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
-| `.ai` | `.gpt` `.gemini` `.ask` `.claude` | Asks the AI a question (Claude). Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the image. _Needs: ai._ | everyone | `.ai write a haiku about Cairo` |
+| `.ai` | `.gpt` `.gemini` `.ask` `.claude` | Asks the AI a question (Claude, Gemini or an OpenAI-compatible model — the owner picks it with .setai). Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the image. _Needs: ai._ | everyone | `.ai write a haiku about Cairo` |
+| `.aimodel` | `.models` `.setmodel` | Lists the models your AI key can use and switches to one (by name or number). Add a word to filter the list. _Needs: ai._ | owner | `.aimodel` |
+| `.setai` | `.aiset` `.aiprovider` | Chooses the AI (Claude, Gemini or any OpenAI-compatible service) and sets its API key. The key is tested before it is saved. Without arguments, shows the current AI. | owner | `.setai gemini AIza…` |
+| `.summarize` | `.summary` `.tldr` `.sum` | Summarizes a long message (reply to it), a web page link, or a YouTube video (from its captions). Add a question to ask about it instead. _Needs: ai._ | everyone | `.summarize https://en.wikipedia.org/wiki/Nile` |
 
 ### Fun
 
@@ -237,6 +307,7 @@ This list is generated from the command files themselves.
 | `.china` | – | Same as .pies china. | everyone | `.china` |
 | `.compliment` | – | Compliments someone. | everyone | `.compliment @201012345678` |
 | `.dare` | – | Gives a random dare. | everyone | `.dare` |
+| `.flip` | `.coin` `.coinflip` | Flips a coin. | everyone | `.flip` |
 | `.flirt` | – | Sends a random flirty line. | everyone | `.flirt` |
 | `.goodnight` | `.lovenight` `.gn` | Sends a good-night message. | everyone | `.goodnight` |
 | `.india` | – | Same as .pies india. | everyone | `.india` |
@@ -246,7 +317,10 @@ This list is generated from the command files themselves.
 | `.korea` | – | Same as .pies korea. | everyone | `.korea` |
 | `.malaysia` | – | Same as .pies malaysia. | everyone | `.malaysia` |
 | `.meme` | – | Sends a random Cheems meme. | everyone | `.meme` |
+| `.pick` | `.choose` `.choice` | Picks one option at random. Separate options with commas or \|. | everyone | `.pick pizza, koshary, shawarma` |
 | `.pies` | – | Sends a random picture for a country: india, malaysia, thailand, china, indonesia, japan, korea, vietnam. | everyone | `.pies japan` |
+| `.random` | `.rand` `.rng` | Random whole number between two numbers (1-100 by default). | everyone | `.random` |
+| `.roll` | `.dice` | Rolls dice: 1 six-sided die by default, or NdM (up to 20 dice with up to 1000 sides). | everyone | `.roll` |
 | `.roseday` | – | Sends a Rose Day quote. | everyone | `.roseday` |
 | `.shayari` | `.shayri` | Sends a random shayari (poem). | everyone | `.shayari` |
 | `.ship` | – | Pairs two random group members. | everyone (groups) | `.ship` |
@@ -312,7 +386,9 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 
 | Feature | Turned on with | Behaviour |
 |---|---|---|
-| Group chatbot | `.chatbot on` (group admins; needs `ANTHROPIC_API_KEY`) | Replies when someone mentions the bot or replies to one of its messages. Only that message is sent to Claude. |
+| Group chatbot | `.chatbot on` (group admins; needs an AI key, see `.setai`) | Replies when someone mentions the bot or replies to one of its messages. Only that message is sent to the AI. |
+| Notes | `.save <name> <text>` (group admins in groups) | Anyone sending `#name` gets the note back. `.notes` lists them. Max 100 per chat |
+| Anti-spam | `.antispam on` (group admins) | See [Group protection settings](#group-protection-settings) |
 | Mention reply | `.mention on`, `.setmention` (owner) | Replies with your chosen text/sticker/media when the bot is mentioned in a group |
 | Antidelete | `.antidelete on` (owner) | Sends you a copy of messages others delete, and view-once media, in the bot's own chat |
 | Auto-read / auto-typing / auto-status | `.autoread on`, `.autotyping on`, `.autostatus on` (owner) | As named |
@@ -324,7 +400,7 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 
 ## Configuration options
 
-All settings live in `MD-main/.env`. `MD-main/.env.example` lists every option with an explanation; copy it and edit:
+All settings live in `MD-main/.env`; most can also be changed from WhatsApp (see [Changing settings from WhatsApp](#changing-settings-from-whatsapp)), which overrides `.env`. `MD-main/.env.example` lists every option with an explanation; copy it and edit:
 
 ```bash
 cp MD-main/.env.example MD-main/.env
@@ -358,11 +434,13 @@ cp MD-main/.env.example MD-main/.env
 | `FFMPEG_PATH` / `YTDLP_PATH` | `ffmpeg` / `yt-dlp` | Tool locations: a program name found in `PATH`, or a full path. `~` means your home folder (`~/.local/bin/yt-dlp`). Use the standalone yt-dlp nightly binary so `.update now` can update it |
 | `TIMEZONE` | the server's time zone | IANA name such as `Africa/Cairo`; used by `.time` and `.remind` |
 | `UPDATE_REMOTE` / `UPDATE_BRANCH` | `origin` / `main` | Where `.update` gets new versions of the bot |
-| `YTDLP_COOKIES` | empty | cookies.txt for login-only content |
+| `YTDLP_COOKIES` | empty | cookies.txt for login-only content on every site (per-site cookies from `.setcookie` take precedence) |
 | `FONT_FILE` | DejaVu Sans Bold | Font for `.attp` |
-| `ANTHROPIC_API_KEY` | empty | Enables `.ai` and the chatbot |
-| `AI_MODEL` | `claude-opus-5-5` | Claude model |
-| `AI_EFFORT` | `low` | `low`…`max` |
+| `AI_PROVIDER` | `auto` | `auto`, `claude`, `gemini` or `openai` |
+| `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `OPENAI_API_KEY` | empty | AI keys (`.setai` sets and tests them) |
+| `CLAUDE_MODEL` (old name `AI_MODEL`) / `GEMINI_MODEL` / `OPENAI_MODEL` | `claude-opus-5-5` / `gemini-3.8-flash` / `gpt-6-luna` | Model per provider (`.aimodel`) |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Any OpenAI-compatible https endpoint |
+| `AI_EFFORT` | `low` | Claude only: `low`…`max` |
 | `AI_MAX_TOKENS` | `1024` | Maximum answer length |
 | `CHATBOT_PERSONA` | friendly, concise | Chatbot instructions |
 | `NEWSAPI_KEY`, `TENOR_KEY`, `TELEGRAM_BOT_TOKEN`, `REMOVEBG_API_KEY`, `REMINI_API_KEY`, `GITHUB_REPO` | empty | Enable the matching commands |
@@ -372,5 +450,5 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 ## Privacy notes for group members
 
-- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to Anthropic. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
+- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.short` sends the link to TinyURL. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

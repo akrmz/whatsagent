@@ -100,13 +100,33 @@ The bot checks every tool once at startup and hides commands whose tool it can't
 - `yt-dlp is not installed`: install it ([DEPLOYMENT.md §5.1](DEPLOYMENT.md#51-install-nodejs-22-ffmpeg-fonts-git-and-yt-dlp)).
 - `Download failed …`: sites change often. Send `.update now` (it updates yt-dlp to the latest nightly), or on the server run `yt-dlp --update-to nightly`, then try again.
 - `larger than the allowed limit` / `longer than the allowed duration`: raise `MAX_DOWNLOAD_MB` / `MAX_VIDEO_SECONDS`. WhatsApp itself limits media to about 100 MB.
-- Instagram `private or needs a login`: provide a cookies file exported from a logged-in browser (`YTDLP_COOKIES`). Treat that file like a password. Instagram photo posts (not videos) cannot be downloaded.
+- `private or needs a login`, YouTube "Sign in to confirm you're not a bot" or age-restricted videos: give the bot login cookies for that site with `.setcookie <site>` in a private chat ([USAGE.md → Cookies](USAGE.md#cookies-for-downloads-youtube-instagram-)). Instagram photo posts (not videos) cannot be downloaded.
 
 ### `The external service used by this command is not responding`
 Some fun and image commands use free third-party APIs that the bot does not control (listed in `.help <command>`). They can be down or change without notice. Try later. Nothing is wrong with your bot.
 
-### AI: `The AI service is not configured correctly`
-`ANTHROPIC_API_KEY` is wrong or has no credit. Check it at <https://console.anthropic.com/>. `The AI declined to answer that` means the request was refused for safety reasons.
+### AI: `The AI provider rejected the API key`
+The key is wrong, revoked, or the account has no credit/quota. Send `.setai` to see which provider is used, then set a new key with `.setai <claude|gemini|openai> <key>` in a private chat (it is tested before it is saved). `The AI declined to answer that` means the provider refused the request for safety reasons.
+
+### AI: `The AI model was not found`
+The model name is wrong or not available to your key (models are retired over time). Send `.aimodel` to list the ones your key can use and `.aimodel <number>` to switch.
+
+### AI: `The AI is busy or the quota is used up`
+Free tiers (e.g. Gemini) have per-minute and per-day limits. Wait, choose a cheaper model with `.aimodel`, or switch provider with `.setai`.
+
+### AI: answers are cut off, or "The answer did not fit"
+Raise the limit: `.setvar AI_MAX_TOKENS 2048`.
+
+### Cookies: `.setcookie` says "No login cookie found", or downloads still ask for a login
+- Export while logged in, on the site itself (e.g. youtube.com, not google.com).
+- YouTube replaces the cookies of an open browser session within hours. Export from a private/incognito window and close it right after.
+- Check with `.cookies`. If the login has expired, export again and send `.setcookie` again.
+- `.update now` (newer yt-dlp) often fixes YouTube problems too.
+
+### A setting changed with `.setvar` doesn't seem to apply
+- `.vars NAME` shows the value in use and where it comes from (chat, `.env` or default). A chat value always wins over `.env`; remove it with `.delvar NAME`.
+- `MARK_ONLINE` and `LOG_LEVEL` need `.restart`.
+- If the log says `settings saved from chat are invalid and were ignored`, one saved value stopped validating (e.g. after an upgrade): the bot started with `.env` only. Fix it with `.setvar`/`.delvar`, or delete `DATA_DIR/env-overrides.json`.
 
 ### `.attp` missing
 It needs ffmpeg and a bold font. Install `fonts-dejavu-core`, or set `FONT_FILE` to a TTF that exists.

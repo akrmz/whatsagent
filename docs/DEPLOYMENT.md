@@ -338,6 +338,8 @@ Every rebuild downloads the newest yt-dlp nightly. A yt-dlp update made with `.u
 
 The session folder **is your WhatsApp login**. Anyone who has a copy controls the account. Back it up, but store backups like passwords (encrypted, never in chats or cloud folders you share).
 
+The `data` folder holds your settings, and since 2.3.0 also the keys and cookies set from WhatsApp (`env-overrides.json`, `cookies/`). Protect its backups the same way.
+
 Stop the bot briefly while copying, so the files are consistent.
 
 ### PM2

@@ -2,6 +2,34 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.3.0 — 2026-10-06
+
+### Added
+- **Change settings from WhatsApp** (owner): `.vars` lists them with current values (keys hidden) and their source, `.setvar NAME value` changes one, `.delvar NAME` goes back to `.env`, and `.restart` restarts. Changes are validated first (invalid values are not saved), applied **without a restart** (config, AI client and command list are rebuilt; newly enabled/disabled commands are listed), and kept in `DATA_DIR/env-overrides.json`, which overrides `.env` and works under Docker too. Tool paths (`YTDLP_PATH`, `FFMPEG_PATH`) are test-run before saving.
+  - About 30 settings are allowed: AI, bot name/prefix/stickers/time zone, API keys, limits, tool paths, log level. Owner numbers, folders, pairing, the update source and the health server deliberately stay in `.env`.
+  - Secrets are refused in groups and never displayed. The message carrying them is deleted when WhatsApp allows it (sent from the bot's own account), and antidelete never keeps a copy.
+- **Gemini and OpenAI-compatible AI**, besides Claude: `AI_PROVIDER` (`auto`/`claude`/`gemini`/`openai`), `GEMINI_API_KEY`, `OPENAI_API_KEY`, `OPENAI_BASE_URL` (Groq, OpenRouter, DeepSeek, Mistral … any https endpoint), and per-provider models (`CLAUDE_MODEL`, `GEMINI_MODEL`, `OPENAI_MODEL`; defaults `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`). Images work with all three.
+  - `.setai <provider> <key>` tests a key with a free request before saving it.
+  - `.aimodel` lists the models your key can use and switches by number or name.
+- **Login cookies per site from WhatsApp**: `.setcookie <site>` (attach or reply to cookies.txt, a Cookie-Editor JSON export, or paste `name=value; …`), `.cookies`, `.delcookie`. These cover YouTube, Instagram, Facebook, TikTok, X, Reddit, SoundCloud, Pinterest, Vimeo, Dailymotion, Twitch, Threads and Snapchat.
+  - Only cookies for that site's own domains are kept. The files are stored with mode 600 and used by yt-dlp for that site's links.
+  - The bot reports whether a logged-in session was found and when it expires. Owner only, private chat only.
+- `.summarize` / `.tldr`: summarize (or ask a question about) a replied message, a web page, or a YouTube video via its captions.
+- Notes: `.save <name> <text>`, `#name`, `.notes`, `.delnote` (admins in groups).
+- `.antispam`: flood protection (more than N messages in S seconds → delete, warn or kick).
+- Tools:
+  - `.unit` converts length, weight, volume, area (incl. feddan/qirat), speed, temperature, data, time and energy.
+  - `.age`, `.password`, `.hash`, `.base64`.
+  - `.short` shortens links via TinyURL.
+- Fun: `.roll 2d6`, `.flip`, `.pick a, b, c`, `.random 1 100`.
+- 16 tests (settings, AI provider selection, cookies, notes, anti-spam, units …); 87 in total.
+
+### Changed
+- `.doctor` shows the AI in use, cookie sites and chat-changed settings. Its "how to enable" hints now use `.setvar` / `.setai`.
+- The dispatcher reads the configuration per message, so a new prefix or cooldown applies at once.
+- Re-checking tools after a settings change happens only when a tool path changed.
+- Log redaction also covers the new keys, auth headers and cookies.
+
 ## 2.2.0 — 2026-10-06
 
 ### Fixed

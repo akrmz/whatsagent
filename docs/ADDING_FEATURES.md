@@ -243,6 +243,21 @@ If a command must only exist when a key is configured:
 
 Without the key the command is not loaded and not shown in `.help`, and the startup log says why.
 
+### Letting the owner change it from WhatsApp (`.setvar`)
+
+Add one entry to `SETTINGS` in `src/services/vars.js`, and one line to `EFFECTIVE` there (how to read the value from the config, for `.vars`):
+
+```js
+{ key: "JOKES_API_KEY", group: "API keys", about: ".joke2 (jokes.example)", secret: true },
+// EFFECTIVE:
+JOKES_API_KEY: (c) => c.keys.jokesApi,
+```
+
+- `secret: true` hides the value everywhere and refuses it in groups. `restart: true` marks settings that only apply after `.restart`.
+- Validation is the same `buildConfig` that runs at startup, so an invalid value is rejected before it is saved.
+- The change applies immediately: `app.reconfigure()` rebuilds `app.config`, the AI client and the command list. Always read settings through `ctx.config` / `app.config` at the time you need them; never copy them into module-level variables at load time.
+- Do not add settings that control who is owner, where data is stored, or where `.update` gets code from. Those stay in `.env` on purpose.
+
 ---
 
 ## 4. Testing your change
