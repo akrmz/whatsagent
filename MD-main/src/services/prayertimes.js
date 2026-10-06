@@ -11,7 +11,7 @@ const { LRU } = require("../core/lru");
  */
 
 const PRAYERS = ["Fajr", "Dhuhr", "Asr", "Maghrib", "Isha"];
-const AR = { Fajr: "الفجر", Sunrise: "الشروق", Dhuhr: "الظهر", Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء" };
+const AR = { Imsak: "الإمساك", Fajr: "الفجر", Sunrise: "الشروق", Dhuhr: "الظهر", Asr: "العصر", Maghrib: "المغرب", Isha: "العشاء" };
 const cache = new LRU({ max: 1000, ttlMs: 26 * 60 * 60 * 1000 });
 
 const toMinutes = (hhmm) => {
@@ -46,7 +46,7 @@ async function forCity(city, now = Date.now(), lookup = { geocode, getJson }) {
     const t = res.data?.timings;
     if (!t?.Fajr) throw new Error("no prayer times returned");
     entry = {
-      times: Object.fromEntries(["Fajr", "Sunrise", ...PRAYERS.slice(1)].map((k) => [k, toMinutes(t[k])])),
+      times: Object.fromEntries(["Imsak", "Fajr", "Sunrise", ...PRAYERS.slice(1)].filter((k) => t[k]).map((k) => [k, toMinutes(t[k])])),
       method: res.data.meta?.method?.name || "",
     };
     cache.set(key, entry);

@@ -94,6 +94,8 @@ function chapterText(id) {
   return `📖 *${c.id}. ${c.title}*\n\n${c.items.map((x, i) => `${c.items.length > 1 ? `*${i + 1}.* ` : ""}${x.text}${times(x.repeat, x.text)}`).join("\n\n")}${FOOTER}`;
 }
 
+/** The items of one chapter (e.g. 68: the iftar dua). */
+const chapterItems = (id) => chapter(id)?.items || [];
 const searchChapters = (word) => data().chapters.filter((c) => c.title.includes(word));
 const chapters = () => data().chapters.map((c) => ({ id: c.id, title: c.title }));
 
@@ -231,6 +233,7 @@ module.exports = {
   duaText,
   chapterText,
   searchChapters,
+  chapterItems,
   chapters,
   getAuto,
   setAuto,
