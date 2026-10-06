@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.18.0 — 2026-10-06
+
+### Added
+- **`.qsearch`: Quran search** by word or phrase, in Arabic (diacritics removed, so typed text matches) or the English translation, with pages of 10 results (alquran.cloud search API).
+- **Surah names everywhere**: `.quran`, `.tafsir` and `.surah` accept `البقرة 255`, `سورة الكهف 10`, `baqarah 255`, `yaseen`, Arabic digits, and some well-known other names (ياسين، تبارك، عم …). English spellings that differ only in vowels are matched only when one surah fits, so the bot doesn't guess between similar names. Asking for a verse past the end of a surah (`الفاتحة 8`) says how many verses it has.
+
+### Changed
+- The list of 114 surahs is bundled (`assets/quran-surahs.json`, from alquran.cloud `/meta`; 6,236 verses). `.surah` no longer downloads the list first.
+
+### Checked
+- `.backup` includes every data file, including the new ones from 2.14–2.17, because it lists `DATA_DIR` and has no fixed list.
+- 4 tests (173 in total); every surah is found by its Arabic and English name.
+
 ## 2.17.0 — 2026-10-06
 
 ### Added
