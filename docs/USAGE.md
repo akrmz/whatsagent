@@ -58,6 +58,8 @@ Change the action with e.g. `.antilink set warn`, and check it with `.antilink g
 
 Welcome and goodbye messages: `.welcome on`, then optionally `.welcome set Hi {user}, welcome to {group}! Please read: {description}`. Goodbye works the same with `{user}`, `{group}` and `{count}` (members). `.welcome test` shows a preview. The picture card is drawn by the bot itself; nothing is sent to other services.
 
+Group rules: admins set them with `.setrules <text>` (several lines are fine, or reply to a message), and anyone can read them with `.rules` or `#rules`. Without rules, `.rules` shows the group description. Add `{rules}` to the welcome message to greet new members with them: `.welcome set Welcome {user}! Our rules: {rules}` (line breaks you type are kept). `.delrules` removes them.
+
 Scheduled announcements: `.announce every day at 08:00 Good morning`, `.announce every friday at 20:00 Meeting in 1 hour`, `.announce at 21:00 Live now!`. They are sent as plain text without mentioning anyone. `.announce list`, `.announce del <id>`. Group admins only, at most 10 per group.
 
 `.inactive 30` lists members who haven't written for 30 days (by number, without pinging them). Counting starts when the bot first sees the group.
@@ -114,6 +116,7 @@ More in the same 🕌 section of `.help`:
 | `.asma` / `.asma 1` / `.asma all` | The names of Allah (al-Asma' al-Husna). |
 | `.autowird on 2 20:00` | **Daily Quran reading (الورد اليومي)**: 2 mushaf pages (1–20) every day at 20:00, in order from page 1 to 604, then a new khatma. Shows progress, days left and completed khatmas. `.autowird` shows the position, `.autowird page 100` moves it, `.autowird off` stops. `.wird` sends the next portion now; `.wird page 50` shows any page. Each surah's basmala is on its own line as in the mushaf. |
 | `.khatma new` | **Group khatma (ختمة جماعية)**: a shared khatma of the 30 juz'. `.khatma take` takes the first free juz (or `.khatma take 5` a chosen one) and shows where it starts and its pages; `.khatma done` marks it read; `.khatma drop 5` gives it back. `.khatma` shows the board: progress, who reads which juz, and the free ones. When all 30 are read the bot announces it, and `.khatma new` starts the next one (numbered). Each member can hold up to 3 unread juz'. Anyone can take and finish a juz; starting or ending a khatma, and marking someone else's juz, follow `ISLAMIC_ADMIN_ONLY` like `.autoazkar`. `.khatma info 5` shows a juz without taking it. `.khatma remind` mentions the members whose juz' aren't read yet, with how long they have had them (at most once an hour). |
+| `.hamla new 10000 استغفار` | **Group dhikr campaign (حملة ذكر)**: a shared goal. Members add what they said by sending **+100** (or `.hamla 100`; Arabic digits work). The bot reacts 📿 instead of replying, announces 25 %, 50 % and 75 %, and announces when the goal is reached, with the top 5. Short names: استغفار (default), صلاة, تسبيح, تهليل, تكبير, حوقلة, or write any dhikr. `.hamla` shows progress, `.hamla undo` takes back your last addition, `.hamla end` stops. Up to 10,000 per message; a new campaign replaces a running one only with `confirm`. While a campaign runs, a message that is only "+number" counts (so "+1" counts as one). |
 | `.siyam` | **Sunnah fasting days** in the next 30 days (`.siyam 60` for up to 60): Mondays and Thursdays, the white days (13–15 of each Hijri month), Arafah, Tasu'a and Ashura, and the start of the six days of Shawwal, with the dates of the next Arafah and Ashura. Never on the Eids or the days of Tashreeq (11–13 Dhul-Hijjah), and nothing during Ramadan. Umm al-Qura calendar, computed offline; where months follow moon sighting, dates can differ by a day. |
 | `.autosiyam on 20:00` | Reminds this chat **the evening before** each of those days (default 20:00), saying why (e.g. "غداً الاثنين ١٣ جمادى الأولى: أول الأيام البيض، صيام يوم الاثنين"). Nothing is sent on other evenings. `.autosiyam weekly off` leaves out Mondays and Thursdays. `.autosiyam now` shows tonight's reminder; `.autosiyam off` stops it. |
 | `.autojumuah on 09:00` | **Friday reminder**: every Friday at that time (default 09:00), the verse of al-Jumu'ah (62:9), the sunnahs of the day (Surat al-Kahf, salawat on the Prophet ﷺ, ghusl and going early, dua), a hadith on salawat and the Ibrahimi salawat from Hisn al-Muslim. Sent up to 3 hours late if the bot was offline. `.autojumuah now` shows the message, `.autojumuah off` stops it. |
@@ -248,6 +251,7 @@ This list is generated from the command files themselves.
 | `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
 | `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
 | `.hadith` | `.hadeeth` `.hadis` | حديث نبوي عشوائي مع درجته ومصدره وشرح مختصر، من موسوعة الأحاديث النبوية — a random hadith with its grade, source and a short explanation (hadeethenc.com). | everyone | `.hadith` |
+| `.hamla` | `.campaign` `.dhikrgoal` `.athkargoal` | حملة ذكر جماعية بهدف مشترك (مثل ١٠٬٠٠٠ استغفار): يضيف كل عضو ما قرأ بإرسال +100 — a group dhikr campaign with a shared goal; members add their count by sending "+100" (or .hamla 100). Presets: استغفار، صلاة، تسبيح، تهليل، تكبير، حوقلة, or any text. Starting or ending one follows ISLAMIC_ADMIN_ONLY like .autoazkar. | everyone (groups) | `.hamla new 10000 استغفار` |
 | `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
 | `.hisn` | `.hisnmuslim` `.husn` | حصن المسلم: كل الأبواب (132)، أو باب برقمه أو بكلمة من عنوانه — browse all 132 chapters of Hisn al-Muslim by number or by a word. | everyone | `.hisn` |
 | `.iftar` | `.suhoor` `.sohour` `.maghrib` | كم بقي على المغرب (الإفطار) وعلى الإمساك (السحور) في مدينتك — time left until Maghrib (iftar) and Imsak (suhoor) in a city. | everyone | `.iftar Cairo` |
@@ -277,6 +281,7 @@ This list is generated from the command files themselves.
 | `.chatbot` | – | Turns the AI chatbot on or off in this group. When on, it answers messages that mention or reply to the bot. _Needs: ai._ | group admins (groups) | `.chatbot on` |
 | `.clear` | – | Sends and immediately deletes a bot message (clears the chat preview). | everyone (groups) | `.clear` |
 | `.delete` | `.del` | Deletes recent messages: the replied message, the last N from a user, or the last N in the group (max 50, only messages the bot saw since it started). The bot must be a group admin. | group admins (groups) | `.del (reply)` |
+| `.delrules` | `.clearrules` | Removes this group's rules. | group admins (groups) | `.delrules` |
 | `.demote` | – | Removes admin rights from members. The bot must be a group admin. | group admins (groups) | `.demote @201012345678` |
 | `.disable` | `.cmdoff` | Turns commands off in this group (for everyone except the bot owner and sudo). .help and .enable can't be turned off. | group admins (groups) | `.disable sticker song` |
 | `.disabled` | `.offcommands` | Lists the commands turned off in this group. | everyone (groups) | `.disabled` |
@@ -295,9 +300,13 @@ This list is generated from the command files themselves.
 | `.mute` | – | Only admins can send messages. Optionally unmute automatically after N minutes. The bot must be a group admin. | group admins (groups) | `.mute` |
 | `.promote` | – | Makes members group admins. The bot must be a group admin. | group admins (groups) | `.promote @201012345678` |
 | `.resetlink` | `.revoke` `.anularlink` | Revokes the group invite link and shows the new one. The bot must be a group admin. | group admins (groups) | `.resetlink` |
+| `.rules` | `.grouprules` `.qawanin` | Shows this group's rules (set by admins with .setrules; also #rules). Without rules set, shows the group description. | everyone (groups) | `.rules` |
 | `.setgdesc` | – | Changes the group description. The bot must be a group admin. | group admins (groups) | `.setgdesc Welcome to our study group` |
 | `.setgname` | – | Changes the group name. The bot must be a group admin. | group admins (groups) | `.setgname Study Group` |
 | `.setgpp` | – | Sets the group photo from the image or sticker you reply to. The bot must be a group admin. | group admins (groups) | `.setgpp` _(reply to an image)_ |
+| `.setrules` | `.addrules` | Sets this group's rules (text, or reply to a message). Members see them with .rules or #rules; add {rules} to the .welcome message to greet new members with them. | group admins (groups) | `.setrules 1. Be respectful
+2. No spam or ads
+3. Stay on topic` |
 | `.stopfilter` | `.delfilter` `.rmfilter` | Removes an auto-reply (".stopfilter all" removes every one). | group admins (groups) | `.stopfilter` |
 | `.tag` | – | Sends your text (or re-sends the replied message) while silently mentioning everyone. | group admins (groups) | `.tag Meeting at 8 pm` |
 | `.tagall` | – | Mentions every member, one per line. | group admins (groups) | `.tagall` |
@@ -307,7 +316,7 @@ This list is generated from the command files themselves.
 | `.unmute` | – | Lets everyone send messages again. The bot must be a group admin. | group admins (groups) | `.unmute` |
 | `.warn` | – | Warns a member. They are removed automatically at WARN_LIMIT warnings (default 3). The bot must be a group admin. | group admins (groups) | `.warn @201012345678` |
 | `.warnings` | – | Shows how many warnings a member has in this group. | everyone (groups) | `.warnings @201012345678` |
-| `.welcome` | – | Welcome messages when members join. Variables: {user}, {group}, {description}, {count}. | group admins (groups) | `.welcome on` |
+| `.welcome` | – | Welcome messages when members join. Variables: {user}, {group}, {description}, {count}, {rules} (from .setrules). | group admins (groups) | `.welcome on` |
 
 ### Owner
 
