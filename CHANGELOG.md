@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.20.0 — 2026-10-06
+
+### Added
+- **Adhkar after each prayer**: `.autoprayer azkar on [10–60]` sends chapter 25 of Hisn al-Muslim N minutes after each adhan (default 25). Following the book's own notes, the dhikr said 10 times after Fajr and Maghrib appears only after those two prayers, and the dua after Fajr only after Fajr. Shown in `.autoprayer` and `.autos`; kept when the city changes.
+- **Adhkar before sleep**: `.autoazkar sleep 22:30` adds the sleep adhkar (chapter 28) as a nightly message, next to the morning and evening adhkar and the dua.
+
+### Fixed
+- **The owner/sudo identity refresh (2.18.2) ran on every reconnect.** On an unstable connection that meant reading every group's member list many times an hour, which can hit WhatsApp's rate limits. It now runs at most every 30 minutes, or right away when the owner/sudo list changed. A failed refresh is retried on the next connect.
+
+### Checked
+- 4 tests (189 in total).
+
 ## 2.19.0 — 2026-10-06
 
 ### Added

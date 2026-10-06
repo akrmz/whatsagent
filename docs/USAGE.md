@@ -97,6 +97,7 @@ The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn W
 | `.autoazkar morning 06:00` / `evening 16:30` | Changes the fixed times. |
 | `.autoazkar dua 21:00` | Also sends a random dua every day at that time. |
 | `.autoazkar dua every 3` | A random dua every 3 hours instead (1–24), outside quiet hours. `.autoazkar dua off` stops either. |
+| `.autoazkar sleep 22:30` | Also sends the **adhkar before sleep** (أذكار النوم, Hisn al-Muslim) every night at that time. `.autoazkar sleep off` stops them. |
 | `.autotafsir every 3` (or `.autotafsir on`) | Posts a random verse with al-Tafsir al-Muyassar every 3 hours (1–24). `.autotafsir off` stops it. |
 | `.autotafsir quiet 23:00-07:00` | No automatic verses or duas during these hours (`TIMEZONE`); posts due then wait until the quiet hours end. This is the default; `.autotafsir quiet off` allows posts at any time. |
 | `.autoazkar off` | Stops everything for this chat. `.autoazkar` alone shows the current setup. |
@@ -108,6 +109,7 @@ More in the same 🕌 section of `.help`:
 | Command | What it does |
 |---|---|
 | `.autoprayer on Cairo` (`.adhan`) | Announces each of the five prayers in this chat ("حان الآن موعد أذان العصر"), using the city's prayer times (aladhan.com picks the method used in that region) and its time zone. An alert more than 20 minutes late (bot offline) is skipped. `.autoprayer off` stops it. Any member can set it (unless `ISLAMIC_ADMIN_ONLY` is on). |
+| `.autoprayer azkar on` | Also sends the **adhkar after the prayer** (الأذكار بعد السلام من الصلاة, Hisn al-Muslim) 25 minutes after each adhan, or `.autoprayer azkar on 15` for 10–60 minutes. The adhkar the book marks for after Fajr and Maghrib (10 times) and after Fajr only are sent only after those prayers. `.autoprayer azkar off` stops them. |
 | `.prayer <city>` | Today's prayer times and which prayer is next. |
 | `.hijri` | Today's Hijri date (Umm al-Qura, works offline). |
 | `.ramadan` | Days left until Ramadan, the Eids, Arafah, Ashura and the Hijri new year. Moon sighting can shift these by a day. |
@@ -261,10 +263,10 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.asma` | `.asmaulhusna` `.names99` `.asmaallah` | من أسماء الله الحسنى — a name of Allah from al-Asma' al-Husna (random, by number 1-99, or "all"). | everyone | `.asma` |
-| `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoazkar on` |
+| `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, the adhkar before sleep if you set a time, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoazkar on` |
 | `.autohadith` | `.dailyhadith` | يرسل حديثاً عشوائياً مع شرحه كل عدد من الساعات (1–24) في هذه المحادثة، أولها فوراً — posts a random hadith here every N hours, the first right away. Quiet hours as for .autotafsir. | everyone | `.autohadith every 6` |
 | `.autojumuah` | `.jumuah` `.friday` `.autofriday` | تذكير يوم الجمعة: آية الجمعة، وسورة الكهف، والصلاة على النبي ﷺ، وساعة الإجابة، كل جمعة في الوقت الذي تختاره — a Friday reminder every week at the time you choose (default 09:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autojumuah on` |
-| `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoprayer on Cairo` |
+| `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone; "azkar on" also sends the adhkar after each prayer (25 minutes after the adhan by default). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoprayer on Cairo` |
 | `.autosiyam` | `.autosawm` `.autofasting` `.fastreminder` | تذكير مساء اليوم السابق بصيام السنة: الاثنين والخميس، والأيام البيض، وعرفة، وتاسوعاء وعاشوراء، والست من شوال — reminds this chat the evening before each sunnah fast (default 20:00). "weekly off" keeps only the white days and the special days. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autosiyam on` |
 | `.autotafsir` | `.dailyayah` `.autoayah` `.ayahtafsir` | يرسل آية عشوائية مع تفسيرها (التفسير الميسر) كل عدد من الساعات في هذه المحادثة — posts a random verse with al-Tafsir al-Muyassar here every N hours (1–24); the first one right away. No automatic posts during quiet hours (default 23:00–07:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autotafsir on` |
 | `.autowird` | `.dailywird` | الورد اليومي: يرسل كل يوم عدداً من صفحات المصحف بالترتيب حتى الختم ثم يبدأ ختمة جديدة — sends N mushaf pages a day in order until the Quran is completed, then starts again. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autowird on 2 20:00` |
