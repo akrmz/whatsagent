@@ -78,6 +78,23 @@ Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_S
 - **Keys and tokens only in a private chat with the bot.** In a group they are refused. If you send them from the bot's own WhatsApp account, the bot deletes the message for you; otherwise delete it yourself after the bot confirms.
 - Some settings can only be changed in `.env` on the server, on purpose: `OWNER_NUMBERS`, `OWNER_LIDS`, `PAIRING_NUMBER`, the folders, `UPDATE_REMOTE`/`UPDATE_BRANCH` and the health server. Changing them from a chat could lock you out, or let someone who takes over your WhatsApp point `.update` at their own code.
 
+## Adhkar and duas (الأذكار والأدعية)
+
+The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn Wahf al-Qahtani), bundled with the bot (`assets/hisnmuslim-ar.json`, from hisnmuslim.com), so it works without internet. The Quran passages in the morning/evening adhkar were checked letter by letter against alquran.cloud.
+
+| Command | What it does |
+|---|---|
+| `.azkar` | Morning adhkar before noon, evening adhkar after (bot's `TIMEZONE`). `.azkar صباح`, `.azkar مساء`, `.azkar نوم`, `.azkar استيقاظ`, `.azkar صلاة` (also in English: morning, evening, sleep, waking, prayer). The book's notes are kept ("if it is evening, say …"); entries the book marks for the morning only or the evening only appear only there. On Fridays the morning set ends with a reminder about Surat al-Kahf. |
+| `.dua` | A random supplication from the general dua chapters (after the tashahhud, worry and grief, distress, debt, difficulty, qunut, …). `.dua الكرب`, `.dua السفر`, `.dua المريض` pick from chapters with that word in the title. |
+| `.hisn` | All 132 chapters; `.hisn 35` shows one; `.hisn السفر` searches titles. |
+| `.autoazkar on` | Sends the morning and evening adhkar to this chat every day (default 06:30 and 17:00). In groups only admins can change it; in a private chat anyone can turn it on for themselves. |
+| `.autoazkar city Cairo` | Follows the prayer times of a city instead: morning adhkar 30 minutes after Fajr, evening adhkar 30 minutes after Asr (`.autoazkar city off` goes back to fixed times). |
+| `.autoazkar morning 06:00` / `evening 16:30` | Changes the fixed times. |
+| `.autoazkar dua 21:00` | Also sends a random dua every day at that time (`.autoazkar dua off` stops it). |
+| `.autoazkar off` | Stops everything for this chat. `.autoazkar` alone shows the current setup. |
+
+If the bot was offline at the time, it sends the message when it comes back (up to 3 hours late), once per day. Turning it on at noon does not send that morning's adhkar late. `.prayer <city>` and `.quran <surah:ayah>` are in the same 🕌 section of `.help`.
+
 ## Backup and restore
 
 In a private chat with the bot, `.backup` sends you a file with all settings and lists: mode, sudo users, bans, warnings, group settings, auto-replies, notes, reminders, levels and statistics. To restore it (for example on a new server), reply to that file with `.restore`. The bot shows what's inside; reply again with `.restore confirm` to apply it. It takes effect immediately.
@@ -178,11 +195,20 @@ This list is generated from the command files themselves.
 | `.crypto` | `.price` `.btc` | Shows cryptocurrency prices and 24 h change (CoinGecko). Without a coin, the top 10. Information only — not financial advice. | everyone | `.crypto` |
 | `.define` | `.dict` `.dictionary` `.meaning` | Looks up an English word: pronunciation, meanings, examples and synonyms. | everyone | `.define serendipity` |
 | `.news` | `.headlines` | Latest headlines (Google News, no key needed), or news about a topic. Start with a country:language code for another region. | everyone | `.news` |
-| `.prayer` | `.salah` `.salat` `.adhan` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
-| `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation. Without a reference, a random verse. | everyone | `.quran 2:255` |
 | `.time` | `.clock` `.date` | Shows the current date and time in a city (or the bot's time zone). | everyone | `.time Tokyo` |
 | `.weather` | `.forecast` | Shows the current weather and a 3-day forecast for a city (no API key needed). | everyone | `.weather Cairo` |
 | `.wiki` | `.wikipedia` | Shows the Wikipedia summary of a topic. Start with a language code for other Wikipedias (ar:, fr:, es: …). | everyone | `.wiki Great Pyramid of Giza` |
+
+### Islamic · إسلاميات
+
+| Command | Aliases | What it does | Who | Example |
+|---|---|---|---|---|
+| `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day (and an optional daily dua). Set a city to follow prayer times. In groups, admins only. | everyone | `.autoazkar on` |
+| `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
+| `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
+| `.hisn` | `.hisnmuslim` `.husn` | حصن المسلم: كل الأبواب (132)، أو باب برقمه أو بكلمة من عنوانه — browse all 132 chapters of Hisn al-Muslim by number or by a word. | everyone | `.hisn` |
+| `.prayer` | `.salah` `.salat` `.adhan` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
+| `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation. Without a reference, a random verse. | everyone | `.quran 2:255` |
 
 ### Group admin
 
@@ -539,5 +565,5 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 ## Privacy notes for group members
 
-- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.short` sends the link to TinyURL. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
+- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.short` sends the link to TinyURL. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

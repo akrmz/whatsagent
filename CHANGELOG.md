@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.8.0 — 2026-10-06
+
+### Added
+- **Adhkar and duas (الأذكار والأدعية)** from Hisn al-Muslim (حصن المسلم), bundled with the bot (`assets/hisnmuslim-ar.json`: 132 chapters, 267 adhkar, from the official hisnmuslim.com API; "حقوق الطبع لكل مسلم"). The Quran passages in the morning/evening adhkar were verified letter by letter against alquran.cloud. `scripts/fetch-hisnmuslim.js` refreshes the file.
+  - `.azkar [صباح|مساء|نوم|استيقاظ|صلاة]`: chooses morning or evening by the time of day. It follows the book's notes on morning-only and evening-only entries, and adds a Surat al-Kahf reminder on Friday mornings.
+  - `.dua [topic]`: a random supplication from the general dua chapters (supplications only, not the hadiths about virtues), or from chapters matching a topic.
+  - `.hisn [number|word]`: browse all 132 chapters.
+  - **`.autoazkar`**: sends the morning and evening adhkar to a group or private chat every day, plus an optional daily dua; `.autoazkar off` stops it.
+    - Fixed times (default 06:30 / 17:00), or `.autoazkar city Cairo` for 30 minutes after Fajr / Asr (aladhan.com).
+    - Group admins control it in groups. Sends at most once per day per message, catches up after downtime (up to 3 h), and never sends late for times already passed when it is turned on.
+- New 🕌 Islamic section in `.help`; `.prayer` and `.quran` moved there.
+- 5 tests (127 in total).
+
 ## 2.7.0 — 2026-10-06
 
 ### Added
