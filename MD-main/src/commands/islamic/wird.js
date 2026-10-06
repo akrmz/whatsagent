@@ -22,7 +22,7 @@ function status(ctx) {
 module.exports = [
   {
     name: "autowird",
-    aliases: ["dailywird", "khatma"],
+    aliases: ["dailywird"],
     category: "islamic",
     description:
       "الورد اليومي: يرسل كل يوم عدداً من صفحات المصحف بالترتيب حتى الختم ثم يبدأ ختمة جديدة — sends N mushaf pages a day in order until the Quran is completed, then starts again. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",

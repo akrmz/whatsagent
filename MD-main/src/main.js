@@ -27,6 +27,7 @@ const { startAutopostLoop } = require("./services/autopost");
 const quran = require("./services/quran");
 const hadith = require("./services/hadith");
 const { startWirdLoop } = require("./services/wird");
+const { startJumuahLoop } = require("./services/jumuah");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -176,6 +177,7 @@ async function start() {
     hadith: async () => hadith.format(await hadith.randomHadith()),
   });
   const stopWird = startWirdLoop(app);
+  const stopJumuah = startJumuahLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -192,6 +194,7 @@ async function start() {
     stopAdhan();
     stopAutopost();
     stopWird();
+    stopJumuah();
     connection.stop();
     app.state.flush();
     health?.close();

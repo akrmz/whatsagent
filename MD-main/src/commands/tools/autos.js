@@ -9,6 +9,8 @@ const reminders = require("../../services/reminders");
 const captcha = require("../../services/captcha");
 const { canManage, DENIED, zoneLine } = require("../../services/islamic-access");
 const { stopAll } = require("../../services/automations");
+const jumuah = require("../../services/jumuah");
+const khatma = require("../../services/khatma");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -25,6 +27,10 @@ function overview(ctx) {
   if (post && (post.tafsir || post.dua || post.hadith)) lines.push(`   🌙 ساعات الهدوء: ${post.quiet || "بدون"}`);
   const w = wird.get(state, chat);
   if (w) lines.push(`📖 الورد اليومي: ${wird.pagesAr(w.pages)} الساعة ${w.time || wird.DEFAULT_TIME} (صفحة ${w.next}) — ${p}autowird`);
+  const j = jumuah.get(state, chat);
+  if (j) lines.push(`🕌 تذكير الجمعة الساعة ${j.time} — ${p}autojumuah`);
+  const k = khatma.get(state, chat);
+  if (k) lines.push(`📖 ختمة جماعية: ${khatma.ar(khatma.counts(k).read)}/${khatma.ar(khatma.PARTS)} جزءاً — ${p}khatma`);
   const g = schedule.get(state, chat);
   if (g && (g.close || g.open)) lines.push(`🔒 إغلاق/فتح المجموعة: ${g.close || "—"} / ${g.open || "—"} — ${p}gcschedule`);
   const ann = reminders.announcementsIn(state, chat);
@@ -47,7 +53,7 @@ module.exports = {
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
       stopAll(ctx.state, ctx.chatId);
       const rest = overview(ctx);
-      return ctx.reply(`⏹️ أُوقفت الأذكار والتنبيهات والآيات والأحاديث والورد التلقائي هنا.${rest.length ? `\n\nما زال يعمل (يديره المشرفون):\n${rest.join("\n")}` : ""}`);
+      return ctx.reply(`⏹️ أُوقفت الأذكار والتنبيهات والآيات والأحاديث والورد وتذكير الجمعة هنا.${rest.length ? `\n\nما زال يعمل (يديره المشرفون):\n${rest.join("\n")}` : ""}`);
     }
     const lines = overview(ctx);
     if (!lines.length) return ctx.reply(`لا يوجد شيء تلقائي في هذه المحادثة.\nأمثلة: ${ctx.prefix}autoazkar on · ${ctx.prefix}autotafsir every 3 · ${ctx.prefix}autowird on 2 20:00`);
