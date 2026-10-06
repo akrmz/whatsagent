@@ -1,14 +1,15 @@
 "use strict";
 
 const { getJson, getBuffer, HttpError } = require("../../core/http");
+const quran = require("../../services/quran");
 
 module.exports = {
   name: "quran",
   aliases: ["ayah", "ayat"],
   category: "islamic",
   description: "Shows a Quran verse in Arabic with an English translation; add \"audio\" for the recitation (Alafasy). Without a reference, a random verse.",
-  usage: "[surah:ayah] [audio]",
-  examples: [".quran 2:255", ".quran 2:255 audio", ".quran 112:1", ".quran"],
+  usage: "[surah:ayah | surah name and verse] [audio]",
+  examples: [".quran 2:255", ".quran البقرة 255", ".quran kahf 10 audio", ".quran 112:1", ".quran"],
   cooldown: 5,
   externalService: "alquran.cloud",
 
@@ -16,8 +17,12 @@ module.exports = {
     // ".quran 2:255 audio" (or صوت / تلاوة) also sends the recitation.
     const withAudio = /\s*(audio|voice|صوت|تلاوة)$/i.test(ctx.text);
     let ref = ctx.text.replace(/\s*(audio|voice|صوت|تلاوة)$/i, "").trim();
-    if (!ref) ref = String(1 + Math.floor(Math.random() * 6236)); // verse number 1–6236
-    else if (!/^\d{1,3}:\d{1,3}$/.test(ref)) return ctx.reply(`Usage: ${ctx.prefix}quran <surah:ayah> [audio], e.g. ${ctx.prefix}quran 2:255 audio`);
+    if (!ref) ref = String(1 + Math.floor(Math.random() * quran.TOTAL_AYAHS)); // verse number 1–6236
+    else {
+      const parsed = quran.parseRef(ref);
+      if (!parsed) return ctx.reply(`Usage: ${ctx.prefix}quran <surah:ayah> [audio], e.g. ${ctx.prefix}quran 2:255 audio or ${ctx.prefix}quran البقرة 255. Search: ${ctx.prefix}qsearch <word>`);
+      ref = parsed.ref;
+    }
     let res;
     try {
       res = await getJson(`https://api.alquran.cloud/v1/ayah/${ref}/editions/quran-uthmani,en.sahih`, { timeoutMs: 15000 });

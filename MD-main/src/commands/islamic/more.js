@@ -10,7 +10,6 @@ const { getJson, request, HttpError } = require("../../core/http");
 const { UserError } = require("../../core/errors");
 const { LRU } = require("../../core/lru");
 
-const QURAN_API = "https://api.alquran.cloud/v1";
 const cache = new LRU({ max: 50, ttlMs: 7 * 24 * 60 * 60 * 1000 });
 
 async function cached(key, url) {
@@ -21,25 +20,6 @@ async function cached(key, url) {
   return data;
 }
 
-
-/** Arabic letters only, for matching surah names typed with or without diacritics. */
-const bare = (s) =>
-  String(s)
-    .replace(/[ً-ٰٟۖ-ۭـ]/g, "")
-    .replace(/[آأإٱ]/g, "ا")
-    .replace(/^(سورة|سوره)\s*/, "")
-    .replace(/^ال/, "")
-    .replace(/\s+/g, "")
-    .toLowerCase();
-
-async function findSurah(query) {
-  const list = (await cached("surahs", `${QURAN_API}/surah`)).data;
-  const q = String(query).trim();
-  if (/^\d{1,3}$/.test(q)) return list.find((s) => s.number === Number(q)) || null;
-  const b = bare(q);
-  const en = q.toLowerCase().replace(/[^a-z]/g, "");
-  return list.find((s) => bare(s.name.replace(/^سُورَةُ\s*/, "")) === b) || list.find((s) => en && s.englishName.toLowerCase().replace(/[^a-z]/g, "") === en) || null;
-}
 
 /** "⏭️ أول تنبيه: العصر الساعة 15:32 (بعد 6 س 49 د) بتوقيت المدينة" */
 function nextLine(p) {
@@ -128,16 +108,17 @@ module.exports = [
     aliases: ["tafseer", "muyassar"],
     category: "islamic",
     description: "الآية مع تفسيرها من التفسير الميسر، أو آية عشوائية — a verse with its explanation from al-Tafsir al-Muyassar (random without a reference). For automatic posts see .autotafsir.",
-    usage: "[سورة:آية]",
-    examples: [".tafsir 2:255", ".tafsir"],
+    usage: "[سورة:آية | اسم السورة رقم الآية]",
+    examples: [".tafsir 2:255", ".tafsir البقرة 255", ".tafsir"],
     cooldown: 5,
     externalService: "alquran.cloud",
     async run(ctx) {
       const ref = ctx.text.trim();
       // No reference: a random verse.
       if (!ref) return ctx.reply(await quran.randomAyahTafsir());
-      if (!/^\d{1,3}:\d{1,3}$/.test(ref)) return ctx.reply(`الاستخدام: ${ctx.prefix}tafsir 2:255 (أو بدون رقم لآية عشوائية)`);
-      return ctx.reply(await quran.ayahWithTafsir(ref));
+      const parsed = quran.parseRef(ref);
+      if (!parsed) return ctx.reply(`الاستخدام: ${ctx.prefix}tafsir 2:255 أو ${ctx.prefix}tafsir البقرة 255 (أو بدون رقم لآية عشوائية)`);
+      return ctx.reply(await quran.ayahWithTafsir(parsed.ref));
     },
   },
   {
@@ -151,7 +132,7 @@ module.exports = [
     externalService: "alquran.cloud, cdn.islamic.network",
     async run(ctx) {
       if (!ctx.text) return ctx.reply(`الاستخدام: ${ctx.prefix}surah الكهف أو ${ctx.prefix}surah 18`);
-      const s = await findSurah(ctx.text);
+      const s = quran.findSurah(ctx.text);
       if (!s) return ctx.reply("لم أجد سورة بهذا الاسم. جرّب الرقم، مثل: .surah 18");
       const url = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${s.number}.mp3`;
       const info = `📖 *${s.name}* (${s.number}) — ${s.numberOfAyahs} آية، ${s.revelationType === "Meccan" ? "مكية" : "مدنية"}\n🎙️ مشاري العفاسي`;
