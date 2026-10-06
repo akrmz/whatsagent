@@ -32,7 +32,7 @@ function realBot() {
   const send = (opts) => dispatcher.handleMessage(sock, makeMsg(opts));
   const join = (user, author) => dispatcher.handleEvent("group-participants.update", sock, { id: GROUP, participants: [user], action: "add", author });
   const texts = () => sock.sent.map((s) => s.content.text).filter(Boolean);
-  return { app, sock, send, join, texts };
+  return { app, sock, dispatcher, send, join, texts };
 }
 
 test("captcha: a member who joins by link must answer; the right answer verifies them", async () => {
@@ -93,4 +93,48 @@ test(".autos lists the automatic posts and stops them all", async () => {
   assert.equal(wird.get(t.app.state, chat), null);
   await t.send({ text: ".autos", chat });
   assert.match(t.texts().at(-1), /لا يوجد شيء تلقائي/);
+});
+
+test("captcha: works when the join event names the member by LID and the message by phone number", async () => {
+  const t = realBot();
+  captcha.set(t.app.state, GROUP, { enabled: true });
+  const LID = "123456789012345@lid";
+  await t.join(LID);
+  const q = t.texts().reverse().find((x) => x.includes("اكتب ناتج"));
+  const [, a, b] = q.match(/\*(\d+) \+ (\d+)\*/);
+  // The member's message carries both ids (Baileys 6.7: participant + participantPn).
+  await t.dispatcher.handleMessage(t.sock, {
+    key: { id: "LIDMSG1", remoteJid: GROUP, fromMe: false, participant: LID, participantPn: NEW },
+    pushName: "New",
+    message: { conversation: String(Number(a) + Number(b)) },
+  });
+  assert.match(t.texts().at(-1), /تم التحقق/);
+  assert.equal(captcha.isPending(GROUP, LID), false);
+});
+
+test("captcha: the bot itself is never challenged when it is added to a group", async () => {
+  const t = realBot();
+  captcha.set(t.app.state, GROUP, { enabled: true });
+  await t.join(BOT_JID);
+  assert.equal(captcha.isPending(GROUP, BOT_JID), false);
+  assert.ok(!t.texts().some((x) => x.includes("اكتب ناتج")));
+});
+
+test("help: short overview by default, full list with .menu; owner commands only for the owner", async () => {
+  const t = realBot();
+  await t.send({ text: ".help", chat: USER });
+  const overview = t.sock.sent.at(-1).content.caption || t.texts().at(-1);
+  assert.ok(overview.length < 2500, `overview is short (${overview.length})`);
+  assert.match(overview, /🕌 Islamic/);
+  assert.doesNotMatch(overview, /🔒 Owner/, "no owner section for a normal user");
+  await t.send({ text: ".menu", chat: USER });
+  const full = t.texts().at(-1);
+  assert.ok(full.length > overview.length);
+  assert.doesNotMatch(full, /\.setvar/, "owner-only commands hidden from users");
+  await t.send({ text: ".menu", chat: "15550000001@s.whatsapp.net" }); // not the owner either
+  await t.send({ text: ".menu islamic", chat: USER });
+  assert.match(t.texts().at(-1), /^\*🕌 Islamic/);
+  const { OWNER } = require("./helpers");
+  await t.send({ text: ".menu", chat: `${OWNER}@s.whatsapp.net` });
+  assert.match(t.texts().at(-1), /\.setvar/, "the owner sees everything");
 });

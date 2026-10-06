@@ -34,9 +34,43 @@ function byCategory(commands) {
   return order.filter((k) => groups.has(k)).map((k) => [k, groups.get(k).sort((a, b) => a.name.localeCompare(b.name))]);
 }
 
-function renderMenu({ commands, prefix, botName, version }) {
+// Who can see which commands in the menus (they can still ask .help <command> for any).
+const VISIBLE_TO = { owner: ["owner"], sudo: ["owner", "sudo"] };
+/** Commands this user may run (owner-only ones hidden from others; sudo ones from users). */
+const visibleFor = (commands, level) => commands.filter((c) => !VISIBLE_TO[c.permission] || VISIBLE_TO[c.permission].includes(level));
+
+// The most useful commands of each section, shown first in the short overview.
+const FEATURED = {
+  general: ["help", "ping", "translate", "tts", "owner"],
+  tools: ["calc", "remind", "poll", "qr", "currency", "save", "autos"],
+  info: ["weather", "wiki", "news", "time", "define", "crypto"],
+  islamic: ["azkar", "dua", "quran", "tafsir", "prayer", "autoazkar", "autowird", "hadith"],
+  admin: ["kick", "promote", "antilink", "welcome", "captcha", "tagall", "mute"],
+  owner: ["doctor", "setvar", "setai", "update", "backup", "vars"],
+  sticker: ["sticker", "take", "simage", "tovideo"],
+  image: ["removebg", "grayscale", "resize", "compress", "circlecrop"],
+  audio: ["bass", "nightcore", "slow", "deep", "reverse"],
+  download: ["song", "video", "yts", "tiktok", "instagram", "dl"],
+  ai: ["ai", "imagine", "transcribe", "summarize"],
+  games: ["tictactoe", "mathquiz", "rank", "rps", "trivia"],
+};
+
+/** A short overview: each section with its size and a few key commands. */
+function renderOverview({ commands, prefix, botName, version, level = "user" }) {
+  const lines = [`*${botName}*${version ? ` v${version}` : ""}`, ""];
+  for (const [category, list] of byCategory(visibleFor(commands, level))) {
+    const names = new Set(list.map((c) => c.name));
+    const featured = (FEATURED[category] || []).filter((n) => names.has(n));
+    const shown = [...featured, ...list.map((c) => c.name).filter((n) => !featured.includes(n))].slice(0, 6);
+    lines.push(`*${CATEGORY_TITLES[category] || category}* (${list.length})`, `   ${shown.map((n) => prefix + n).join("  ")}`);
+  }
+  lines.push("", `📋 ${prefix}help <section> — e.g. ${prefix}help islamic`, `🔎 ${prefix}help <command> — details`, `📚 ${prefix}menu — every command`);
+  return lines.join("\n");
+}
+
+function renderMenu({ commands, prefix, botName, version, level = "owner" }) {
   const lines = [`*${botName}*${version ? ` v${version}` : ""}`, `Prefix: ${prefix}   ·   ${prefix}help <command> or ${prefix}help <section> for details`, ""];
-  for (const [category, list] of byCategory(commands)) {
+  for (const [category, list] of byCategory(visibleFor(commands, level))) {
     lines.push(`*${CATEGORY_TITLES[category] || category}*`);
     for (const c of list) {
       const usage = c.usage ? ` ${c.usage}` : "";
@@ -117,4 +151,4 @@ function renderCommand(c, prefix) {
   return lines.join("\n");
 }
 
-module.exports = { renderMenu, renderCommand, renderCategory, findCategory, suggest, byCategory, CATEGORY_ORDER, CATEGORY_TITLES };
+module.exports = { renderMenu, renderOverview, visibleFor, renderCommand, renderCategory, findCategory, suggest, byCategory, CATEGORY_ORDER, CATEGORY_TITLES };
