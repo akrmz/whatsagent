@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.12.0 — 2026-10-06
+
+### Added
+- **`.captcha on|off|time <1-10>`** (group admins): new members who join by link must answer a small sum within N minutes, or they are removed. Arabic digits are accepted, their other messages are deleted until they answer, and 3 wrong answers also remove them. Members added by an admin skip the check. This stops spam bots.
+- **`.imsakiya <city>`**: the Ramadan timetable (Imsak, Fajr, Maghrib for each day) of the current or next Ramadan for any city (aladhan.com).
+- **`.iftar <city>`**: time left until Maghrib/iftar and Imsak/suhoor. Near iftar during Ramadan it adds the iftar dua from the bundled Hisn al-Muslim.
+- **`.autos`**: everything automatic in a chat in one list; `.autos off` stops all automatic Islamic posts there at once.
+- Prayer times now include Imsak.
+- 4 tests (151 in total).
+
+### Changed
+- Arabic durations use correct number forms (ساعة و5 دقائق، ساعتان، دقيقتين).
+
 ## 2.11.0 — 2026-10-06
 
 ### Added

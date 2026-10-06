@@ -51,6 +51,7 @@ In a group where the bot is an admin, group admins can enable:
 | `.disable <command> …` | Turns commands off in this group for everyone except owner and sudo (e.g. `.disable sticker song`). `.enable <command>` or `.enable all` turns them back on; `.disabled` lists them. `.help` can't be disabled | – |
 | `.gcschedule close 23:00` / `.gcschedule open 08:00` | Closes the group (only admins can write) and opens it again every day at those times (`TIMEZONE`). `.gcschedule` shows it, `.gcschedule off` removes it | – |
 | `.linkallow youtube.com` | Lets links to that domain (and its subdomains) through antilink in this group. `.linkallow` lists them, `.linkallow remove youtube.com` removes one | – |
+| `.captcha on` | New members who join by link must send the answer to a small sum (Arabic or Latin digits) within 3 minutes (`.captcha time 5`), or the bot removes them; their other messages are deleted until then, and 3 wrong answers also remove them. Members added by an admin skip it. Stops spam bots. | – |
 | `.antispam on` | Deletes messages from a member who sends more than 6 messages in 10 seconds (change with `.antispam set 8 15`) | `delete` (default), `warn`, `kick` (`.antispam action warn`) |
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
@@ -114,6 +115,9 @@ More in the same 🕌 section of `.help`:
 | `.autowird on 2 20:00` | **Daily Quran reading (الورد اليومي)**: 2 mushaf pages (1–20) every day at 20:00, in order from page 1 to 604, then a new khatma. Shows progress, days left and completed khatmas. `.autowird` shows the position, `.autowird page 100` moves it, `.autowird off` stops. `.wird` sends the next portion now; `.wird page 50` shows any page. Each surah's basmala is on its own line as in the mushaf. |
 | `.hadith` / `.hadith 2962` | A random hadith (or one by number) with its grade, source and a short explanation, from موسوعة الأحاديث النبوية (hadeethenc.com). |
 | `.autohadith every 6` | A random hadith every 6 hours (1–24), the first one right away; quiet hours as for `.autotafsir`. `.autohadith off` stops. |
+| `.imsakiya Cairo` | The Ramadan timetable for a city: Imsak, Fajr and Maghrib for every day of the current or next Ramadan (aladhan.com, the method used in that region). |
+| `.iftar Cairo` | Time left until Maghrib (iftar) and Imsak (suhoor); near iftar in Ramadan it adds the iftar dua from Hisn al-Muslim. |
+| `.autos` | Everything automatic in this chat in one list (adhkar, prayer alerts, tafsir/dua/hadith, wird, announcements, group schedule, captcha). `.autos off` stops all the automatic Islamic posts here at once. |
 | `.zakat 300000 egp` | Zakat on money: today's nisab by gold (85 g) and silver (595 g) and the 2.5 % due. Global spot prices; for special cases, ask a scholar. |
 | `.gold` / `.gold egp` | (🛠️ Tools) Gold price per gram (24k, 21k, 18k) and silver in any currency. Global spot price, without local margins. |
 
@@ -191,6 +195,7 @@ This list is generated from the command files themselves.
 |---|---|---|---|---|
 | `.afk` | `.away` | Marks you as away. When someone mentions or replies to you, the bot tells them; your next message clears it. | everyone | `.afk sleeping` |
 | `.age` | `.birthday` `.datediff` | Calculates an age (or time since a date) and the days to the next birthday. | everyone | `.age 2000-05-14` |
+| `.autos` | `.automations` `.scheduled` `.auto` | كل ما يعمل تلقائياً في هذه المحادثة في قائمة واحدة، و".autos off" لإيقاف الرسائل الإسلامية التلقائية كلها — lists everything automatic in this chat; ".autos off" stops all automatic Islamic posts here. | everyone | `.autos` |
 | `.base64` | `.b64` | Encodes text to Base64 or decodes it back. | everyone | `.base64 encode hello` |
 | `.calc` | `.calculate` `.math` | Calculates a maths expression: + - * / % ^ !, brackets, sqrt, sin/cos/tan (degrees), log, ln, abs, round, min, max, pi, e. | everyone | `.calc (12+8)*3/4` |
 | `.currency` | `.convert` `.cur` `.exchange` | Converts money between currencies with today's exchange rate. | everyone | `.currency 100 usd egp` |
@@ -237,6 +242,8 @@ This list is generated from the command files themselves.
 | `.hadith` | `.hadeeth` `.hadis` | حديث نبوي عشوائي مع درجته ومصدره وشرح مختصر، من موسوعة الأحاديث النبوية — a random hadith with its grade, source and a short explanation (hadeethenc.com). | everyone | `.hadith` |
 | `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
 | `.hisn` | `.hisnmuslim` `.husn` | حصن المسلم: كل الأبواب (132)، أو باب برقمه أو بكلمة من عنوانه — browse all 132 chapters of Hisn al-Muslim by number or by a word. | everyone | `.hisn` |
+| `.iftar` | `.suhoor` `.sohour` `.maghrib` | كم بقي على المغرب (الإفطار) وعلى الإمساك (السحور) في مدينتك — time left until Maghrib (iftar) and Imsak (suhoor) in a city. | everyone | `.iftar Cairo` |
+| `.imsakiya` | `.imsakia` `.ramadantable` `.emsakeya` | إمساكية رمضان لمدينتك: الإمساك والفجر والمغرب لكل يوم من الشهر — the Ramadan timetable (Imsak, Fajr, Maghrib) for a city, for the current or next Ramadan. | everyone | `.imsakiya Cairo` |
 | `.prayer` | `.salah` `.salat` `.mawaqit` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
 | `.qibla` | `.kibla` | اتجاه القبلة من مدينة — the Qibla direction from a city (degrees from north). | everyone | `.qibla Cairo` |
 | `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation; add "audio" for the recitation (Alafasy). Without a reference, a random verse. | everyone | `.quran 2:255` |
@@ -256,6 +263,7 @@ This list is generated from the command files themselves.
 | `.antispam` | `.antiflood` | Stops flooding: when a member sends more than N messages in S seconds, the extra messages are deleted and the member is warned or removed. Admins are never affected. The bot must be a group admin. | group admins (groups) | `.antispam on` |
 | `.antitag` | – | Deletes messages from non-admins that mention most of the group. Action: delete or kick. The bot must be a group admin. | group admins (groups) | `.antitag on` |
 | `.ban` | – | Stops a user from using the bot anywhere. Owners can never be banned. | owner, sudo | `.ban @someone` |
+| `.captcha` | `.verify` `.antibot` | New members who join by link must answer a small sum within a few minutes, or the bot removes them (stops spam bots). Their messages are deleted until they answer. Members added by an admin skip it. The bot must be a group admin. | group admins (groups) | `.captcha on` |
 | `.chatbot` | – | Turns the AI chatbot on or off in this group. When on, it answers messages that mention or reply to the bot. _Needs: ai._ | group admins (groups) | `.chatbot on` |
 | `.clear` | – | Sends and immediately deletes a bot message (clears the chat preview). | everyone (groups) | `.clear` |
 | `.delete` | `.del` | Deletes recent messages: the replied message, the last N from a user, or the last N in the group (max 50, only messages the bot saw since it started). The bot must be a group admin. | group admins (groups) | `.del (reply)` |
