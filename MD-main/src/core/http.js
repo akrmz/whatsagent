@@ -123,6 +123,11 @@ function requestOnce(url, { method, headers, body, timeoutMs, maxBytes }) {
           res.resume();
           return resolve({ redirect: new URL(res.headers.location, url), status });
         }
+        if (method === "HEAD") {
+          // No body to read (or decompress): the headers are the answer.
+          res.resume();
+          return resolve({ status, headers: res.headers, body: Buffer.alloc(0), url: url.toString() });
+        }
         const declared = Number(res.headers["content-length"] || 0);
         if (declared && declared > maxBytes) {
           res.destroy();

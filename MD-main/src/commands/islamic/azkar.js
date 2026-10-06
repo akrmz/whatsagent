@@ -14,10 +14,10 @@ async function canEdit(ctx) {
 function autoStatus(ctx, entry) {
   if (!entry) return "📿 الأذكار اليومية: *متوقفة* (off)";
   const lines = ["📿 *الأذكار اليومية* (on)"];
-  if (entry.city) lines.push(`🏙️ ${entry.city}: الصباح بعد الفجر بنصف ساعة، والمساء بعد العصر بنصف ساعة`);
+  if (entry.city) lines.push(`🏙️ ${entry.city}: الصباح بعد الفجر بنصف ساعة، والمساء بعد العصر بنصف ساعة (بتوقيت المدينة)`);
   else lines.push(`🌅 الصباح ${entry.morning || azkar.DEFAULTS.morning} · 🌇 المساء ${entry.evening || azkar.DEFAULTS.evening}`);
   lines.push(entry.dua ? `🤲 دعاء يومي ${entry.dua}` : "🤲 دعاء يومي: off");
-  lines.push(`🕒 ${ctx.config.bot.timezone}`);
+  if (!entry.city) lines.push(`🕒 ${ctx.config.bot.timezone}`); // with a city, its own time zone applies
   return lines.join("\n");
 }
 
@@ -109,7 +109,7 @@ module.exports = [
         if (changes.city) {
           // Check the city now, so a typo is reported at once.
           try {
-            await azkar.prayerTimes(changes.city, zoneNow(zone, Date.now()).day);
+            await require("../../services/prayertimes").forCity(changes.city);
           } catch (err) {
             if (err instanceof UserError) throw err;
             throw new UserError("تعذّر الحصول على مواقيت الصلاة لهذه المدينة الآن. Couldn't get prayer times for that city.");

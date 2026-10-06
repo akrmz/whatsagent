@@ -22,6 +22,7 @@ const vars = require("./services/vars");
 const jobs = require("./core/jobs");
 const { startNoticeLoop } = require("./services/notices");
 const { startAzkarLoop } = require("./services/azkar");
+const { startAdhanLoop } = require("./services/adhan");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -163,6 +164,7 @@ async function start() {
   const stopAutoUpdate = startAutoUpdate(app);
   const stopGroupSchedule = startGroupScheduleLoop(app);
   const stopAzkar = startAzkarLoop(app);
+  const stopAdhan = startAdhanLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -176,6 +178,7 @@ async function start() {
     stopGroupSchedule();
     stopNotices();
     stopAzkar();
+    stopAdhan();
     connection.stop();
     app.state.flush();
     health?.close();

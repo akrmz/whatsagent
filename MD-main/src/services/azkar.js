@@ -2,11 +2,9 @@
 
 const crypto = require("node:crypto");
 const path = require("node:path");
-const { getJson } = require("../core/http");
-const { geocode } = require("./geo");
+const prayertimes = require("./prayertimes");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
-const { LRU } = require("../core/lru");
 
 /**
  * Adhkar and duas from Hisn al-Muslim (حصن المسلم), bundled in assets/hisnmuslim-ar.json
@@ -105,7 +103,6 @@ const MAX_CHATS = 300;
 const LATE_LIMIT_MIN = 180;
 const DEFAULTS = { morning: "06:30", evening: "17:00" };
 const autoStore = (state) => state.store("azkar-auto", {});
-const prayerCache = new LRU({ max: 500, ttlMs: 26 * 60 * 60 * 1000 });
 
 function getAuto(state, chat) {
   return autoStore(state).data[chat] || null;
@@ -121,51 +118,36 @@ function setAuto(state, chat, changes) {
 
 const removeAuto = (state, chat) => autoStore(state).update((d) => delete d[chat]);
 
-/** Today's Fajr and Asr ("05:25") for a city, cached per day. */
-async function prayerTimes(city, day) {
-  const key = `${city.toLowerCase()}|${day}`;
-  const hit = prayerCache.get(key);
-  if (hit) return hit;
-  const place = await geocode(city);
-  const qs = new URLSearchParams({ latitude: String(place.latitude), longitude: String(place.longitude) });
-  const res = await getJson(`https://api.aladhan.com/v1/timings?${qs}`, { timeoutMs: 15000 });
-  const t = res.data?.timings;
-  if (!t?.Fajr || !t?.Asr) throw new Error("no timings");
-  const out = { fajr: parseClock(t.Fajr.slice(0, 5)), asr: parseClock(t.Asr.slice(0, 5)) };
-  prayerCache.set(key, out);
-  return out;
-}
-
 const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
 
 /**
- * When each message is sent today, in minutes after midnight. With a city: morning adhkar
- * 30 min after Fajr and evening adhkar 30 min after Asr (their times in the Sunnah);
- * otherwise the fixed times.
+ * Where this chat's clock runs and when each message is sent today (minutes after local
+ * midnight). With a city: the city's own time zone, morning adhkar 30 min after Fajr and
+ * evening adhkar 30 min after Asr (their times in the Sunnah). Otherwise the bot's
+ * TIMEZONE and the fixed times. A failed lookup falls back to the fixed times.
+ * @returns {Promise<{ zone, day, minutes, at: { morning, evening, dua } }>}
  */
-async function timesFor(entry, day) {
-  const out = { morning: parseClock(entry.morning || DEFAULTS.morning), evening: parseClock(entry.evening || DEFAULTS.evening), dua: entry.dua ? parseClock(entry.dua) : null };
+async function schedule(entry, botZone, now = Date.now(), lookup) {
+  const at = { morning: parseClock(entry.morning || DEFAULTS.morning), evening: parseClock(entry.evening || DEFAULTS.evening), dua: entry.dua ? parseClock(entry.dua) : null };
   if (entry.city) {
     try {
-      const p = await prayerTimes(entry.city, day);
-      out.morning = p.fajr + 30;
-      out.evening = p.asr + 30;
+      const p = await prayertimes.forCity(entry.city, now, lookup);
+      return { zone: p.zone, day: p.day, minutes: p.minutes, at: { ...at, morning: p.times.Fajr + 30, evening: p.times.Asr + 30 } };
     } catch {
-      /* lookup failed: keep the fixed times today */
+      /* lookup failed: fixed times in the bot's zone today */
     }
   }
-  return out;
+  return { zone: botZone, ...zoneNow(botZone, now), at };
 }
 
 /** What is due now for one chat. Exported for tests. */
-async function dueFor(entry, timeZone, now = Date.now()) {
-  const { day, minutes } = zoneNow(timeZone, now);
-  const at = await timesFor(entry, day);
+async function dueFor(entry, botZone, now = Date.now(), lookup) {
+  const { zone, day, minutes, at } = await schedule(entry, botZone, now, lookup);
   const due = [];
   for (const kind of ["morning", "evening", "dua"]) {
     if (at[kind] === null || at[kind] === undefined || entry.done?.[kind] === day) continue;
     const late = minutes - at[kind];
-    if (late >= 0 && late <= LATE_LIMIT_MIN) due.push({ kind, day });
+    if (late >= 0 && late <= LATE_LIMIT_MIN) due.push({ kind, day, zone });
   }
   return due;
 }
@@ -178,12 +160,12 @@ async function runDue(app, now = Date.now()) {
   const zone = app.config.bot.timezone;
   let sent = 0;
   for (const [chat, entry] of Object.entries(s.data)) {
-    for (const { kind, day } of await dueFor(entry, zone, now)) {
+    for (const { kind, day, zone: chatZone } of await dueFor(entry, zone, now)) {
       s.update(() => {
         entry.done ||= {};
         entry.done[kind] = day;
       });
-      const text = kind === "dua" ? duaText(randomDua()) : setText(kind, { friday: isFriday(zone, now) });
+      const text = kind === "dua" ? duaText(randomDua()) : setText(kind, { friday: isFriday(chatZone, now) });
       try {
         await app.sock.sendMessage(chat, { text });
         sent++;
@@ -216,8 +198,7 @@ function startAzkarLoop(app) {
 async function skipPassed(state, chat, timeZone, now = Date.now()) {
   const entry = getAuto(state, chat);
   if (!entry) return;
-  const { day, minutes } = zoneNow(timeZone, now);
-  const at = await timesFor(entry, day);
+  const { day, minutes, at } = await schedule(entry, timeZone, now);
   autoStore(state).update(() => {
     entry.done ||= {};
     for (const kind of ["morning", "evening", "dua"]) {
@@ -239,8 +220,7 @@ module.exports = {
   getAuto,
   setAuto,
   removeAuto,
-  timesFor,
-  prayerTimes,
+  schedule,
   dueFor,
   runDue,
   startAzkarLoop,
