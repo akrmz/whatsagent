@@ -48,6 +48,7 @@ In a group where the bot is an admin, group admins can enable:
 | `.antilink on` | Deletes messages that contain links | `delete` (default), `kick`, `warn` |
 | `.antibadword on` | Deletes messages that contain bad words | `delete`, `kick`, `warn` |
 | `.antitag on` | Deletes messages that mention more than half the group | `delete`, `kick` |
+| `.disable <command> …` | Turns commands off in this group for everyone except owner and sudo (e.g. `.disable sticker song`). `.enable <command>` or `.enable all` turns them back on; `.disabled` lists them. `.help` can't be disabled | – |
 | `.antispam on` | Deletes messages from a member who sends more than 6 messages in 10 seconds (change with `.antispam set 8 15`) | `delete` (default), `warn`, `kick` (`.antispam action warn`) |
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
@@ -82,6 +83,10 @@ Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_S
 | `.setai openai <key> https://api.groq.com/openai/v1` | Uses an OpenAI-compatible service (the URL must be https). |
 | `.setai claude` | Switches between providers whose keys are already saved. `.setai auto` uses the first one that has a key (Claude, then Gemini, then OpenAI). |
 | `.aimodel` | Lists the models your key can use (numbered). `.aimodel flash` filters the list; `.aimodel 3` or `.aimodel gemini-3.5-flash-lite` switches. Each provider remembers its own model. |
+
+**Pictures and voice notes.** `.imagine <description>` draws a picture, and replying to a photo with `.imagine make it a cartoon` edits it (editing needs Gemini). `.transcribe` (reply to a voice note) writes out what is said in any language; `.transcribe translate english` also translates. These use **Gemini or OpenAI** (whichever has a key; Claude can't do them). You can keep Claude for chat and add a Gemini key just for these: `.setvar GEMINI_API_KEY <key>`.
+
+**Memory and limits.** `.ai` remembers your last 6 questions in that chat for 30 minutes, so follow-ups work ("make it shorter"); `.aireset` starts over. The group chatbot remembers the conversation per group. This memory is kept only in RAM, never on disk. Each person can make 50 AI requests a day (a picture counts as 5; owner and sudo are unlimited). Change it with `.setvar AI_DAILY_LIMIT 100`, or `0` for no limit, and change the memory with `.setvar AI_MEMORY_TURNS 10`.
 
 Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other OpenAI-compatible services, pick a model with `.aimodel`. `AI_MAX_TOKENS` (`.setvar AI_MAX_TOKENS 2048`) limits answer length; `AI_EFFORT` applies to Claude only.
 
@@ -118,7 +123,6 @@ This list is generated from the command files themselves.
 | `.jid` | – | Shows this group's ID (JID). | everyone (groups) | `.jid` |
 | `.joke` | – | Sends a random dad joke. | everyone | `.joke` |
 | `.lyrics` | – | Finds the lyrics of a song. | everyone | `.lyrics adele hello` |
-| `.news` | – | Shows the top 5 US headlines. _Needs: newsApi._ | everyone | `.news` |
 | `.owner` | – | Sends the bot owner's contact card. | everyone | `.owner` |
 | `.ping` | – | Checks that the bot is online and shows response time, uptime and version. | everyone | `.ping` |
 | `.quote` | – | Sends a random quote. | everyone | `.quote` |
@@ -147,7 +151,7 @@ This list is generated from the command files themselves.
 | `.poll` | `.vote` | Creates a native WhatsApp poll. Separate the question and 2–12 options with \|. Add "multi" first to allow several answers. | everyone | `.poll Pizza or burgers? \| Pizza \| Burgers` |
 | `.qr` | `.qrcode` `.toqr` | Makes a QR code image from text or a link. You can also reply to a message to encode it. | everyone | `.qr https://example.com` |
 | `.readqr` | `.scanqr` `.qrread` | Reads the QR code in an image or sticker you send or reply to. | everyone | `.readqr` _(reply to an image)_ |
-| `.remind` | `.reminder` `.remindme` | Reminds you in this chat after a delay (s, m, h, d, w; up to 60 days). Survives bot restarts. | everyone | `.remind 10m check the oven` |
+| `.remind` | `.reminder` `.remindme` | Reminds you in this chat: after a delay (10m, 2h, 3d), at a time (at 18:30, tomorrow at 9am), or repeating (every day at 08:00, every 2h). Times use the bot's TIMEZONE. Survives restarts. | everyone | `.remind 10m check the oven` |
 | `.save` | `.savenote` `.addnote` | Saves a note in this chat (rules, links, FAQ …). Anyone can then send #name to see it. In groups, only admins can save. | everyone | `.save rules Be kind. No spam.` |
 | `.short` | `.shorturl` `.tinyurl` `.shorten` | Shortens a long link with TinyURL. | everyone | `.short https://example.com/a/very/long/link` |
 | `.toaudio` | `.tomp3` `.mp3convert` | Extracts the sound of a video (or converts a voice note/audio file) to an MP3 you can play or save. _Needs: ffmpeg._ | everyone | `.toaudio` _(reply to a video or audio)_ |
@@ -158,7 +162,9 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
+| `.crypto` | `.price` `.btc` | Shows cryptocurrency prices and 24 h change (CoinGecko). Without a coin, the top 10. Information only — not financial advice. | everyone | `.crypto` |
 | `.define` | `.dict` `.dictionary` `.meaning` | Looks up an English word: pronunciation, meanings, examples and synonyms. | everyone | `.define serendipity` |
+| `.news` | `.headlines` | Latest headlines (Google News, no key needed), or news about a topic. Start with a country:language code for another region. | everyone | `.news` |
 | `.prayer` | `.salah` `.salat` `.adhan` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
 | `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation. Without a reference, a random verse. | everyone | `.quran 2:255` |
 | `.time` | `.clock` `.date` | Shows the current date and time in a city (or the bot's time zone). | everyone | `.time Tokyo` |
@@ -178,6 +184,9 @@ This list is generated from the command files themselves.
 | `.clear` | – | Sends and immediately deletes a bot message (clears the chat preview). | everyone (groups) | `.clear` |
 | `.delete` | `.del` | Deletes recent messages: the replied message, the last N from a user, or the last N in the group (max 50, only messages the bot saw since it started). The bot must be a group admin. | group admins (groups) | `.del (reply)` |
 | `.demote` | – | Removes admin rights from members. The bot must be a group admin. | group admins (groups) | `.demote @201012345678` |
+| `.disable` | `.cmdoff` | Turns commands off in this group (for everyone except the bot owner and sudo). .help and .enable can't be turned off. | group admins (groups) | `.disable sticker song` |
+| `.disabled` | `.offcommands` | Lists the commands turned off in this group. | everyone (groups) | `.disabled` |
+| `.enable` | `.cmdon` | Turns commands back on in this group. ".enable all" turns every one back on. | group admins (groups) | `.enable sticker` |
 | `.goodbye` | – | Goodbye messages when members leave. Variables: {user}, {group}. | group admins (groups) | `.goodbye on` |
 | `.hidetag` | – | Like .tag but only mentions members who are not admins. | group admins (groups) | `.hidetag Meeting at 8 pm` |
 | `.kick` | – | Removes members from the group. The bot and its owners cannot be kicked. The bot must be a group admin. | group admins (groups) | `.kick @201012345678` |
@@ -225,6 +234,7 @@ This list is generated from the command files themselves.
 | `.setpp` | – | Sets the bot's profile picture from the image you reply to. | owner | `.setpp` _(reply to an image)_ |
 | `.settings` | – | Shows the bot's global settings and, in a group, that group's protection settings. | owner, sudo | `.settings` |
 | `.setvar` | `.set` `.setenv` | Changes a setting from WhatsApp — AI keys and models, bot name, prefix, API keys, limits, tool paths. Applied immediately, saved across restarts, overrides .env. Secrets only in private chat. | owner | `.setvar BOT_NAME Akram Bot` |
+| `.stats` | `.usage` `.botstats` | Shows which commands are used most, total commands run, and since when. ".stats reset" starts counting again. | owner | `.stats` |
 | `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. | owner | `.sudo add @friend` |
 | `.update` | – | Checks GitHub for a newer version of the bot and of yt-dlp (nightly). '.update now' installs them: the bot is fast-forwarded from your repository, validated, rolled back if the check fails, and restarted. | owner | `.update` |
 | `.vars` | `.getvar` `.env` `.config` | Lists the settings you can change from chat with their current values (keys are hidden) and where each comes from. | owner | `.vars` |
@@ -235,12 +245,12 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.attp` | – | Makes an animated sticker of your text blinking in colours. _Needs: ffmpeg, font._ | everyone | `.attp hello` |
-| `.crop` | – | Like .sticker but crops the media to a square. _Needs: ffmpeg._ | everyone | `.crop` _(send or reply to media)_ |
-| `.emojimix` | `.emix` | Mixes two emojis into one sticker (Google Emoji Kitchen). _Needs: tenor, ffmpeg._ | everyone | `.emojimix 😎+🥰` |
+| `.crop` | – | Like .sticker but crops the media to a square. | everyone | `.crop` _(send or reply to media)_ |
+| `.emojimix` | `.emix` | Mixes two emojis into one sticker (Google Emoji Kitchen). _Needs: tenor._ | everyone | `.emojimix 😎+🥰` |
 | `.igs` | – | Turns the videos of an Instagram post into stickers. _Needs: ytdlp, ffmpeg._ | everyone | `.igs https://www.instagram.com/reel/C0abcdefghi/` |
 | `.igsc` | – | Like .igs but crops to a square. _Needs: ytdlp, ffmpeg._ | everyone | `.igsc https://www.instagram.com/reel/C0abcdefghi/` |
 | `.simage` | – | Converts the sticker you reply to into a picture. | everyone | `.simage` _(reply to a sticker)_ |
-| `.sticker` | `.s` | Turns an image, GIF or short video (first 6 s) into a sticker. _Needs: ffmpeg._ | everyone | `.sticker` _(send or reply to media)_ |
+| `.sticker` | `.s` | Turns an image, GIF or short video (first 6 s) into a sticker. Optionally give a pack name and author. Pictures work without ffmpeg. | everyone | `.sticker` |
 | `.take` | `.steal` | Re-labels the sticker you reply to with your own pack name. | everyone | `.take My Pack` |
 | `.tg` | `.stickertelegram` `.tgsticker` `.telesticker` | Copies a public Telegram sticker pack (up to 30 stickers; animated .tgs stickers are skipped). _Needs: telegramBot, ffmpeg._ | everyone | `.tg https://t.me/addstickers/Animals` |
 
@@ -249,8 +259,39 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.blur` | – | Blurs the image you send or reply to. | everyone | `.blur` _(send or reply to an image)_ |
+| `.brighten` | `.bright` | Makes it brighter (or darker below 1). Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.brighten` |
+| `.circlecrop` | `.round` | Crops to a circle with a transparent background (PNG). Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.circlecrop` _(send or reply to a picture)_ |
+| `.compress` | `.shrink` | Makes a picture smaller in bytes (JPEG at the quality you choose) and shows the size before and after. | everyone | `.compress` |
+| `.flipimg` | `.flipv` | Flips upside down. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.flipimg` _(send or reply to a picture)_ |
+| `.grayscale` | `.gray` `.grey` `.bw` | Black and white. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.grayscale` _(send or reply to a picture)_ |
+| `.imginfo` | `.exif` | Shows a picture's size, format and pixel dimensions. | everyone | `.imginfo` _(reply to a picture)_ |
+| `.invert` | `.negative` | Inverts the colours. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.invert` _(send or reply to a picture)_ |
+| `.mirror` | `.flop` | Mirrors left ↔ right. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.mirror` _(send or reply to a picture)_ |
+| `.pixelate` | `.pixel` `.censor` | Pixelates the picture. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.pixelate` |
 | `.remini` | `.enhance` `.upscale` | Enhances/upscales the image you send or reply to. _Needs: remini._ | everyone | `.remini` _(send or reply to an image)_ |
 | `.removebg` | `.rmbg` `.nobg` | Removes the background of the image you send or reply to. _Needs: removeBg._ | everyone | `.removebg` _(send or reply to an image)_ |
+| `.resize` | `.scale` | Resizes to a width×height (keeps proportions when one side is 0), or by a percentage. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.resize 512x512` |
+| `.rotate` | – | Rotates by 90° (or the angle you give). Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.rotate` |
+| `.saturate` | `.vivid` | Makes colours stronger (or weaker below 1). Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.saturate` |
+| `.sepia` | – | Old-photo sepia tone. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.sepia` _(send or reply to a picture)_ |
+| `.sharpen` | – | Makes a blurry picture sharper. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.sharpen` _(send or reply to a picture)_ |
+| `.toformat` | `.convertimg` `.tojpg` `.topng` `.towebp` | Converts a picture or sticker to JPG, PNG or WebP and sends it as a file (so WhatsApp doesn't recompress it). | everyone | `.toformat png` |
+
+### Audio effects
+
+| Command | Aliases | What it does | Who | Example |
+|---|---|---|---|---|
+| `.8d` | `.eightd` | Slowly pans left and right (use headphones). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.8d` _(reply to audio or video)_ |
+| `.bass` | `.bassboost` | Boosts the bass. Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.bass` _(reply to audio or video)_ |
+| `.chipmunk` | `.squirrel` `.highvoice` | Chipmunk voice (same speed). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.chipmunk` _(reply to audio or video)_ |
+| `.deep` | `.lowvoice` | Deeper voice (same speed). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.deep` _(reply to audio or video)_ |
+| `.echo` | – | Adds an echo. Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.echo` _(reply to audio or video)_ |
+| `.fast` | `.speedup` | Speeds it up (same pitch). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.fast` _(reply to audio or video)_ |
+| `.nightcore` | `.nc` | Faster and higher (nightcore). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.nightcore` _(reply to audio or video)_ |
+| `.reverse` | – | Plays it backwards. Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.reverse` _(reply to audio or video)_ |
+| `.robot` | – | Robot voice. Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.robot` _(reply to audio or video)_ |
+| `.slow` | `.slowed` | Slows it down (same pitch). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.slow` _(reply to audio or video)_ |
+| `.vaporwave` | `.vapor` | Slower and lower (vaporwave). Reply to a voice note, song or video. _Needs: ffmpeg._ | everyone | `.vaporwave` _(reply to audio or video)_ |
 
 ### Text effects
 
@@ -293,10 +334,13 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
-| `.ai` | `.gpt` `.gemini` `.ask` `.claude` | Asks the AI a question (Claude, Gemini or an OpenAI-compatible model — the owner picks it with .setai). Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the image. _Needs: ai._ | everyone | `.ai write a haiku about Cairo` |
+| `.ai` | `.gpt` `.gemini` `.ask` `.claude` | Asks the AI (Claude, Gemini or an OpenAI-compatible model — the owner picks it with .setai). It remembers your last few questions for 30 minutes, so you can ask follow-ups. Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the picture. _Needs: ai._ | everyone | `.ai write a haiku about Cairo` |
 | `.aimodel` | `.models` `.setmodel` | Lists the models your AI key can use and switches to one (by name or number). Add a word to filter the list. _Needs: ai._ | owner | `.aimodel` |
+| `.aireset` | `.newchat` `.forget` `.clearai` | Makes .ai forget your conversation, to start a new topic. Also shows how many AI requests you have left today. _Needs: ai._ | everyone | `.aireset` |
+| `.imagine` | `.draw` `.genimg` `.dalle` `.nanobanana` | Draws a picture from your description with AI (Gemini or OpenAI, whichever key the owner set). Reply to a picture to edit it instead (Gemini only), e.g. "make it a cartoon". _Needs: aiImage._ | everyone | `.imagine a cat astronaut on the moon, watercolor` |
 | `.setai` | `.aiset` `.aiprovider` | Chooses the AI (Claude, Gemini or any OpenAI-compatible service) and sets its API key. The key is tested before it is saved. Without arguments, shows the current AI. | owner | `.setai gemini AIza…` |
 | `.summarize` | `.summary` `.tldr` `.sum` | Summarizes a long message (reply to it), a web page link, or a YouTube video (from its captions). Add a question to ask about it instead. _Needs: ai._ | everyone | `.summarize https://en.wikipedia.org/wiki/Nile` |
+| `.transcribe` | `.stt` `.totext` `.voice2text` | Writes out what is said in a voice note, audio or video (any language). Add "translate <language>" to translate it too. _Needs: aiAudio._ | everyone | `.transcribe` _(reply to a voice note)_ |
 
 ### Fun
 
@@ -396,7 +440,7 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 | Anticall | `.anticall on` (owner) | Rejects calls and blocks the caller |
 | Promote/demote announcements | always in public mode | Announces admin changes in groups |
 | AFK notices | `.afk [reason]` (anyone) | When someone mentions or replies to an AFK user, the bot says they are away (at most once per chat every 5 minutes). The AFK user's next message clears it |
-| Reminders | `.remind 10m <text>` (anyone) | Sent in the chat where they were set, mentioning you. Stored in `DATA_DIR/reminders.json`, so they survive restarts; reminders that fell due while the bot was offline are sent on reconnect, marked late. Max 10 per person, 60 days ahead |
+| Reminders | `.remind 10m <text>`, `.remind at 18:30 <text>`, `.remind tomorrow at 9am <text>`, `.remind every day at 08:00 <text>` (anyone) | Times use `TIMEZONE`. Repeating reminders (every 10 minutes to 60 days) continue until `.remind del <id>`. Sent in the chat where they were set, mentioning you. Stored in `DATA_DIR/reminders.json`, so they survive restarts; reminders that fell due while the bot was offline are sent on reconnect, marked late. Max 10 per person, 60 days ahead |
 
 ## Configuration options
 
@@ -433,6 +477,9 @@ cp MD-main/.env.example MD-main/.env
 | `ANTIDELETE_MAX_MESSAGES` / `ANTIDELETE_MAX_MEDIA_MB` | `5000` / `10` | Antidelete limits |
 | `FFMPEG_PATH` / `YTDLP_PATH` | `ffmpeg` / `yt-dlp` | Tool locations: a program name found in `PATH`, or a full path. `~` means your home folder (`~/.local/bin/yt-dlp`). Use the standalone yt-dlp nightly binary so `.update now` can update it |
 | `TIMEZONE` | the server's time zone | IANA name such as `Africa/Cairo`; used by `.time` and `.remind` |
+| `NEWS_REGION` | `US:en` | Default `.news` region, e.g. `EG:ar` |
+| `SUGGEST_COMMANDS` | `true` | "Did you mean …?" for mistyped commands |
+| `YTDLP_AUTO_UPDATE` | `false` | Update yt-dlp to the latest nightly once a day |
 | `UPDATE_REMOTE` / `UPDATE_BRANCH` | `origin` / `main` | Where `.update` gets new versions of the bot |
 | `YTDLP_COOKIES` | empty | cookies.txt for login-only content on every site (per-site cookies from `.setcookie` take precedence) |
 | `FONT_FILE` | DejaVu Sans Bold | Font for `.attp` |
@@ -441,14 +488,17 @@ cp MD-main/.env.example MD-main/.env
 | `CLAUDE_MODEL` (old name `AI_MODEL`) / `GEMINI_MODEL` / `OPENAI_MODEL` | `claude-opus-5-5` / `gemini-3.8-flash` / `gpt-6-luna` | Model per provider (`.aimodel`) |
 | `OPENAI_BASE_URL` | `https://api.openai.com/v1` | Any OpenAI-compatible https endpoint |
 | `AI_EFFORT` | `low` | Claude only: `low`…`max` |
+| `AI_DAILY_LIMIT` | `50` | AI requests per person per day (0 = unlimited; owner/sudo exempt) |
+| `AI_MEMORY_TURNS` | `6` | Exchanges `.ai` and the chatbot remember (0 = none) |
+| `GEMINI_IMAGE_MODEL` / `OPENAI_IMAGE_MODEL` / `OPENAI_TRANSCRIBE_MODEL` | `gemini-3.1-flash-image` / `gpt-image-2.5-flare` / `gpt-transcribe` | Models for `.imagine` and `.transcribe` |
 | `AI_MAX_TOKENS` | `1024` | Maximum answer length |
 | `CHATBOT_PERSONA` | friendly, concise | Chatbot instructions |
-| `NEWSAPI_KEY`, `TENOR_KEY`, `TELEGRAM_BOT_TOKEN`, `REMOVEBG_API_KEY`, `REMINI_API_KEY`, `GITHUB_REPO` | empty | Enable the matching commands |
+| `TENOR_KEY`, `TELEGRAM_BOT_TOKEN`, `REMOVEBG_API_KEY`, `REMINI_API_KEY`, `GITHUB_REPO` | empty | Enable the matching commands |
 | `OPENWEATHER_KEY` | empty | No longer needed: `.weather` uses Open-Meteo, which is free and keyless |
 
 The pairing service has its own `Bot_Pair_Code-main/.env`; its options are explained in `Bot_Pair_Code-main/.env.example` and in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 ## Privacy notes for group members
 
-- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.short` sends the link to TinyURL. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
+- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.short` sends the link to TinyURL. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

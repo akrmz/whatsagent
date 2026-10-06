@@ -85,8 +85,8 @@ The account may be restricted or banned by WhatsApp. Check the phone. The bot re
 ### "Please make the bot a group admin first"
 Commands that remove members, delete messages or change group settings need the bot to be an admin. Make it one in the group's settings.
 
-### Stickers: `ffmpeg is not installed` / `.sticker` missing
-Install ffmpeg (`sudo apt-get install -y ffmpeg`) and restart. Docker images include it.
+### Stickers: `ffmpeg is not installed`
+Picture stickers work without ffmpeg (since 2.4.0). GIFs, videos, `.igs`, the audio effects, `.toaudio` and `.tovn` need it: install ffmpeg (`sudo apt-get install -y ffmpeg`), then `.setvar FFMPEG_PATH /usr/bin/ffmpeg` or restart. Docker images include it.
 
 ### yt-dlp (or ffmpeg) is installed but its commands are missing from `.help`
 The bot checks every tool once at startup and hides commands whose tool it can't run. To see exactly why:
@@ -116,6 +116,15 @@ Free tiers (e.g. Gemini) have per-minute and per-day limits. Wait, choose a chea
 
 ### AI: answers are cut off, or "The answer did not fit"
 Raise the limit: `.setvar AI_MAX_TOKENS 2048`.
+
+### `.imagine` / `.transcribe` missing from `.help`
+They need a **Gemini** or **OpenAI** key (Claude can't draw pictures or listen to audio). Add one next to Claude: `.setvar GEMINI_API_KEY <key>` in a private chat. With an OpenAI-compatible service other than api.openai.com they stay off. "No picture came back" usually means the request was refused for safety reasons: describe it differently. Image generation may need a paid Gemini plan; check your quota at aistudio.google.com.
+
+### `.crypto`: "CoinGecko's free limit was reached"
+CoinGecko's free API allows only a few requests a minute. Prices are cached for 60 seconds; try again shortly.
+
+### `.news` shows the wrong country or language
+Set the default with `.setvar NEWS_REGION EG:ar` (COUNTRY:language), or ask once with `.news sa:ar`.
 
 ### Cookies: `.setcookie` says "No login cookie found", or downloads still ask for a login
 - Export while logged in, on the site itself (e.g. youtube.com, not google.com).
