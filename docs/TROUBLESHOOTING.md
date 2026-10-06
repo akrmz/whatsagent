@@ -120,6 +120,12 @@ Raise the limit: `.setvar AI_MAX_TOKENS 2048`.
 ### `.imagine` / `.transcribe` missing from `.help`
 They need a **Gemini** or **OpenAI** key (Claude can't draw pictures or listen to audio). Add one next to Claude: `.setvar GEMINI_API_KEY <key>` in a private chat. With an OpenAI-compatible service other than api.openai.com they stay off. "No picture came back" usually means the request was refused for safety reasons: describe it differently. Image generation may need a paid Gemini plan; check your quota at aistudio.google.com.
 
+### Automatic adhkar/tafsir/duas don't arrive, or arrive at the wrong hour
+- Send `.autoazkar` or `.autotafsir`: they show the next message and its time, plus the bot's time zone and current time. If that time is not yours, set it: `.setvar TIMEZONE Africa/Cairo`.
+- Before 2.10.1, a server running on UTC (most VPSs) with no `TIMEZONE` made the bot use UTC: adhkar came 2–3 hours off for Egypt/Saudi Arabia, and the repeating posts were held as "night" (quiet hours 23:00–07:00 UTC) until 10:00 Egypt time. Now the owner's country is used in that case.
+- `.autoazkar on` doesn't send anything right away; it sends at the next morning or evening time shown in the reply. Use `.azkar` for the adhkar now. `.autotafsir every N` and `.autoazkar dua every N` send the first one immediately.
+- Repeating posts wait during quiet hours (default 23:00–07:00). Change them with `.autotafsir quiet 00:00-06:00`, or turn them off with `.autotafsir quiet off`.
+
 ### `.gcschedule` didn't close or open the group
 The bot must be a group admin at that moment. Times use `TIMEZONE` (`.vars TIMEZONE`). If the bot was offline at the time, it applies the change when it comes back, up to 3 hours late, once per day. A time that had already passed when you set it starts the next day.
 

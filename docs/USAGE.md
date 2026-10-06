@@ -223,7 +223,7 @@ This list is generated from the command files themselves.
 | `.asma` | `.asmaulhusna` `.names99` `.asmaallah` | من أسماء الله الحسنى — a name of Allah from al-Asma' al-Husna (random, by number 1-99, or "all"). | everyone | `.asma` |
 | `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoazkar on` |
 | `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoprayer on Cairo` |
-| `.autotafsir` | `.dailyayah` `.autoayah` `.ayahtafsir` | يرسل آية عشوائية مع تفسيرها (التفسير الميسر) كل عدد من الساعات في هذه المحادثة — posts a random verse with al-Tafsir al-Muyassar here every N hours (1–24). No posts during quiet hours (default 23:00–07:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autotafsir on` |
+| `.autotafsir` | `.dailyayah` `.autoayah` `.ayahtafsir` | يرسل آية عشوائية مع تفسيرها (التفسير الميسر) كل عدد من الساعات في هذه المحادثة — posts a random verse with al-Tafsir al-Muyassar here every N hours (1–24); the first one right away. No automatic posts during quiet hours (default 23:00–07:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autotafsir on` |
 | `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
 | `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
 | `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
@@ -566,7 +566,7 @@ cp MD-main/.env.example MD-main/.env
 | `STORE_MAX_CHATS` / `STORE_MESSAGES_PER_CHAT` | `500` / `20` | Recent messages kept in memory (for `.delete`) |
 | `ANTIDELETE_MAX_MESSAGES` / `ANTIDELETE_MAX_MEDIA_MB` | `5000` / `10` | Antidelete limits |
 | `FFMPEG_PATH` / `YTDLP_PATH` | `ffmpeg` / `yt-dlp` | Tool locations: a program name found in `PATH`, or a full path. `~` means your home folder (`~/.local/bin/yt-dlp`). Use the standalone yt-dlp nightly binary so `.update now` can update it |
-| `TIMEZONE` | the server's time zone | IANA name such as `Africa/Cairo`; used by `.time` and `.remind` |
+| `TIMEZONE` | the server's zone, or the owner's country when the server is on UTC | IANA name such as `Africa/Cairo`; used by `.time`, `.remind`, `.autoazkar`, `.autotafsir`, `.gcschedule` … `.doctor` shows which zone is used and why |
 | `ISLAMIC_ADMIN_ONLY` | `false` | `true`: only group admins may set `.autoazkar`, `.autoprayer`, `.autotafsir` in groups |
 | `NEWS_REGION` | `US:en` | Default `.news` region, e.g. `EG:ar` |
 | `SUGGEST_COMMANDS` | `true` | "Did you mean …?" for mistyped commands |

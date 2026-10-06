@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.10.1 — 2026-10-06
+
+### Fixed
+- **Automatic Islamic posts didn't arrive, or came at the wrong hour.** Without `TIMEZONE`, the bot used the server's time zone, which on most VPSs is UTC. Repeating posts were then held as "night" (quiet hours) until 07:00 UTC, and `.autoazkar` used UTC times.
+  - When `TIMEZONE` is not set and the server is on UTC, the bot now uses the owner's country, from the first number in `OWNER_NUMBERS` (single-zone countries only, e.g. 20 → Africa/Cairo, 966 → Asia/Riyadh).
+  - The chosen zone and why are in the startup log and in `.doctor`.
+- `.autotafsir every N` and `.autoazkar dua every N` post the first verse/dua **immediately**, then every N hours. Before, they said "within a minute", but quiet hours could hold the post.
+
+### Changed
+- `.autoazkar`, `.autotafsir` and `.autoprayer` replies show the **next message and when it comes** ("⏭️ التالي: أذكار المساء الساعة 17:00 (بعد 8 س 12 د)"). They also show the bot's time zone and current time, with a hint to set `TIMEZONE` when it's only the server's UTC.
+- 5 tests (142 in total). The fix was also checked with the real timers on a simulated UTC server.
+
 ## 2.10.0 — 2026-10-06
 
 ### Added
