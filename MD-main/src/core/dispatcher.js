@@ -156,11 +156,19 @@ function createDispatcher(app) {
 
   /** ".stiker" → "did you mean .sticker?" (SUGGEST_COMMANDS; once per chat a minute). */
   async function suggestCommand(ctx, name) {
-    if (!app.config.bot.suggestCommands || name.length < 3 || ctx.fromMe) return;
     if (!app.state.isPublic() && !atLeast(ctx.level, "sudo")) return;
+    const p = app.config.bot.prefix;
+    // A real command that is switched off because a tool or key is missing.
+    const off = app.commands.disabled.find((d) => d.name === name || (d.aliases || []).includes(name));
+    if (off) {
+      if (!noticeOnce(`unavailable|${ctx.chatId}|${off.name}`)) return;
+      const why = ctx.isOwner ? `\nIt needs: ${off.missing.join(", ")}. Send ${p}doctor to see how to enable it.` : "";
+      await ctx.reply(`⚠️ ${p}${off.name} isn't available on this bot right now.${why}`).catch(() => {});
+      return;
+    }
+    if (!app.config.bot.suggestCommands || name.length < 3 || ctx.fromMe) return;
     const close = suggest(name, app.commands.byName);
     if (!close.length || !noticeOnce(`suggest|${ctx.chatId}`)) return;
-    const p = app.config.bot.prefix;
     await ctx.reply(`❓ There is no ${p}${name}. Did you mean ${close.map((n) => p + n).join(" or ")}?`).catch(() => {});
   }
 

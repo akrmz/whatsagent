@@ -23,6 +23,11 @@ module.exports = {
       const wanted = ctx.args[0].replace(prefix, "").toLowerCase();
       const command = commands.byName.get(wanted);
       if (command && !command.hidden) return ctx.reply(renderCommand(command, prefix));
+      const off = commands.disabled.find((d) => d.name === wanted || (d.aliases || []).includes(wanted));
+      if (off) {
+        const why = ctx.isOwner ? ` It needs: ${off.missing.join(", ")} — see ${prefix}doctor.` : "";
+        return ctx.reply(`⚠️ ${prefix}${off.name} isn't available on this bot right now.${why}`);
+      }
       const category = findCategory(wanted, commands.list);
       if (category) return ctx.reply(renderCategory(category, commands.list, prefix));
       const close = suggest(wanted, commands.byName);

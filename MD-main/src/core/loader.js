@@ -115,7 +115,7 @@ function loadCommands(dirInput, { capabilities = {}, log } = {}) {
       });
       const missing = missingRequirements(command, capabilities);
       if (missing.length) {
-        disabled.push({ name: command.name, missing });
+        disabled.push({ name: command.name, aliases: command.aliases, missing });
         log?.info({ command: command.name, missing }, "command disabled: requirement not configured");
         continue;
       }

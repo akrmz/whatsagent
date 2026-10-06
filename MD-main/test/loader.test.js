@@ -69,7 +69,7 @@ test("commands with a missing requirement are disabled, not loaded", () => {
   });
   const off = loadCommands(dir, { capabilities: { openWeather: false } });
   assert.equal(off.byName.has("w"), false);
-  assert.deepEqual(off.disabled, [{ name: "w", missing: ["openWeather"] }]);
+  assert.deepEqual(off.disabled, [{ name: "w", aliases: [], missing: ["openWeather"] }]);
   const on = loadCommands(dir, { capabilities: { openWeather: true } });
   assert.equal(on.byName.has("w"), true);
 });

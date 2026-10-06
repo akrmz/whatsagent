@@ -27,17 +27,21 @@ module.exports = {
     usage.takeQuota(ctx, translateTo ? 2 : 1);
     await ctx.react("✍️");
 
-    let buffer = await ctx.download(media, 20 * 1024 * 1024);
+    // Gemini allows 20 MB per request and base64 adds a third: the audio sent must stay
+    // under 14 MB. Videos may be larger, because only their audio track is sent.
+    const isVideo = media.type === "video" || /^video\//.test(media.mimetype);
+    let buffer = await ctx.download(media, (isVideo ? 50 : 14) * 1024 * 1024);
     const ffmpeg = ctx.app.capabilities.ffmpeg;
     const toMp3 = ffmpeg
       ? async (b) => (await toAudio(b, { format: "mp3", ffmpegPath: ctx.config.tools.ffmpeg, tmpDir: ctx.config.paths.tmp, maxSeconds: MAX_SECONDS })).buffer
       : null;
     let mimetype = media.mimetype;
     // Videos are sent as their audio track (much smaller); needs ffmpeg.
-    if (media.type === "video" || /^video\//.test(mimetype)) {
+    if (isVideo) {
       if (!toMp3) throw new UserError("ffmpeg is not installed on the server, so videos can't be transcribed (voice notes still work).");
       buffer = await toMp3(buffer);
       mimetype = "audio/mpeg";
+      if (buffer.length > 14 * 1024 * 1024) throw new UserError("The audio of that video is too long to transcribe.");
     }
     const text = await ctx.app.media.transcribe(buffer, { mimetype, toMp3 });
     if (!text || /^\[no speech\]$/i.test(text)) return ctx.reply("I couldn't hear any speech in that.");

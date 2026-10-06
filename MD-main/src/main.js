@@ -20,6 +20,7 @@ const { sudoList } = require("./services/settings");
 const { startReminderLoop } = require("./services/reminders");
 const vars = require("./services/vars");
 const { startAutoUpdate } = require("./services/autoupdate");
+const { startGroupScheduleLoop } = require("./services/gcschedule");
 
 const COMMANDS_DIR = path.join(__dirname, "commands");
 const LISTENERS_DIR = path.join(__dirname, "listeners");
@@ -155,6 +156,7 @@ async function start() {
   const health = startHealthServer(app);
   const stopReminders = startReminderLoop(app);
   const stopAutoUpdate = startAutoUpdate(app);
+  const stopGroupSchedule = startGroupScheduleLoop(app);
   app.connection = connection;
 
   let shuttingDown = false;
@@ -164,6 +166,7 @@ async function start() {
     log.info({ signal }, "shutting down");
     stopReminders();
     stopAutoUpdate();
+    stopGroupSchedule();
     connection.stop();
     app.state.flush();
     health?.close();
