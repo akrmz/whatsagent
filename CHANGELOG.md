@@ -2,6 +2,16 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.16.0 — 2026-10-06
+
+### Added
+- **`.siyam`**: the sunnah fasting days coming up. These are Mondays and Thursdays, the white days, Arafah, Tasu'a and Ashura, and the start of the six days of Shawwal, plus the dates of the next Arafah and Ashura. Days when fasting is not allowed (the Eids and the days of Tashreeq) are never suggested, and nothing is suggested in Ramadan. Dates use the Umm al-Qura calendar offline and were checked against aladhan.com's conversion.
+- **`.autosiyam`**: a reminder the evening before each sunnah fast (default 20:00). It says why tomorrow is recommended and is quiet on other days. `weekly off` keeps only the white days and the special days. It is listed in `.autos`, stopped by `.autos off`, and stopped when the bot leaves a group.
+- **`.khatma remind`**: mentions members whose juz' aren't read yet, longest first, at most once an hour.
+
+### Checked
+- 4 tests (166 in total).
+
 ## 2.15.0 — 2026-10-06
 
 ### Added
