@@ -3,7 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { spawn } = require("node:child_process");
-const { withTempDir } = require("../core/media");
+const { withTempDir, probeCodecs, videoPlan, toWhatsAppVideo } = require("../core/media");
 const { UserError } = require("../core/errors");
 const { LRU } = require("../core/lru");
 const { heavy } = require("../core/jobs");
@@ -140,9 +140,8 @@ async function download(config, { target, kind, search = false, maxItems = 1, ha
     if (kind === "audio") {
       args.push("-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "5");
     } else {
-      // Without ffmpeg only ready-made (single-file) formats can be used.
-      if (hasFfmpeg) args.push("-f", "b[ext=mp4][height<=720]/bv*[height<=720]+ba/b", "--merge-output-format", "mp4");
-      else args.push("-f", "b[ext=mp4][height<=720]/b[height<=720]/b");
+      args.push("-f", hasFfmpeg ? VIDEO_FORMAT : VIDEO_FORMAT_NO_FFMPEG);
+      if (hasFfmpeg) args.push("--merge-output-format", "mp4");
     }
     args.push("--", search ? `ytsearch1:${target}` : target);
 
@@ -154,12 +153,55 @@ async function download(config, { target, kind, search = false, maxItems = 1, ha
     if (code !== 0 && files.length === 0) throw new UserError(explain(err));
     if (files.length === 0) throw new UserError("No downloadable media was found.");
     const titles = out.trim().split("\n");
-    return files.slice(0, maxItems).map((f, i) => {
-      const file = path.join(dir, f);
+    const items = [];
+    for (const [i, f] of files.slice(0, maxItems).entries()) {
+      let file = path.join(dir, f);
+      let ext = path.extname(f).slice(1).toLowerCase();
+      if (kind === "video" && hasFfmpeg && VIDEO_EXTS.has(ext)) {
+        const fixed = await playableOnWhatsApp(config, file, ext);
+        if (fixed) [file, ext] = [fixed, "mp4"];
+      }
       if (fs.statSync(file).size > maxBytes) throw new UserError("The file is larger than the allowed limit.");
-      return { buffer: fs.readFileSync(file), title: titles[i] || "media", ext: path.extname(f).slice(1) };
-    });
+      items.push({ buffer: fs.readFileSync(file), title: titles[i] || "media", ext });
+    }
+    return items;
   });
+}
+
+/*
+ * Video formats, best first. WhatsApp plays H.264 video with AAC audio on every phone, but
+ * sites increasingly serve AV1 or VP9 (Facebook's separate video streams are all AV1), which
+ * WhatsApp shows as "something is wrong with the video file". So: a ready-made H.264 MP4,
+ * then H.264 video + AAC audio, then any ready-made MP4 (Facebook's "hd"/"sd" files, whose
+ * codec isn't listed but is H.264), and only then anything — converted after the download.
+ */
+const VIDEO_FORMAT = [
+  "b[ext=mp4][vcodec^=avc][height<=?720]",
+  "bv*[vcodec^=avc][height<=?720]+ba[acodec^=mp4a]",
+  "bv*[vcodec^=avc][height<=?720]+ba",
+  "b[ext=mp4][height<=?720]",
+  "bv*[height<=?720]+ba",
+  "b",
+].join("/");
+// Without ffmpeg only ready-made (single-file) formats can be used, and nothing can be converted.
+const VIDEO_FORMAT_NO_FFMPEG = ["b[ext=mp4][vcodec^=avc][height<=?720]", "b[ext=mp4][height<=?720]", "b[height<=?720]", "b"].join("/");
+const VIDEO_EXTS = new Set(["mp4", "webm", "mkv", "mov", "m4v"]);
+
+/**
+ * Checks the codecs of a downloaded video and converts it if WhatsApp can't play it.
+ * @returns {Promise<string|null>} the converted file, or null if the original is fine
+ */
+async function playableOnWhatsApp(config, file, ext) {
+  const codecs = await probeCodecs(config.tools.ffmpeg, file);
+  const plan = videoPlan(codecs, ext);
+  if (plan === "ok") return null;
+  const out = `${file}.whatsapp.mp4`;
+  try {
+    await toWhatsAppVideo(config.tools.ffmpeg, file, out, { plan, codecs, maxSeconds: config.limits.videoSeconds });
+  } catch {
+    throw new UserError("The video uses a format WhatsApp can't play, and converting it failed.");
+  }
+  return out;
 }
 
 /**
@@ -265,4 +307,4 @@ function recallSearch(ctx, n) {
   return results?.[n - 1]?.url || null;
 }
 
-module.exports = { download, search, transcript, vttToText, isAvailable, matchSiteUrl, detectSite, rememberSearch, recallSearch, HOSTS, AUDIO_SITES };
+module.exports = { download, search, transcript, vttToText, isAvailable, matchSiteUrl, detectSite, rememberSearch, recallSearch, HOSTS, AUDIO_SITES, VIDEO_FORMAT, VIDEO_FORMAT_NO_FFMPEG };

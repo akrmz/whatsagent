@@ -138,6 +138,64 @@ function runFfmpegNow(ffmpegPath, args, { timeoutMs = 120000 } = {}) {
 /** Input options used for every untrusted file. */
 const SAFE_INPUT = ["-protocol_whitelist", "file,pipe"];
 
+/** "Stream #0:0: Video: av1 (libdav1d) …" → { video: "av1", audio: "aac" } from ffmpeg's stream list. */
+function parseCodecs(stderr) {
+  const video = String(stderr).match(/Stream #\d+:\d+[^\n]*?: Video: (\w+)/);
+  const audio = String(stderr).match(/Stream #\d+:\d+[^\n]*?: Audio: (\w+)/);
+  return { video: video?.[1] || null, audio: audio?.[1] || null };
+}
+
+/** The codecs of a local file (ffmpeg -i without an output only prints the stream list). */
+function probeCodecs(ffmpegPath, file) {
+  return new Promise((resolve) => {
+    const proc = spawn(ffmpegPath, ["-hide_banner", "-nostdin", ...SAFE_INPUT, "-i", file], { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });
+    let stderr = "";
+    const timer = setTimeout(() => proc.kill("SIGKILL"), 30000);
+    proc.stderr.on("data", (d) => {
+      if (stderr.length < 20000) stderr += d;
+    });
+    proc.on("error", () => {
+      clearTimeout(timer);
+      resolve({ video: null, audio: null });
+    });
+    proc.on("close", () => {
+      clearTimeout(timer);
+      resolve(parseCodecs(stderr));
+    });
+  });
+}
+
+// What every WhatsApp client plays: H.264 video, AAC (or MP3) audio, in MP4.
+const PLAYABLE_VIDEO = new Set(["h264"]);
+const PLAYABLE_AUDIO = new Set(["aac", "mp3"]);
+
+/** "convert" (re-encode), "remux" (right codecs, other container) or "ok". */
+function videoPlan({ video, audio }, ext) {
+  if (!video) return "ok"; // not a video, or unreadable: leave it alone
+  if (!PLAYABLE_VIDEO.has(video) || (audio && !PLAYABLE_AUDIO.has(audio))) return "convert";
+  return ext === "mp4" ? "ok" : "remux";
+}
+
+/**
+ * Re-encodes (or just re-packs) a video so WhatsApp can play it: H.264 (yuv420p, at most
+ * 1280 px on the long side), AAC audio, MP4 with the index at the start.
+ */
+async function toWhatsAppVideo(ffmpegPath, input, output, { plan, codecs, maxSeconds = 1800 }) {
+  const audio = codecs.audio === "aac" ? ["-c:a", "copy"] : ["-c:a", "aac", "-b:a", "128k"];
+  const video =
+    plan === "remux"
+      ? ["-c:v", "copy"]
+      : [
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "26", "-pix_fmt", "yuv420p",
+          "-vf", "scale=w='min(1280,iw)':h='min(1280,ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+        ];
+  await runFfmpeg(
+    ffmpegPath,
+    [...SAFE_INPUT, "-i", input, "-map", "0:v:0", "-map", "0:a:0?", "-t", String(maxSeconds), ...video, ...audio, "-movflags", "+faststart", output],
+    { timeoutMs: 5 * 60 * 1000 },
+  );
+}
+
 // ---- Stickers ---------------------------------------------------------------
 
 const EXIF_HEADER = Buffer.from([
@@ -278,6 +336,10 @@ module.exports = {
   withTempDir,
   runFfmpeg,
   SAFE_INPUT,
+  parseCodecs,
+  probeCodecs,
+  videoPlan,
+  toWhatsAppVideo,
   toSticker,
   toAudio,
   addStickerExif,
