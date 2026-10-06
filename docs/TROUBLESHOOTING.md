@@ -101,6 +101,7 @@ The bot checks every tool once at startup and hides commands whose tool it can't
 - `Download failed …`: sites change often. Send `.update now` (it updates yt-dlp to the latest nightly), or on the server run `yt-dlp --update-to nightly`, then try again.
 - `larger than the allowed limit` / `longer than the allowed duration`: raise `MAX_DOWNLOAD_MB` / `MAX_VIDEO_SECONDS`. WhatsApp itself limits media to about 100 MB.
 - `private or needs a login`, YouTube "Sign in to confirm you're not a bot" or age-restricted videos: give the bot login cookies for that site with `.setcookie <site>` in a private chat ([USAGE.md → Cookies](USAGE.md#cookies-for-downloads-youtube-instagram-)). Instagram photo posts (not videos) cannot be downloaded.
+- Facebook `No downloadable media was found` for a link like `facebook.com/share/r/…`: before 2.18.1 the bot passed these "Share" links to yt-dlp, which doesn't support them ("Unsupported URL"). The bot now opens the share link first and downloads the real post (`facebook.com/reel/…`). If it still fails, open the link in a browser and send the address it ends up on.
 
 ### `The external service used by this command is not responding`
 Some fun and image commands use free third-party APIs that the bot does not control (listed in `.help <command>`). They can be down or change without notice. Try later. Nothing is wrong with your bot.

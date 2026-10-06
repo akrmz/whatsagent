@@ -2,6 +2,15 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.18.1 — 2026-10-06
+
+### Fixed
+- **Facebook "Share" links failed to download** (`.facebook`, `.dl` …) with "No downloadable media was found". Links like `facebook.com/share/r/…`, `/share/v/`, `/share/p/` and `fb.watch/…` are not supported by yt-dlp ("Unsupported URL"). Facebook also answers them with HTTP 400 for browser-like clients. The bot now reads the one redirect Facebook gives its link-preview crawler (it doesn't download the page) and downloads the real post (`facebook.com/reel/<id>/`). The target is used only if it is https, still on Facebook and not the login page, and tracking parameters are removed. If anything fails, the original link is used as before. Checked with a real share link: resolved and downloaded (5.7 MB, 7 s).
+- A test of `.autotafsir` depended on the time of day (it failed in the evening because of quiet hours).
+
+### Added
+- `core/http` `request(…, { followRedirects: false })` returns a redirect without fetching its target.
+
 ## 2.18.0 — 2026-10-06
 
 ### Added
