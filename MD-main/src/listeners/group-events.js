@@ -1,29 +1,10 @@
 "use strict";
 
 const { groupData } = require("../services/settings");
-const cards = require("../services/cards");
+const greetings = require("../services/greetings");
 const { at } = require("../services/targets");
 
 const jidOf = (p) => (typeof p === "string" ? p : p?.id || p?.phoneNumber || "");
-
-// Drawn on the server (services/cards.js): the member's photo is not sent to any third party.
-async function welcomeCard(sock, user, meta, type, phoneJid) {
-  return cards.welcomeCard({
-    avatar: await cards.avatarOf(sock, user),
-    kind: type === "join" ? "welcome" : "goodbye",
-    // LID-only members have no phone number to show; then just the photo and group.
-    name: phoneJid?.endsWith("@s.whatsapp.net") ? `+${phoneJid.split("@")[0]}` : type === "join" ? "New member" : "A member",
-    group: meta.subject || "",
-    members: meta.participants?.length || 0,
-  });
-}
-
-function fill(template, { user, meta }) {
-  return template
-    .replace(/{user}/g, at(user))
-    .replace(/{group}/g, meta.subject)
-    .replace(/{description}/g, meta.desc?.toString() || "");
-}
 
 module.exports = [
   {
@@ -38,13 +19,7 @@ module.exports = [
       for (const p of participants) {
         const user = jidOf(p);
         if (!user) continue;
-        const text = fill(setting.message || (key === "welcome" ? "Welcome {user} to {group}! 🎉" : "Goodbye {user} 👋"), { user, meta });
-        try {
-          const image = await welcomeCard(sock, user, meta, action === "add" ? "join" : "leave", app.identity.toPn(user) || user);
-          await sock.sendMessage(id, { image, caption: text, mentions: [user] });
-        } catch {
-          await sock.sendMessage(id, { text, mentions: [user] });
-        }
+        await sock.sendMessage(id, await greetings.build(app, sock, { kind: key, user, meta, template: setting.message }));
       }
     },
   },

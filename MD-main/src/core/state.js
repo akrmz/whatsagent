@@ -127,8 +127,29 @@ function createState({ dataDir, defaultMode = "public", log }) {
   const modeStore = store("mode", { isPublic: defaultMode === "public" });
   if (modeStore.loadFailed) modeStore.data.isPublic = false; // fail closed
 
+  /** Names of the state files on disk (without .json), e.g. for backups. */
+  function names() {
+    stores.forEach((s) => s.flush());
+    return fs
+      .readdirSync(dataDir)
+      .filter((f) => /^[A-Za-z0-9_-]+\.json$/.test(f))
+      .map((f) => f.slice(0, -5))
+      .sort();
+  }
+
+  /** Replaces a whole store (restore from a backup). Saved immediately. */
+  function replace(name, data) {
+    if (!/^[A-Za-z0-9_-]{1,60}$/.test(name)) throw new Error(`bad store name ${name}`);
+    const s = store(name, Array.isArray(data) ? [] : {});
+    s.data = structuredClone(data);
+    s.flush();
+  }
+
   return {
     store,
+    names,
+    replace,
+    dataDir,
     isPublic: () => modeStore.data.isPublic === true,
     setPublic: (value) => modeStore.update((d) => (d.isPublic = Boolean(value))),
     flush: () => stores.forEach((s) => s.flush()),

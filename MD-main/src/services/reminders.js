@@ -20,6 +20,7 @@ const MIN_MS = 10 * 1000;
 const MAX_MS = 60 * UNITS.d;
 const MAX_PER_USER = 10;
 const MAX_TEXT = 500;
+const MAX_ANNOUNCE_TEXT = 2000;
 const TICK_MS = 15 * 1000;
 const MAX_ATTEMPTS = 5;
 const MIN_EVERY = 10 * 60 * 1000;
@@ -50,8 +51,12 @@ function clockIn(timeZone, now) {
       .formatToParts(new Date(now))
       .map((p) => [p.type, p.value]),
   );
-  return { minutes: Number(parts.hour) * 60 + Number(parts.minute), seconds: Number(parts.second) };
+  const weekday = WEEKDAYS.indexOf(new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now)).slice(0, 3).toLowerCase());
+  return { minutes: Number(parts.hour) * 60 + Number(parts.minute), seconds: Number(parts.second), weekday };
 }
+
+const WEEKDAYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"];
+const WEEKDAY_RE = /^(?:on\s+)?(sun|mon|tues?|wed(?:nes)?|thu(?:rs?)?|fri|sat(?:ur)?)(?:day)?\b\s*/i;
 
 /** "18:30", "6:30pm", "9am" → minutes after midnight, or null. */
 function parseClock(text) {
@@ -68,17 +73,28 @@ function parseClock(text) {
 
 /**
  * Understands what .remind accepts in front of the text:
- *   10m … · 1h30m … · at 18:30 … · tomorrow at 9am … · every 1d … · every day at 08:00 …
+ *   10m … · 1h30m … · at 18:30 … · tomorrow at 9am … · friday at 20:00 … · every 1d … ·
+ *   every day at 08:00 … · every monday at 9am …
  * @returns {{ ms: number, every: number, rest: string } | null}  ms = time until the first reminder
  */
 function parseWhen(text, timeZone, now = Date.now()) {
   let rest = String(text || "").trim();
   let every = 0;
+  let weekday = -1;
   const ev = rest.match(/^every\s+/i);
+  const takeWeekday = () => {
+    const wd = rest.match(WEEKDAY_RE);
+    if (!wd) return false;
+    weekday = WEEKDAYS.indexOf(wd[1].slice(0, 3).toLowerCase());
+    rest = rest.slice(wd[0].length);
+    return true;
+  };
   if (ev) {
     rest = rest.slice(ev[0].length);
     const bare = rest.match(/^(day|daily|week|weekly|hour|hourly)\b\s*/i);
-    if (bare) {
+    if (takeWeekday()) {
+      every = UNITS.w; // "every friday at 20:00"
+    } else if (bare) {
       every = { day: UNITS.d, daily: UNITS.d, week: UNITS.w, weekly: UNITS.w, hour: UNITS.h, hourly: UNITS.h }[bare[1].toLowerCase()];
       rest = rest.slice(bare[0].length);
     } else {
@@ -87,10 +103,21 @@ function parseWhen(text, timeZone, now = Date.now()) {
       every = d.ms;
       rest = d.rest;
     }
+  } else {
+    takeWeekday(); // "friday at 9am": the next Friday
   }
   const at = rest.match(/^(tomorrow\s+)?(?:at\s+)?(\d{1,2}(?::\d{2})?\s*(?:am|pm)?)(?=\s|$)\s*/i);
   // A clock time needs "at", "tomorrow", "every" or a colon, so "10 apples" is not 10 o'clock.
-  const clock = at && (at[1] || /^(at\s|tomorrow)/i.test(at[0]) || every || at[2].includes(":")) ? parseClock(at[2]) : null;
+  const clock = at && (at[1] || /^(at\s|tomorrow)/i.test(at[0]) || every || weekday >= 0 || at[2].includes(":")) ? parseClock(at[2]) : null;
+  if (weekday >= 0) {
+    // A weekday without a time means 09:00.
+    const target = clock ?? 9 * 60;
+    const { minutes, seconds, weekday: today } = clockIn(timeZone, now);
+    let days = (weekday - today + 7) % 7;
+    if (days === 0 && target <= minutes) days = 7;
+    const ms = (days * 1440 + target - minutes) * 60000 - seconds * 1000;
+    return { ms, every, rest: (clock !== null ? rest.slice(at[0].length) : rest).trim() };
+  }
   if (clock !== null) {
     const { minutes, seconds } = clockIn(timeZone, now);
     let delta = clock - minutes;
@@ -116,27 +143,44 @@ function formatDuration(ms) {
 
 const store = (state) => state.store("reminders", { seq: 0, items: [] });
 
-function add(state, { chat, sender, text, ms, every = 0, now = Date.now() }) {
+/**
+ * announce: a group announcement (.announce) instead of a personal reminder — sent as plain
+ * text without mentioning anyone, managed by the group's admins, limited per group.
+ */
+function add(state, { chat, sender, text, ms, every = 0, announce = false, now = Date.now() }) {
   if (ms < MIN_MS) throw new UserError("The shortest reminder is 10 seconds.");
   if (ms > MAX_MS) throw new UserError("The longest reminder is 60 days.");
   if (every && (every < MIN_EVERY || every > MAX_MS)) throw new UserError("A repeating reminder must repeat every 10 minutes to 60 days.");
-  const body = String(text || "").trim().slice(0, MAX_TEXT);
-  if (!body) throw new UserError("What should I remind you about?");
+  const body = String(text || "").trim().slice(0, announce ? MAX_ANNOUNCE_TEXT : MAX_TEXT);
+  if (!body) throw new UserError(announce ? "What should I announce?" : "What should I remind you about?");
   return store(state).update((d) => {
-    if (d.items.filter((r) => r.sender === sender).length >= MAX_PER_USER) {
+    if (announce && d.items.filter((r) => r.announce && r.chat === chat).length >= MAX_PER_USER) {
+      throw new UserError(`This group already has ${MAX_PER_USER} announcements. Delete one first.`);
+    }
+    if (!announce && d.items.filter((r) => !r.announce && r.sender === sender).length >= MAX_PER_USER) {
       throw new UserError(`You already have ${MAX_PER_USER} reminders. Delete one first.`);
     }
-    const item = { id: ++d.seq, chat, sender, text: body, due: now + ms, created: now, attempts: 0, ...(every ? { every } : {}) };
+    const item = { id: ++d.seq, chat, sender, text: body, due: now + ms, created: now, attempts: 0, ...(every ? { every } : {}), ...(announce ? { announce: true } : {}) };
     d.items.push(item);
     return item;
   });
 }
 
-const listFor = (state, sender) => store(state).data.items.filter((r) => r.sender === sender).sort((a, b) => a.due - b.due);
+const listFor = (state, sender) => store(state).data.items.filter((r) => !r.announce && r.sender === sender).sort((a, b) => a.due - b.due);
+const announcementsIn = (state, chat) => store(state).data.items.filter((r) => r.announce && r.chat === chat).sort((a, b) => a.due - b.due);
+
+function removeAnnouncement(state, chat, id) {
+  return store(state).update((d) => {
+    const i = d.items.findIndex((r) => r.id === id && r.announce && r.chat === chat);
+    if (i === -1) return false;
+    d.items.splice(i, 1);
+    return true;
+  });
+}
 
 function remove(state, sender, id) {
   return store(state).update((d) => {
-    const i = d.items.findIndex((r) => r.id === id && r.sender === sender);
+    const i = d.items.findIndex((r) => r.id === id && !r.announce && r.sender === sender);
     if (i === -1) return false;
     d.items.splice(i, 1);
     return true;
@@ -146,7 +190,7 @@ function remove(state, sender, id) {
 function clearFor(state, sender) {
   return store(state).update((d) => {
     const before = d.items.length;
-    d.items = d.items.filter((r) => r.sender !== sender);
+    d.items = d.items.filter((r) => r.announce || r.sender !== sender);
     return before - d.items.length;
   });
 }
@@ -162,8 +206,12 @@ async function deliverDue(app, now = Date.now()) {
     const late = now - r.due > 2 * 60 * 1000 ? `\n_(late by ${formatDuration(now - r.due)} — the bot was offline)_` : "";
     const user = r.sender.split("@")[0].split(":")[0];
     try {
-      const repeat = r.every ? `\n\n_🔁 every ${formatDuration(r.every)} · stop: .remind del ${r.id}_` : "";
-      await sock.sendMessage(r.chat, { text: `⏰ *Reminder* for @${user}\n\n${r.text}${late}${repeat}`, mentions: [r.sender] });
+      if (r.announce) {
+        await sock.sendMessage(r.chat, { text: `📢 ${r.text}` });
+      } else {
+        const repeat = r.every ? `\n\n_🔁 every ${formatDuration(r.every)} · stop: .remind del ${r.id}_` : "";
+        await sock.sendMessage(r.chat, { text: `⏰ *Reminder* for @${user}\n\n${r.text}${late}${repeat}`, mentions: [r.sender] });
+      }
       if (r.every) {
         // Next time in the future (missed repeats while offline are not all sent).
         s.update(() => {
@@ -207,6 +255,8 @@ module.exports = {
   formatDuration,
   add,
   listFor,
+  announcementsIn,
+  removeAnnouncement,
   remove,
   clearFor,
   deliverDue,

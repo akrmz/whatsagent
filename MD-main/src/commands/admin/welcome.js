@@ -1,16 +1,17 @@
 "use strict";
 
 const { groupData } = require("../../services/settings");
+const greetings = require("../../services/greetings");
 
-const DEFAULTS = { welcome: "Welcome {user} to {group}! 🎉", goodbye: "Goodbye {user} 👋" };
+const { DEFAULTS } = greetings;
 
 function greetingCommand(key, label, variables) {
   return {
     name: key,
     category: "admin",
     description: `${label} messages when members ${key === "welcome" ? "join" : "leave"}. Variables: ${variables}.`,
-    usage: "on | off | set <message>",
-    examples: [`.${key} on`, `.${key} set ${DEFAULTS[key]}`],
+    usage: "on | off | set <message> | test",
+    examples: [`.${key} on`, `.${key} set ${DEFAULTS[key]}`, `.${key} test`],
     permission: "groupAdmin",
 
     async run(ctx) {
@@ -28,6 +29,11 @@ function greetingCommand(key, label, variables) {
         store.update((d) => delete d[key][ctx.chatId]);
         return ctx.reply(`✅ ${label} messages disabled.`);
       }
+      if (sub === "test") {
+        // Preview with yourself as the member, exactly as it will be sent.
+        const meta = await ctx.groupMetadata();
+        return ctx.send(await greetings.build(ctx.app, ctx.sock, { kind: key, user: ctx.sender, meta, template: current?.message }));
+      }
       if (sub === "set") {
         const message = ctx.text.slice(3).trim();
         if (!message) return ctx.reply(`⚠️ Usage: ${p}${key} set <message>`);
@@ -35,13 +41,13 @@ function greetingCommand(key, label, variables) {
         return ctx.reply(`✅ Custom ${label.toLowerCase()} message saved and enabled.`);
       }
       return ctx.reply(
-        `*${label} setup*\n\n${p}${key} on\n${p}${key} set <message>\n${p}${key} off\n\nVariables: ${variables}\nStatus: ${current?.enabled ? "ON" : "OFF"}`,
+        `*${label} setup*\n\n${p}${key} on\n${p}${key} set <message>\n${p}${key} test  (preview)\n${p}${key} off\n\nVariables: ${variables}\nStatus: ${current?.enabled ? "ON" : "OFF"}`,
       );
     },
   };
 }
 
 module.exports = [
-  greetingCommand("welcome", "Welcome", "{user}, {group}, {description}"),
-  greetingCommand("goodbye", "Goodbye", "{user}, {group}"),
+  greetingCommand("welcome", "Welcome", "{user}, {group}, {description}, {count}"),
+  greetingCommand("goodbye", "Goodbye", "{user}, {group}, {count}"),
 ];
