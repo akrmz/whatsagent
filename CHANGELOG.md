@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.10.0 — 2026-10-06
+
+### Added
+- **`.autotafsir every <hours>`**: a random verse with al-Tafsir al-Muyassar posted to the chat every 1–24 hours (`.autotafsir on` = every 3 hours; `.autotafsir off`).
+- **`.autoazkar dua every <hours>`**: a random dua every 1–24 hours instead of once a day.
+- **Quiet hours** for these repeating posts, default 23:00–07:00 in `TIMEZONE`: posts due then wait until morning. `.autotafsir quiet 22:00-06:00` changes them, `.autotafsir quiet off` removes them. If the Quran API fails, the post is retried 10 minutes later.
+- `.tafsir` without a reference gives a random verse.
+- 5 tests (137 in total).
+
+### Changed
+- **No admin needed**: any group member can now turn `.autoazkar`, `.autoprayer` and `.autotafsir` on or off. The owner can restore the admin-only rule with `.setvar ISLAMIC_ADMIN_ONLY true` (or in `.env`).
+
 ## 2.9.0 — 2026-10-06
 
 ### Added

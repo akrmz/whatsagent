@@ -87,10 +87,13 @@ The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn W
 | `.azkar` | Morning adhkar before noon, evening adhkar after (bot's `TIMEZONE`). `.azkar صباح`, `.azkar مساء`, `.azkar نوم`, `.azkar استيقاظ`, `.azkar صلاة` (also in English: morning, evening, sleep, waking, prayer). The book's notes are kept ("if it is evening, say …"); entries the book marks for the morning only or the evening only appear only there. On Fridays the morning set ends with a reminder about Surat al-Kahf. |
 | `.dua` | A random supplication from the general dua chapters (after the tashahhud, worry and grief, distress, debt, difficulty, qunut, …). `.dua الكرب`, `.dua السفر`, `.dua المريض` pick from chapters with that word in the title. |
 | `.hisn` | All 132 chapters; `.hisn 35` shows one; `.hisn السفر` searches titles. |
-| `.autoazkar on` | Sends the morning and evening adhkar to this chat every day (default 06:30 and 17:00). In groups only admins can change it; in a private chat anyone can turn it on for themselves. |
+| `.autoazkar on` | Sends the morning and evening adhkar to this chat every day (default 06:30 and 17:00). Any group member can turn it on or off (owner: `.setvar ISLAMIC_ADMIN_ONLY true` limits that to group admins). |
 | `.autoazkar city Cairo` | Follows the prayer times of a city instead: morning adhkar 30 minutes after Fajr, evening adhkar 30 minutes after Asr (`.autoazkar city off` goes back to fixed times). |
 | `.autoazkar morning 06:00` / `evening 16:30` | Changes the fixed times. |
-| `.autoazkar dua 21:00` | Also sends a random dua every day at that time (`.autoazkar dua off` stops it). |
+| `.autoazkar dua 21:00` | Also sends a random dua every day at that time. |
+| `.autoazkar dua every 3` | A random dua every 3 hours instead (1–24), outside quiet hours. `.autoazkar dua off` stops either. |
+| `.autotafsir every 3` (or `.autotafsir on`) | Posts a random verse with al-Tafsir al-Muyassar every 3 hours (1–24). `.autotafsir off` stops it. |
+| `.autotafsir quiet 23:00-07:00` | No automatic verses or duas during these hours (`TIMEZONE`); posts due then wait until the quiet hours end. This is the default; `.autotafsir quiet off` allows posts at any time. |
 | `.autoazkar off` | Stops everything for this chat. `.autoazkar` alone shows the current setup. |
 
 If the bot was offline at the time, it sends the message when it comes back (up to 3 hours late), once per day. Turning it on at noon does not send that morning's adhkar late. With `.autoazkar city`, the times follow that city's own clock, even if the bot's `TIMEZONE` is different.
@@ -99,12 +102,12 @@ More in the same 🕌 section of `.help`:
 
 | Command | What it does |
 |---|---|
-| `.autoprayer on Cairo` (`.adhan`) | Announces each of the five prayers in this chat ("حان الآن موعد أذان العصر"), using the city's prayer times (aladhan.com picks the method used in that region) and its time zone. An alert more than 20 minutes late (bot offline) is skipped. `.autoprayer off` stops it. Group admins only in groups. |
+| `.autoprayer on Cairo` (`.adhan`) | Announces each of the five prayers in this chat ("حان الآن موعد أذان العصر"), using the city's prayer times (aladhan.com picks the method used in that region) and its time zone. An alert more than 20 minutes late (bot offline) is skipped. `.autoprayer off` stops it. Any member can set it (unless `ISLAMIC_ADMIN_ONLY` is on). |
 | `.prayer <city>` | Today's prayer times and which prayer is next. |
 | `.hijri` | Today's Hijri date (Umm al-Qura, works offline). |
 | `.ramadan` | Days left until Ramadan, the Eids, Arafah, Ashura and the Hijri new year. Moon sighting can shift these by a day. |
 | `.quran 2:255` / `.quran 2:255 audio` | A verse with English translation; `audio` adds Mishary Alafasy's recitation. |
-| `.tafsir 2:255` | The verse with al-Tafsir al-Muyassar (Arabic). |
+| `.tafsir 2:255` / `.tafsir` | The verse (or a random one) with al-Tafsir al-Muyassar (Arabic). |
 | `.surah الكهف` / `.surah 18` / `.surah yaseen` | The full surah recited by Mishary Alafasy. Surahs longer than `MAX_DOWNLOAD_MB` (e.g. Al-Baqarah) come as a link instead. |
 | `.qibla <city>` | The Qibla direction in degrees from north. |
 | `.asma` / `.asma 1` / `.asma all` | The names of Allah (al-Asma' al-Husna). |
@@ -218,8 +221,9 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.asma` | `.asmaulhusna` `.names99` `.asmaallah` | من أسماء الله الحسنى — a name of Allah from al-Asma' al-Husna (random, by number 1-99, or "all"). | everyone | `.asma` |
-| `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day (and an optional daily dua). Set a city to follow prayer times. In groups, admins only. | everyone | `.autoazkar on` |
-| `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. In groups, admins only. | everyone | `.autoprayer on Cairo` |
+| `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoazkar on` |
+| `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoprayer on Cairo` |
+| `.autotafsir` | `.dailyayah` `.autoayah` `.ayahtafsir` | يرسل آية عشوائية مع تفسيرها (التفسير الميسر) كل عدد من الساعات في هذه المحادثة — posts a random verse with al-Tafsir al-Muyassar here every N hours (1–24). No posts during quiet hours (default 23:00–07:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autotafsir on` |
 | `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
 | `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
 | `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
@@ -229,7 +233,7 @@ This list is generated from the command files themselves.
 | `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation; add "audio" for the recitation (Alafasy). Without a reference, a random verse. | everyone | `.quran 2:255` |
 | `.ramadan` | `.occasions` `.eid` `.mawasim` | كم بقي على رمضان والعيدين ويوم عرفة وعاشوراء ورأس السنة الهجرية — countdown to Ramadan, the Eids and other Islamic occasions. | everyone | `.ramadan` |
 | `.surah` | `.sura` `.tilawa` | تلاوة سورة كاملة بصوت الشيخ مشاري العفاسي، بالاسم أو الرقم — a full surah recited by Mishary Alafasy (by name or number). Long surahs come as a link. | everyone | `.surah الكهف` |
-| `.tafsir` | `.tafseer` `.muyassar` | الآية مع تفسيرها من التفسير الميسر — a verse with its explanation from al-Tafsir al-Muyassar. | everyone | `.tafsir 2:255` |
+| `.tafsir` | `.tafseer` `.muyassar` | الآية مع تفسيرها من التفسير الميسر، أو آية عشوائية — a verse with its explanation from al-Tafsir al-Muyassar (random without a reference). For automatic posts see .autotafsir. | everyone | `.tafsir 2:255` |
 
 ### Group admin
 
@@ -563,6 +567,7 @@ cp MD-main/.env.example MD-main/.env
 | `ANTIDELETE_MAX_MESSAGES` / `ANTIDELETE_MAX_MEDIA_MB` | `5000` / `10` | Antidelete limits |
 | `FFMPEG_PATH` / `YTDLP_PATH` | `ffmpeg` / `yt-dlp` | Tool locations: a program name found in `PATH`, or a full path. `~` means your home folder (`~/.local/bin/yt-dlp`). Use the standalone yt-dlp nightly binary so `.update now` can update it |
 | `TIMEZONE` | the server's time zone | IANA name such as `Africa/Cairo`; used by `.time` and `.remind` |
+| `ISLAMIC_ADMIN_ONLY` | `false` | `true`: only group admins may set `.autoazkar`, `.autoprayer`, `.autotafsir` in groups |
 | `NEWS_REGION` | `US:en` | Default `.news` region, e.g. `EG:ar` |
 | `SUGGEST_COMMANDS` | `true` | "Did you mean …?" for mistyped commands |
 | `YTDLP_AUTO_UPDATE` | `false` | Update yt-dlp to the latest nightly once a day |
