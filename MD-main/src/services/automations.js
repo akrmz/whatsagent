@@ -10,10 +10,11 @@ const captcha = require("./captcha");
 const recap = require("./recap");
 const jumuah = require("./jumuah");
 const khatma = require("./khatma");
+const siyam = require("./siyam");
 
 /**
  * Stops the automatic posts of a chat.
- *   islamic: adhkar, prayer alerts, tafsir/dua/hadith, wird, Friday reminder (what .autos off stops)
+ *   islamic: adhkar, prayer alerts, tafsir/dua/hadith, wird, Friday and fasting reminders (what .autos off stops)
  *   all:     also the group open/close schedule, announcements, captcha, the group khatma and recap
  *            memory (used when the bot leaves or is removed from a group)
  * @returns {string[]} what was running and is now stopped
@@ -29,6 +30,8 @@ function stopAll(state, chat, { all = false } = {}) {
   wird.remove(state, chat);
   if (jumuah.get(state, chat)) stopped.push("autojumuah");
   jumuah.remove(state, chat);
+  if (siyam.get(state, chat)) stopped.push("autosiyam");
+  siyam.remove(state, chat);
   if (all) {
     if (khatma.get(state, chat)) stopped.push("khatma");
     khatma.remove(state, chat);

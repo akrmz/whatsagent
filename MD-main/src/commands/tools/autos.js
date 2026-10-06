@@ -11,6 +11,7 @@ const { canManage, DENIED, zoneLine } = require("../../services/islamic-access")
 const { stopAll } = require("../../services/automations");
 const jumuah = require("../../services/jumuah");
 const khatma = require("../../services/khatma");
+const siyam = require("../../services/siyam");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -29,6 +30,8 @@ function overview(ctx) {
   if (w) lines.push(`📖 الورد اليومي: ${wird.pagesAr(w.pages)} الساعة ${w.time || wird.DEFAULT_TIME} (صفحة ${w.next}) — ${p}autowird`);
   const j = jumuah.get(state, chat);
   if (j) lines.push(`🕌 تذكير الجمعة الساعة ${j.time} — ${p}autojumuah`);
+  const sy = siyam.get(state, chat);
+  if (sy) lines.push(`🌙 تذكير صيام السنة الساعة ${sy.time}${sy.weekly === false ? " (بدون الاثنين والخميس)" : ""} — ${p}autosiyam`);
   const k = khatma.get(state, chat);
   if (k) lines.push(`📖 ختمة جماعية: ${khatma.ar(khatma.counts(k).read)}/${khatma.ar(khatma.PARTS)} جزءاً — ${p}khatma`);
   const g = schedule.get(state, chat);
@@ -53,7 +56,7 @@ module.exports = {
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
       stopAll(ctx.state, ctx.chatId);
       const rest = overview(ctx);
-      return ctx.reply(`⏹️ أُوقفت الأذكار والتنبيهات والآيات والأحاديث والورد وتذكير الجمعة هنا.${rest.length ? `\n\nما زال يعمل (يديره المشرفون):\n${rest.join("\n")}` : ""}`);
+      return ctx.reply(`⏹️ أُوقفت الأذكار والتنبيهات والآيات والأحاديث والورد وتذكيرات الجمعة والصيام هنا.${rest.length ? `\n\nما زال يعمل (يديره المشرفون):\n${rest.join("\n")}` : ""}`);
     }
     const lines = overview(ctx);
     if (!lines.length) return ctx.reply(`لا يوجد شيء تلقائي في هذه المحادثة.\nأمثلة: ${ctx.prefix}autoazkar on · ${ctx.prefix}autotafsir every 3 · ${ctx.prefix}autowird on 2 20:00`);

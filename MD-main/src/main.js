@@ -28,6 +28,7 @@ const quran = require("./services/quran");
 const hadith = require("./services/hadith");
 const { startWirdLoop } = require("./services/wird");
 const { startJumuahLoop } = require("./services/jumuah");
+const { startSiyamLoop } = require("./services/siyam");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -178,6 +179,7 @@ async function start() {
   });
   const stopWird = startWirdLoop(app);
   const stopJumuah = startJumuahLoop(app);
+  const stopSiyam = startSiyamLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -195,6 +197,7 @@ async function start() {
     stopAutopost();
     stopWird();
     stopJumuah();
+    stopSiyam();
     connection.stop();
     app.state.flush();
     health?.close();

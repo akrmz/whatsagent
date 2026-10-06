@@ -100,6 +100,32 @@ function drop(state, chat, user, n, { manager = false } = {}) {
   });
 }
 
+/** Members with juz' taken but not read yet: [{ user, parts: [5, 7], since }], longest first. */
+function openParts(k) {
+  const by = new Map();
+  for (const [n, p] of Object.entries(k.parts)) {
+    if (p.done) continue;
+    const e = by.get(p.by) || { user: p.by, parts: [], since: p.at };
+    e.parts.push(Number(n));
+    e.since = Math.min(e.since, p.at);
+    by.set(p.by, e);
+  }
+  return [...by.values()].sort((a, b) => a.since - b.since);
+}
+
+const REMIND_EVERY_MS = 60 * 60 * 1000;
+
+/** Records a reminder; throws if the last one was less than an hour ago (it mentions people). */
+function markReminded(state, chat, now = Date.now()) {
+  return store(state).update((d) => {
+    const k = d[chat];
+    if (k.remindedAt && now - k.remindedAt < REMIND_EVERY_MS) {
+      throw new UserError(`ذُكّر الأعضاء قبل ${ar(Math.ceil((now - k.remindedAt) / 60000))} دقيقة. يمكن التذكير مرة كل ساعة.`);
+    }
+    k.remindedAt = now;
+  });
+}
+
 const remove = (state, chat) => store(state).update((d) => delete d[chat]);
 
 function counts(k) {
@@ -143,4 +169,4 @@ function board(k, at) {
   return { text, mentions: [...mentions] };
 }
 
-module.exports = { get, start, take, done, drop, remove, counts, board, partLine, juzInfo, ar, plain, PARTS, MAX_OPEN_PER_MEMBER };
+module.exports = { get, start, take, done, drop, remove, openParts, markReminded, counts, board, partLine, juzInfo, ar, plain, PARTS, MAX_OPEN_PER_MEMBER };

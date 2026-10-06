@@ -29,7 +29,7 @@ module.exports = [
     category: "islamic",
     description:
       "ختمة جماعية: يحجز كل عضو جزءاً من الثلاثين ويقرؤه ثم يعلن انتهاءه حتى تكتمل الختمة — a shared group khatma: members take one of the 30 juz', read it and mark it done. Starting or ending one follows the same rule as .autoazkar (anyone, unless ISLAMIC_ADMIN_ONLY is on).",
-    usage: "new | take [juz] | done [juz] | drop <juz> | info <juz> | end | (no argument: the board)",
+    usage: "new | take [juz] | done [juz] | drop <juz> | info <juz> | remind | end | (no argument: the board)",
     examples: [".khatma new", ".khatma take", ".khatma take 5", ".khatma done", ".khatma info 5"],
     groupOnly: true,
     cooldown: 3,
@@ -64,6 +64,20 @@ module.exports = [
         khatma.drop(ctx.state, ctx.chatId, ctx.sender, n, { manager });
         return ctx.reply(`↩️ الجزء ${khatma.ar(n)} متاح الآن لغيرك.`);
       }
+      if (sub === "remind" || sub === "nudge") {
+        if (!(await canManage(ctx))) return ctx.reply(DENIED);
+        const k = khatma.get(ctx.state, ctx.chatId);
+        if (!k) return ctx.reply(`لا توجد ختمة. ابدأ واحدة بـ ${ctx.prefix}khatma new`);
+        const open = khatma.openParts(k);
+        if (!open.length) return ctx.reply("لا توجد أجزاء محجوزة لم تُقرأ بعد. 👍");
+        khatma.markReminded(ctx.state, ctx.chatId);
+        const days = (t) => Math.floor((Date.now() - t) / 86400000);
+        const lines = open.map((o) => `• ${at(o.user)} — الجزء ${o.parts.map(khatma.ar).join("، ")}${days(o.since) >= 1 ? ` (منذ ${khatma.ar(days(o.since))} يوم)` : ""}`);
+        return ctx.reply({
+          text: `⏰ *تذكير بالختمة الجماعية*\n\n${lines.join("\n")}\n\nعند الانتهاء: ${ctx.prefix}khatma done · لإرجاع جزء: ${ctx.prefix}khatma drop <رقم>`,
+          mentions: open.map((o) => o.user),
+        });
+      }
       if (sub === "new" || sub === "start" || sub === "end" || sub === "off") {
         if (!(await canManage(ctx))) return ctx.reply(DENIED);
         const k = khatma.get(ctx.state, ctx.chatId);
@@ -80,7 +94,7 @@ module.exports = [
         khatma.start(ctx.state, ctx.chatId);
         return showBoard(ctx, "🆕 بدأت ختمة جديدة! احجز جزءك.\n\n");
       }
-      return ctx.reply(`الاستخدام: ${ctx.prefix}khatma | new | take [رقم] | done [رقم] | drop <رقم> | info <رقم> | end`);
+      return ctx.reply(`الاستخدام: ${ctx.prefix}khatma | new | take [رقم] | done [رقم] | drop <رقم> | info <رقم> | remind | end`);
     },
   },
   {
