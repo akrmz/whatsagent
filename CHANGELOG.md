@@ -2,6 +2,17 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.18.3 — 2026-10-06
+
+### Fixed
+- **Downloaded videos (Facebook especially) showed "something is wrong with the video file" in WhatsApp.** Facebook's separate (DASH) video streams are all AV1, and the old format rule fell back to merging one of them with the audio when no ready-made file matched. WhatsApp plays only H.264 video with AAC audio on every phone.
+  - The format rule now prefers, in order: a ready-made H.264 MP4, H.264 video + AAC audio, any ready-made MP4 (Facebook's "hd"/"sd" files are H.264), and only then anything else. YouTube still gets the same small H.264 file as before.
+  - After downloading, ffmpeg checks the codecs. AV1, VP9 or Opus is converted to H.264 (High, yuv420p, at most 1280 px), with AAC audio and `+faststart`; the right codecs in another container are only re-packed. Photos in Instagram/X posts are not touched.
+  - Checked live: Facebook's AV1 720p stream was detected and converted in 2 s to H.264 720×1280 with the AAC audio kept. The reported share link downloads as H.264/AAC without conversion.
+
+### Checked
+- 2 tests (181 in total).
+
 ## 2.18.2 — 2026-10-06
 
 ### Fixed
