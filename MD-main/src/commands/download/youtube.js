@@ -1,6 +1,7 @@
 "use strict";
 
 const ytdlp = require("../../services/ytdlp");
+const { linkText } = require("../../services/downloads");
 
 // Keeps letters of every script (Arabic titles stay readable), digits, spaces, dots, dashes.
 const safeName = (s) => String(s || "media").replace(/[^\p{L}\p{N}\s.-]/gu, "").trim().slice(0, 80) || "media";
@@ -10,10 +11,12 @@ const views = (n) => (n >= 1e9 ? `${(n / 1e9).toFixed(1)}B` : n >= 1e6 ? `${(n /
 
 function youtube(kind) {
   return async (ctx) => {
-    if (!ctx.text) return ctx.reply(`Usage: ${ctx.prefix}${ctx.commandName} <song name, YouTube link, or a number from ${ctx.prefix}yts>`);
+    // ".song" as a reply to a message with a YouTube link uses that link.
+    const quotedUrl = !ctx.text && ctx.quoted ? ytdlp.matchSiteUrl(linkText(ctx), "youtube") : null;
+    if (!ctx.text && !quotedUrl) return ctx.reply(`Usage: ${ctx.prefix}${ctx.commandName} <song name, YouTube link, or a number from ${ctx.prefix}yts>`);
     // ".play 2" right after ".yts …" picks result #2.
     const picked = /^\d{1,2}$/.test(ctx.text) ? ytdlp.recallSearch(ctx, Number(ctx.text)) : null;
-    const url = picked || ytdlp.matchSiteUrl(ctx.text, "youtube");
+    const url = quotedUrl || picked || ytdlp.matchSiteUrl(ctx.text, "youtube");
     const query = ctx.commandName === "spotify" ? `${ctx.text} official audio` : ctx.text;
     await ctx.react("🔎");
     const [item] = await ytdlp.download(ctx.config, { target: url || query.slice(0, 200), search: !url, kind, hasFfmpeg: ctx.app.capabilities.ffmpeg });

@@ -5,7 +5,7 @@ const assert = require("node:assert/strict");
 const { createDispatcher } = require("../src/core/dispatcher");
 const { UserError } = require("../src/core/errors");
 const { files, groupData } = require("../src/services/settings");
-const { OWNER, makeApp, makeSock, makeMsg } = require("./helpers");
+const { OWNER, ALL_OFF, makeApp, makeSock, makeMsg } = require("./helpers");
 
 const USER = "447911123456@s.whatsapp.net";
 const ADMIN = "447911000001@s.whatsapp.net";
@@ -154,7 +154,7 @@ test("unknown commands and plain text go to post listeners; a pre listener can s
 test("real moderation listener: antilink deletes a member's link but not an admin's", async () => {
   const { loadListeners } = require("../src/core/loader");
   const { LISTENERS_DIR } = require("../src/main");
-  const listeners = loadListeners(LISTENERS_DIR, { capabilities: { ai: false } });
+  const listeners = loadListeners(LISTENERS_DIR, { capabilities: ALL_OFF });
   const participants = [
     { id: "15550000009@s.whatsapp.net", admin: "admin" }, // the bot
     { id: ADMIN, admin: "admin" },

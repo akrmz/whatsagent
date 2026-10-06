@@ -13,6 +13,7 @@ const jumuah = require("../../services/jumuah");
 const khatma = require("../../services/khatma");
 const siyam = require("../../services/siyam");
 const hamla = require("../../services/hamla");
+const autodl = require("../../services/autodl");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -37,6 +38,7 @@ function overview(ctx) {
   if (k) lines.push(`📖 ختمة جماعية: ${khatma.ar(khatma.counts(k).read)}/${khatma.ar(khatma.PARTS)} جزءاً — ${p}khatma`);
   const h = hamla.active(state, chat);
   if (h) lines.push(`📿 حملة ${h.dhikr}: ${hamla.fmt(h.total)} من ${hamla.fmt(h.goal)} — ${p}hamla`);
+  if (autodl.isOn(state, chat)) lines.push(`⏬ تنزيل الفيديو تلقائياً من الروابط (auto-download) — ${p}autodl`);
   const g = schedule.get(state, chat);
   if (g && (g.close || g.open)) lines.push(`🔒 إغلاق/فتح المجموعة: ${g.close || "—"} / ${g.open || "—"} — ${p}gcschedule`);
   const ann = reminders.announcementsIn(state, chat);

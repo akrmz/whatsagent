@@ -1,28 +1,24 @@
 "use strict";
 
 const ytdlp = require("../../services/ytdlp");
+const { linkText, sendItems, MULTI } = require("../../services/downloads");
 
 function socialDownloader(site, label, maxItems = 1) {
   return async (ctx) => {
-    const url = ytdlp.matchSiteUrl(ctx.text, site);
-    if (!url) return ctx.reply(`Please send a valid ${label} link.\nUsage: ${ctx.prefix}${ctx.commandName} <link>`);
+    const url = ytdlp.matchSiteUrl(linkText(ctx), site);
+    if (!url) return ctx.reply(`Please send a valid ${label} link, or reply to a message that has one.\nUsage: ${ctx.prefix}${ctx.commandName} <link>`);
     await ctx.react("🔄");
     const items = await ytdlp.download(ctx.config, { target: url, kind: "video", maxItems, hasFfmpeg: ctx.app.capabilities.ffmpeg });
-    for (const item of items) {
-      await ctx.reply({ video: item.buffer, mimetype: "video/mp4", caption: item.title ? `📝 ${item.title.slice(0, 200)}` : undefined });
-    }
-    return undefined;
+    return sendItems(ctx, items);
   };
 }
 
-const base = { category: "download", cooldown: 30, requires: ["ytdlp"], usage: "<link>" };
+const base = { category: "download", cooldown: 30, requires: ["ytdlp"], usage: "<link> (or reply to a message with a link)" };
 
-// Sites whose posts can contain several videos.
-const MULTI = new Set(["instagram", "twitter", "threads", "reddit"]);
 const SITE_LIST = Object.keys(ytdlp.HOSTS).join(", ");
 
 async function universal(ctx) {
-  const found = ytdlp.detectSite(ctx.text);
+  const found = ytdlp.detectSite(linkText(ctx));
   if (!found) {
     return ctx.reply(`Send a link from one of these sites:\n${SITE_LIST}\n\nUsage: ${ctx.prefix}${ctx.commandName} <link>`);
   }
@@ -35,11 +31,7 @@ async function universal(ctx) {
     maxItems: MULTI.has(found.site) ? 10 : 1,
     hasFfmpeg: ctx.app.capabilities.ffmpeg,
   });
-  for (const item of items) {
-    if (audio) await ctx.reply({ audio: item.buffer, mimetype: "audio/mpeg", fileName: "audio.mp3" });
-    else await ctx.reply({ video: item.buffer, mimetype: "video/mp4", caption: item.title ? `📝 ${item.title.slice(0, 200)}` : undefined });
-  }
-  return undefined;
+  return sendItems(ctx, items, { audio });
 }
 
 module.exports = [
