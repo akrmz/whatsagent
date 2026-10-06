@@ -8,7 +8,7 @@ const { parseClock } = require("../../services/reminders");
 const { UserError } = require("../../core/errors");
 
 
-const KIND_AR = { morning: "أذكار الصباح", evening: "أذكار المساء", dua: "الدعاء اليومي" };
+const KIND_AR = { morning: "أذكار الصباح", evening: "أذكار المساء", dua: "الدعاء اليومي", sleep: "أذكار النوم" };
 
 async function autoStatus(ctx, entry) {
   const post = autopost.get(ctx.state, ctx.chatId);
@@ -21,6 +21,7 @@ async function autoStatus(ctx, entry) {
   if (entry.city) lines.push(`🏙️ ${entry.city}: الصباح بعد الفجر بنصف ساعة، والمساء بعد العصر بنصف ساعة (بتوقيت المدينة)`);
   else lines.push(`🌅 الصباح ${entry.morning || azkar.DEFAULTS.morning} · 🌇 المساء ${entry.evening || azkar.DEFAULTS.evening}`);
   lines.push(duaEvery || (entry.dua ? `🤲 دعاء يومي ${entry.dua}` : "🤲 دعاء: off"));
+  lines.push(entry.sleep ? `🌙 أذكار النوم ${entry.sleep}` : "🌙 أذكار النوم: off");
   try {
     const n = await azkar.nextSend(entry, zone);
     const left = n.inMinutes >= 60 ? `${Math.floor(n.inMinutes / 60)} س ${n.inMinutes % 60} د` : `${n.inMinutes} د`;
@@ -89,16 +90,16 @@ module.exports = [
     aliases: ["dailyazkar", "azkarauto"],
     category: "islamic",
     description:
-      "يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",
-    usage: "on | off | morning <time> | evening <time> | dua <time|every N|off> | city <city|off>",
-    examples: [".autoazkar on", ".autoazkar city Cairo", ".autoazkar morning 06:00", ".autoazkar evening 16:30", ".autoazkar dua 21:00", ".autoazkar dua every 3", ".autoazkar off"],
+      "يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, the adhkar before sleep if you set a time, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",
+    usage: "on | off | morning <time> | evening <time> | dua <time|every N|off> | sleep <time|off> | city <city|off>",
+    examples: [".autoazkar on", ".autoazkar city Cairo", ".autoazkar morning 06:00", ".autoazkar evening 16:30", ".autoazkar dua 21:00", ".autoazkar dua every 3", ".autoazkar sleep 22:30", ".autoazkar off"],
     cooldown: 3,
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
       const value = ctx.args.slice(1).join(" ").trim();
       const zone = ctx.config.bot.timezone;
       const entry = azkar.getAuto(ctx.state, ctx.chatId);
-      if (!sub || sub === "status") return ctx.reply(`${await autoStatus(ctx, entry)}\n\n${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00`);
+      if (!sub || sub === "status") return ctx.reply(`${await autoStatus(ctx, entry)}\n\n${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00 | sleep 22:30`);
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
 
       // ".autoazkar dua every 3": a random dua every 3 hours (independent of the daily adhkar).
@@ -124,16 +125,17 @@ module.exports = [
       const changes = {};
       if (sub === "on") {
         if (entry) return ctx.reply(await autoStatus(ctx, entry));
-      } else if (sub === "morning" || sub === "evening" || sub === "dua") {
-        if (sub === "dua" && /^(off|stop|إيقاف)$/i.test(value)) {
-          changes.dua = null;
-          autopost.stop(ctx.state, ctx.chatId, "dua");
-          if (!entry) return ctx.reply("⏹️ تم إيقاف الدعاء التلقائي.");
+      } else if (sub === "morning" || sub === "evening" || sub === "dua" || sub === "sleep" || sub === "نوم") {
+        const kind = sub === "نوم" ? "sleep" : sub;
+        if ((kind === "dua" || kind === "sleep") && /^(off|stop|إيقاف)$/i.test(value)) {
+          changes[kind] = null;
+          if (kind === "dua") autopost.stop(ctx.state, ctx.chatId, "dua");
+          if (!entry) return ctx.reply(kind === "dua" ? "⏹️ تم إيقاف الدعاء التلقائي." : "⏹️ تم إيقاف أذكار النوم.");
         }
         else {
           const min = parseClock(value);
-          if (min === null) throw new UserError(`اكتب الوقت مثل 06:30 أو 9pm. Example: ${ctx.prefix}autoazkar ${sub} ${sub === "dua" ? "21:00" : sub === "morning" ? "06:30" : "17:00"}`);
-          changes[sub] = azkar.hhmm(min);
+          if (min === null) throw new UserError(`اكتب الوقت مثل 06:30 أو 9pm. Example: ${ctx.prefix}autoazkar ${kind} ${{ dua: "21:00", morning: "06:30", evening: "17:00", sleep: "22:30" }[kind]}`);
+          changes[kind] = azkar.hhmm(min);
         }
       } else if (sub === "city") {
         changes.city = /^(off|none|إيقاف)$/i.test(value) || !value ? null : value.slice(0, 60);
@@ -147,7 +149,7 @@ module.exports = [
           }
         }
       } else {
-        return ctx.reply(`الاستخدام: ${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00 | dua off`);
+        return ctx.reply(`الاستخدام: ${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00 | dua off | sleep 22:30 | sleep off`);
       }
       let saved;
       try {

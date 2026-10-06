@@ -35,9 +35,9 @@ module.exports = [
     name: "autoprayer",
     aliases: ["adhan", "azan", "prayeralert"],
     category: "islamic",
-    description: "تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",
-    usage: "on <city> | off",
-    examples: [".autoprayer on Cairo", ".autoprayer on مكة", ".autoprayer off", ".autoprayer"],
+    description: "تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone; \"azkar on\" also sends the adhkar after each prayer (25 minutes after the adhan by default). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",
+    usage: "on <city> | azkar on [minutes 10-60] | azkar off | off",
+    examples: [".autoprayer on Cairo", ".autoprayer on مكة", ".autoprayer azkar on", ".autoprayer azkar on 20", ".autoprayer off", ".autoprayer"],
     cooldown: 5,
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
@@ -49,14 +49,29 @@ module.exports = [
           .forCity(entry.city)
           .then((p) => `\n${nextLine(p)}`)
           .catch(() => "");
-        return ctx.reply(`🕌 تنبيهات الصلاة: *تعمل* — ${entry.city}${next}\n${ctx.prefix}autoprayer off للإيقاف`);
+        const after = entry.after ? `📿 أذكار بعد الصلاة: بعد الأذان بـ${entry.after} دقيقة` : `📿 أذكار بعد الصلاة: off (${ctx.prefix}autoprayer azkar on)`;
+        return ctx.reply(`🕌 تنبيهات الصلاة: *تعمل* — ${entry.city}${next}\n${after}\n${ctx.prefix}autoprayer off للإيقاف`);
       }
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
       if (sub === "off") {
         adhan.remove(ctx.state, ctx.chatId);
         return ctx.reply("⏹️ تم إيقاف تنبيهات الصلاة. Prayer alerts turned off.");
       }
-      if (sub !== "on" || !city) return ctx.reply(`الاستخدام: ${ctx.prefix}autoprayer on <المدينة> | off`);
+      if (sub === "azkar" || sub === "adhkar" || sub === "أذكار") {
+        if (!entry) return ctx.reply(`شغّل تنبيهات الصلاة أولاً: ${ctx.prefix}autoprayer on <المدينة>`);
+        const mode = String(ctx.args[1] || "").toLowerCase();
+        if (mode === "off") {
+          adhan.setAfter(ctx.state, ctx.chatId, null);
+          return ctx.reply("⏹️ تم إيقاف أذكار ما بعد الصلاة.");
+        }
+        if (mode !== "on") return ctx.reply(`الاستخدام: ${ctx.prefix}autoprayer azkar on [${adhan.AFTER_MIN}-${adhan.AFTER_MAX}] | azkar off`);
+        const n = ctx.args[2] === undefined ? adhan.AFTER_DEFAULT : Number(ctx.args[2]);
+        if (!Number.isInteger(n) || n < adhan.AFTER_MIN || n > adhan.AFTER_MAX) throw new UserError(`عدد الدقائق بعد الأذان من ${adhan.AFTER_MIN} إلى ${adhan.AFTER_MAX}.`);
+        adhan.setAfter(ctx.state, ctx.chatId, n);
+        await adhan.skipPassed(ctx.state, ctx.chatId);
+        return ctx.reply(`✅ أذكار ما بعد الصلاة تُرسل بعد كل أذان بـ${n} دقيقة (من حصن المسلم؛ الأذكار الخاصة بالفجر والمغرب بعدهما فقط).`);
+      }
+      if (sub !== "on" || !city) return ctx.reply(`الاستخدام: ${ctx.prefix}autoprayer on <المدينة> | azkar on | off`);
       let p;
       try {
         p = await prayertimes.forCity(city);

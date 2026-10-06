@@ -76,6 +76,22 @@ function setText(kind, { friday = false } = {}) {
   return `${set.title}\n\n${body}${friday && kind === "morning" ? FRIDAY_NOTE : ""}${FOOTER}`;
 }
 
+/**
+ * The adhkar after one prayer (chapter 25). The book notes two of them as "after Maghrib
+ * and Fajr" and "after the Fajr prayer"; those are only included after those prayers.
+ * @param {"Fajr"|"Dhuhr"|"Asr"|"Maghrib"|"Isha"} prayer
+ */
+function afterPrayerText(prayer, prayerAr) {
+  const items = chapter(SETS.prayer.chapter).items.filter((x) => {
+    const plain = x.text.replace(/[ً-ْٰ]/g, "");
+    if (/بعد صلاة المغرب والصبح/.test(plain)) return prayer === "Fajr" || prayer === "Maghrib";
+    if (/من صلاة الفجر/.test(plain)) return prayer === "Fajr";
+    return true;
+  });
+  const body = items.map((x, i) => `*${i + 1}.* ${x.text}${times(x.repeat, x.text)}`).join("\n\n");
+  return `🕌 *الأذكار بعد صلاة ${prayerAr}*\n\n${body}${FOOTER}`;
+}
+
 /** A random dua, optionally from chapters whose title contains `topic`. */
 function randomDua(topic = "") {
   const t = String(topic).trim();
@@ -104,6 +120,8 @@ const chapters = () => data().chapters.map((c) => ({ id: c.id, title: c.title })
 const MAX_CHATS = 300;
 const LATE_LIMIT_MIN = 180;
 const DEFAULTS = { morning: "06:30", evening: "17:00" };
+// What .autoazkar can send each day; dua and sleep only when a time is set.
+const KINDS = ["morning", "evening", "dua", "sleep"];
 const autoStore = (state) => state.store("azkar-auto", {});
 
 function getAuto(state, chat) {
@@ -113,7 +131,7 @@ function getAuto(state, chat) {
 function setAuto(state, chat, changes) {
   return autoStore(state).update((d) => {
     if (!d[chat] && Object.keys(d).length >= MAX_CHATS) throw new Error("full");
-    d[chat] = { ...(d[chat] || { ...DEFAULTS, dua: null, city: null, done: {} }), ...changes };
+    d[chat] = { ...(d[chat] || { ...DEFAULTS, dua: null, sleep: null, city: null, done: {} }), ...changes };
     return d[chat];
   });
 }
@@ -127,10 +145,10 @@ const hhmm = (min) => `${String(Math.floor(min / 60) % 24).padStart(2, "0")}:${S
  * midnight). With a city: the city's own time zone, morning adhkar 30 min after Fajr and
  * evening adhkar 30 min after Asr (their times in the Sunnah). Otherwise the bot's
  * TIMEZONE and the fixed times. A failed lookup falls back to the fixed times.
- * @returns {Promise<{ zone, day, minutes, at: { morning, evening, dua } }>}
+ * @returns {Promise<{ zone, day, minutes, at: { morning, evening, dua, sleep } }>}
  */
 async function schedule(entry, botZone, now = Date.now(), lookup) {
-  const at = { morning: parseClock(entry.morning || DEFAULTS.morning), evening: parseClock(entry.evening || DEFAULTS.evening), dua: entry.dua ? parseClock(entry.dua) : null };
+  const at = { morning: parseClock(entry.morning || DEFAULTS.morning), evening: parseClock(entry.evening || DEFAULTS.evening), dua: entry.dua ? parseClock(entry.dua) : null, sleep: entry.sleep ? parseClock(entry.sleep) : null };
   if (entry.city) {
     try {
       const p = await prayertimes.forCity(entry.city, now, lookup);
@@ -148,12 +166,12 @@ async function schedule(entry, botZone, now = Date.now(), lookup) {
  */
 async function nextSend(entry, botZone, now = Date.now(), lookup) {
   const { zone, day, minutes, at } = await schedule(entry, botZone, now, lookup);
-  const today = ["morning", "evening", "dua"]
+  const today = KINDS
     .filter((k) => at[k] !== null && at[k] !== undefined && at[k] > minutes && entry.done?.[k] !== day)
     .sort((a, b) => at[a] - at[b]);
   if (today.length) return { kind: today[0], at: at[today[0]], inMinutes: at[today[0]] - minutes, zone };
   // Tomorrow's first (times barely move from one day to the next).
-  const first = ["morning", "evening", "dua"].filter((k) => at[k] !== null && at[k] !== undefined).sort((a, b) => at[a] - at[b])[0];
+  const first = KINDS.filter((k) => at[k] !== null && at[k] !== undefined).sort((a, b) => at[a] - at[b])[0];
   return { kind: first, at: at[first], inMinutes: 1440 - minutes + at[first], zone };
 }
 
@@ -161,7 +179,7 @@ async function nextSend(entry, botZone, now = Date.now(), lookup) {
 async function dueFor(entry, botZone, now = Date.now(), lookup) {
   const { zone, day, minutes, at } = await schedule(entry, botZone, now, lookup);
   const due = [];
-  for (const kind of ["morning", "evening", "dua"]) {
+  for (const kind of KINDS) {
     if (at[kind] === null || at[kind] === undefined || entry.done?.[kind] === day) continue;
     const late = minutes - at[kind];
     if (late >= 0 && late <= LATE_LIMIT_MIN) due.push({ kind, day, zone });
@@ -218,7 +236,7 @@ async function skipPassed(state, chat, timeZone, now = Date.now()) {
   const { day, minutes, at } = await schedule(entry, timeZone, now);
   autoStore(state).update(() => {
     entry.done ||= {};
-    for (const kind of ["morning", "evening", "dua"]) {
+    for (const kind of KINDS) {
       if (at[kind] !== null && at[kind] !== undefined && minutes >= at[kind]) entry.done[kind] = day;
       else delete entry.done[kind];
     }
@@ -227,6 +245,7 @@ async function skipPassed(state, chat, timeZone, now = Date.now()) {
 
 module.exports = {
   SETS,
+  afterPrayerText,
   setFrom,
   setText,
   randomDua,

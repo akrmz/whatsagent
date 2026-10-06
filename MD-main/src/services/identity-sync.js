@@ -42,22 +42,33 @@ async function linkGroupMembers(sock, identity) {
   return Object.keys(groups).length;
 }
 
-async function syncIdentities(app, sock) {
+// A flaky network can reconnect many times an hour; reading every group each time could hit
+// WhatsApp's rate limits. The links stay in memory between reconnects, so once in a while is enough.
+const MIN_INTERVAL_MS = 30 * 60 * 1000;
+
+async function syncIdentities(app, sock, now = Date.now()) {
   const owners = app.config.owners.numbers.map((n) => `${n}@s.whatsapp.net`);
   const sudo = sudoList(app.state);
+  const key = [...owners, ...sudo].sort().join(",");
+  const last = app.identitySync;
+  if (last && now - last.at < MIN_INTERVAL_MS && last.key === key) return { skipped: true };
   const result = { phones: 0, groups: 0 };
+  let ok = false;
   try {
     result.phones = await linkPhones(sock, app.identity, [...owners, ...sudo]);
+    ok = true;
   } catch (err) {
     app.log.warn({ err: err.message }, "could not look up the owner/sudo LIDs");
   }
   try {
     result.groups = await linkGroupMembers(sock, app.identity);
+    ok = true;
   } catch (err) {
     app.log.warn({ err: err.message }, "could not read the group member lists");
   }
+  if (ok) app.identitySync = { at: now, key }; // a complete failure is retried on the next connect
   app.log.info(result, "owner/sudo identities refreshed");
   return result;
 }
 
-module.exports = { syncIdentities, linkPhones, linkGroupMembers };
+module.exports = { syncIdentities, linkPhones, linkGroupMembers, MIN_INTERVAL_MS };

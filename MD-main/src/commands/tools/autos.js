@@ -20,9 +20,9 @@ function overview(ctx) {
   const { state, chatId: chat, prefix: p } = ctx;
   const lines = [];
   const az = azkar.getAuto(state, chat);
-  if (az) lines.push(`📿 أذكار الصباح والمساء${az.city ? ` (${az.city})` : ` ${az.morning || azkar.DEFAULTS.morning} / ${az.evening || azkar.DEFAULTS.evening}`}${az.dua ? ` + دعاء ${az.dua}` : ""} — ${p}autoazkar`);
+  if (az) lines.push(`📿 أذكار الصباح والمساء${az.city ? ` (${az.city})` : ` ${az.morning || azkar.DEFAULTS.morning} / ${az.evening || azkar.DEFAULTS.evening}`}${az.dua ? ` + دعاء ${az.dua}` : ""}${az.sleep ? ` + النوم ${az.sleep}` : ""} — ${p}autoazkar`);
   const pr = adhan.get(state, chat);
-  if (pr) lines.push(`🕌 تنبيهات الصلاة — ${pr.city} — ${p}autoprayer`);
+  if (pr) lines.push(`🕌 تنبيهات الصلاة — ${pr.city}${pr.after ? ` + أذكار بعد الصلاة` : ""} — ${p}autoprayer`);
   const post = autopost.get(state, chat);
   if (post?.tafsir) lines.push(`📖 آية وتفسير ${autopost.everyHoursAr(post.tafsir.every)} — ${p}autotafsir`);
   if (post?.dua) lines.push(`🤲 دعاء ${autopost.everyHoursAr(post.dua.every)} — ${p}autoazkar dua`);

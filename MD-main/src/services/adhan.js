@@ -1,11 +1,14 @@
 "use strict";
 
 const prayertimes = require("./prayertimes");
+const azkar = require("./azkar");
 
 /**
  * Prayer-time alerts (.autoprayer): at each of the five prayers the chat gets
  * "حان الآن موعد أذان …" for its city, in the city's own time zone.
- * Stored in DATA_DIR/prayer-alerts.json as { [chat]: { city, done: { Fajr: "2026-10-06" } } }.
+ * Optionally (after: N) the adhkar after the prayer are sent N minutes after each adhan.
+ * Stored in DATA_DIR/prayer-alerts.json as
+ *   { [chat]: { city, after?: 25, done: { Fajr: "2026-10-06", afterFajr: "2026-10-06" } } }.
  * An alert more than 20 minutes late (the bot was offline) is skipped, not sent late.
  */
 
@@ -18,9 +21,35 @@ const get = (state, chat) => store(state).data[chat] || null;
 function set(state, chat, city) {
   return store(state).update((d) => {
     if (!d[chat] && Object.keys(d).length >= MAX_CHATS) throw new Error("full");
-    d[chat] = { city, done: {} };
+    d[chat] = { city, done: {}, ...(d[chat]?.after ? { after: d[chat].after } : {}) };
     return d[chat];
   });
+}
+
+const AFTER_DEFAULT = 25;
+const AFTER_MIN = 10;
+const AFTER_MAX = 60;
+
+/** Adhkar after each prayer, `minutes` after the adhan; null turns them off. */
+function setAfter(state, chat, minutes) {
+  return store(state).update((d) => {
+    if (!d[chat]) return null;
+    if (minutes) d[chat].after = minutes;
+    else delete d[chat].after;
+    return d[chat];
+  });
+}
+
+/** Today's events for a chat: each adhan, and the adhkar after it when turned on. */
+function events(entry, p) {
+  const list = prayertimes.PRAYERS.map((name) => ({ kind: "adhan", key: name, name, at: p.times[name] }));
+  if (entry.after) {
+    for (const name of prayertimes.PRAYERS) {
+      const at = p.times[name] + entry.after;
+      if (at < 1440) list.push({ kind: "after", key: `after${name}`, name, at });
+    }
+  }
+  return list;
 }
 
 const remove = (state, chat) => store(state).update((d) => delete d[chat]);
@@ -28,11 +57,13 @@ const remove = (state, chat) => store(state).update((d) => delete d[chat]);
 /** Prayers due now for one chat. Exported for tests. */
 async function dueFor(entry, now = Date.now(), lookup) {
   const p = await prayertimes.forCity(entry.city, now, lookup);
-  return prayertimes.PRAYERS.filter((name) => {
-    if (entry.done?.[name] === p.day) return false;
-    const late = p.minutes - p.times[name];
-    return late >= 0 && late <= LATE_LIMIT_MIN;
-  }).map((name) => ({ name, day: p.day, at: p.times[name], city: p.city }));
+  return events(entry, p)
+    .filter((e) => {
+      if (entry.done?.[e.key] === p.day) return false;
+      const late = p.minutes - e.at;
+      return late >= 0 && late <= LATE_LIMIT_MIN;
+    })
+    .map((e) => ({ ...e, day: p.day, city: p.city }));
 }
 
 /** The next prayer after now, from a prayertimes.forCity() result (tomorrow's Fajr after Isha). */
@@ -60,10 +91,11 @@ async function runDue(app, now = Date.now(), lookup) {
     for (const d of due) {
       s.update(() => {
         entry.done ||= {};
-        entry.done[d.name] = d.day;
+        entry.done[d.key] = d.day;
       });
+      const text = d.kind === "after" ? azkar.afterPrayerText(d.name, prayertimes.AR[d.name]) : message(d).replace(".hisn", `${app.config.bot.prefix}hisn`);
       try {
-        await app.sock.sendMessage(chat, { text: message(d).replace(".hisn", `${app.config.bot.prefix}hisn`) });
+        await app.sock.sendMessage(chat, { text });
         sent++;
       } catch (err) {
         app.log.warn({ err: err.message }, "could not send a prayer alert");
@@ -80,7 +112,7 @@ async function skipPassed(state, chat, now = Date.now(), lookup) {
   const p = await prayertimes.forCity(entry.city, now, lookup);
   store(state).update(() => {
     entry.done = {};
-    for (const name of prayertimes.PRAYERS) if (p.minutes >= p.times[name]) entry.done[name] = p.day;
+    for (const e of events(entry, p)) if (p.minutes >= e.at) entry.done[e.key] = p.day;
   });
   return p;
 }
@@ -102,4 +134,4 @@ function startAdhanLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { nextPrayer, get, set, remove, dueFor, runDue, skipPassed, startAdhanLoop, message, MAX_CHATS };
+module.exports = { nextPrayer, get, set, setAfter, remove, dueFor, events, AFTER_DEFAULT, AFTER_MIN, AFTER_MAX, runDue, skipPassed, startAdhanLoop, message, MAX_CHATS };
