@@ -55,7 +55,11 @@ In a group where the bot is an admin, group admins can enable:
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
 
-Welcome and goodbye messages: `.welcome on`, then optionally `.welcome set Hi {user}, welcome to {group}! Please read: {description}`. Goodbye works the same with `{user}` and `{group}`.
+Welcome and goodbye messages: `.welcome on`, then optionally `.welcome set Hi {user}, welcome to {group}! Please read: {description}`. Goodbye works the same with `{user}`, `{group}` and `{count}` (members). `.welcome test` shows a preview. The picture card is drawn by the bot itself; nothing is sent to other services.
+
+Scheduled announcements: `.announce every day at 08:00 Good morning`, `.announce every friday at 20:00 Meeting in 1 hour`, `.announce at 21:00 Live now!`. They are sent as plain text without mentioning anyone. `.announce list`, `.announce del <id>`. Group admins only, at most 10 per group.
+
+`.inactive 30` lists members who haven't written for 30 days (by number, without pinging them). Counting starts when the bot first sees the group.
 
 ## Changing settings from WhatsApp
 
@@ -73,6 +77,13 @@ Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_S
 - Values are saved in `DATA_DIR/env-overrides.json` (readable only by the bot's user) and override `.env`. Back it up with the rest of `data/`.
 - **Keys and tokens only in a private chat with the bot.** In a group they are refused. If you send them from the bot's own WhatsApp account, the bot deletes the message for you; otherwise delete it yourself after the bot confirms.
 - Some settings can only be changed in `.env` on the server, on purpose: `OWNER_NUMBERS`, `OWNER_LIDS`, `PAIRING_NUMBER`, the folders, `UPDATE_REMOTE`/`UPDATE_BRANCH` and the health server. Changing them from a chat could lock you out, or let someone who takes over your WhatsApp point `.update` at their own code.
+
+## Backup and restore
+
+In a private chat with the bot, `.backup` sends you a file with all settings and lists: mode, sudo users, bans, warnings, group settings, auto-replies, notes, reminders, levels and statistics. To restore it (for example on a new server), reply to that file with `.restore`. The bot shows what's inside; reply again with `.restore confirm` to apply it. It takes effect immediately.
+
+- `.backup full` also includes API keys set from chat and saved cookies. Keep that file private.
+- The WhatsApp session is never in a backup. Move the `session` folder separately, or pair again.
 
 ## Setting up the AI
 
@@ -177,6 +188,7 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
+| `.announce` | `.schedulemsg` `.announcement` | Schedules a message to this group — once or repeating — sent as plain text without mentioning anyone. Times use the bot's TIMEZONE. | group admins (groups) | `.announce every day at 08:00 Good morning everyone ☀️` |
 | `.antibadword` | – | Deletes messages from non-admins that contain bad words. Action: delete, kick or warn. The bot must be a group admin. | group admins (groups) | `.antibadword on` |
 | `.antilink` | – | Deletes links posted by non-admins. Action: delete, kick or warn. The bot must be a group admin. | group admins (groups) | `.antilink on` |
 | `.antispam` | `.antiflood` | Stops flooding: when a member sends more than N messages in S seconds, the extra messages are deleted and the member is warned or removed. Admins are never affected. The bot must be a group admin. | group admins (groups) | `.antispam on` |
@@ -192,8 +204,9 @@ This list is generated from the command files themselves.
 | `.filter` | `.autoreply` `.addfilter` | Adds an auto-reply: when someone writes the trigger word or phrase, the bot answers with your text. Or reply to a message to use it as the answer. | group admins (groups) | `.filter hello \| Welcome to the group! 👋` |
 | `.filters` | `.autoreplies` | Lists this group's auto-replies. | everyone (groups) | `.filters` |
 | `.gcschedule` | `.autoclose` `.groupschedule` | Closes the group every day at one time (only admins can write) and opens it at another. Times use the bot's TIMEZONE. The bot must be a group admin. | group admins (groups) | `.gcschedule close 23:00` |
-| `.goodbye` | – | Goodbye messages when members leave. Variables: {user}, {group}. | group admins (groups) | `.goodbye on` |
+| `.goodbye` | – | Goodbye messages when members leave. Variables: {user}, {group}, {count}. | group admins (groups) | `.goodbye on` |
 | `.hidetag` | – | Like .tag but only mentions members who are not admins. | group admins (groups) | `.hidetag Meeting at 8 pm` |
+| `.inactive` | `.silent` `.ghosts` | Lists members who haven't written in this group for N days (default 7). Nobody is mentioned or notified. Counting starts when the bot first sees the group. | group admins (groups) | `.inactive` |
 | `.kick` | – | Removes members from the group. The bot and its owners cannot be kicked. The bot must be a group admin. | group admins (groups) | `.kick @201012345678` |
 | `.levelup` | `.levelmsg` | Turns level-up announcements in this group on or off (XP is always counted). ".levelup reset" clears all levels here. | group admins (groups) | `.levelup` |
 | `.link` | `.invite` `.grouplink` `.gclink` | Shows the group's invite link. The bot must be a group admin. | group admins (groups) | `.link` |
@@ -214,7 +227,7 @@ This list is generated from the command files themselves.
 | `.unmute` | – | Lets everyone send messages again. The bot must be a group admin. | group admins (groups) | `.unmute` |
 | `.warn` | – | Warns a member. They are removed automatically at WARN_LIMIT warnings (default 3). The bot must be a group admin. | group admins (groups) | `.warn @201012345678` |
 | `.warnings` | – | Shows how many warnings a member has in this group. | everyone (groups) | `.warnings @201012345678` |
-| `.welcome` | – | Welcome messages when members join. Variables: {user}, {group}, {description}. | group admins (groups) | `.welcome on` |
+| `.welcome` | – | Welcome messages when members join. Variables: {user}, {group}, {description}, {count}. | group admins (groups) | `.welcome on` |
 
 ### Owner
 
@@ -226,6 +239,7 @@ This list is generated from the command files themselves.
 | `.autoread` | – | Marks every incoming message as read (except ones that mention the bot). | owner | `.autoread on` |
 | `.autostatus` | – | Automatically views contacts' statuses, and optionally reacts to them with 💚. | owner | `.autostatus react on` |
 | `.autotyping` | – | Shows a 'typing…' indicator when the bot receives messages. | owner | `.autotyping on` |
+| `.backup` | – | Sends you a backup file of all bot settings and lists (mode, sudo, bans, group settings, notes, reminders, levels …) to restore later with .restore. ".backup full" also includes API keys set from chat and saved cookies. The WhatsApp session is never included. | owner (private chat) | `.backup` |
 | `.block` | – | Blocks someone on the bot's WhatsApp account (they can't message or call it). Mention them, reply to them, or give the number. | owner | `.block` |
 | `.clearsession` | `.clearsesi` | Deletes cached encryption key files from the session folder (keeps creds.json). Only for fixing persistent 'waiting for this message' errors; restart the bot afterwards. | owner | `.clearsession confirm` |
 | `.cleartmp` | – | Deletes leftover temporary files. | owner, sudo | `.cleartmp` |
@@ -241,6 +255,7 @@ This list is generated from the command files themselves.
 | `.mode` | – | Public: everyone can use commands. Private: only owner and sudo (group moderation keeps working). | owner | `.mode private` |
 | `.pmblocker` | – | Blocks anyone who is not owner/sudo and messages the bot privately (they get a notice first). | owner | `.pmblocker on` |
 | `.restart` | `.reboot` | Restarts the bot (needed for a few settings). Works when the bot runs under PM2 or Docker, which start it again. | owner | `.restart` |
+| `.restore` | – | Restores a backup made with .backup (reply to the file). Lists and settings in it replace the current ones; anything not in the backup is left alone. | owner (private chat) | `.restore` _(reply to a backup file) [confirm]_ |
 | `.setcookie` | `.setcookies` `.addcookie` | Saves login cookies for one site so downloads that need a login work (age-restricted/members YouTube, private Instagram …). Sites: youtube, tiktok, facebook, instagram, twitter, reddit, soundcloud, pinterest, vimeo, dailymotion, twitch, threads, snapchat. | owner (private chat) | `.setcookie youtube (caption of a cookies.txt file)` |
 | `.setmention` | – | Sets what the bot replies when mentioned: reply to a text, sticker, image, video or audio (max 1 MB). | owner | `.setmention` _(reply to a message)_ |
 | `.setpp` | – | Sets the bot's profile picture from the image you reply to. | owner | `.setpp` _(reply to an image)_ |
@@ -462,7 +477,7 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 | Anticall | `.anticall on` (owner) | Rejects calls and blocks the caller |
 | Promote/demote announcements | always in public mode | Announces admin changes in groups |
 | AFK notices | `.afk [reason]` (anyone) | When someone mentions or replies to an AFK user, the bot says they are away (at most once per chat every 5 minutes). The AFK user's next message clears it |
-| Reminders | `.remind 10m <text>`, `.remind at 18:30 <text>`, `.remind tomorrow at 9am <text>`, `.remind every day at 08:00 <text>` (anyone) | Times use `TIMEZONE`. Repeating reminders (every 10 minutes to 60 days) continue until `.remind del <id>`. Sent in the chat where they were set, mentioning you. Stored in `DATA_DIR/reminders.json`, so they survive restarts; reminders that fell due while the bot was offline are sent on reconnect, marked late. Max 10 per person, 60 days ahead |
+| Reminders | `.remind 10m <text>`, `.remind at 18:30 <text>`, `.remind tomorrow at 9am <text>`, `.remind friday at 20:00 <text>`, `.remind every day at 08:00 <text>`, `.remind every monday at 9am <text>` (anyone) | Times use `TIMEZONE`. Repeating reminders (every 10 minutes to 60 days) continue until `.remind del <id>`. Sent in the chat where they were set, mentioning you. Stored in `DATA_DIR/reminders.json`, so they survive restarts; reminders that fell due while the bot was offline are sent on reconnect, marked late. Max 10 per person, 60 days ahead |
 
 ## Configuration options
 

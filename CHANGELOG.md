@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.7.0 — 2026-10-06
+
+### Added
+- **Backup and restore from WhatsApp** (owner, private chat):
+  - `.backup` sends a JSON file of every setting and list.
+  - `.backup full` adds API keys set from chat and cookies.
+  - `.restore` (reply to the file) shows what's inside and applies it after `.restore confirm`, without a restart. File names with path tricks are ignored.
+  - The WhatsApp session is never included.
+- **Scheduled announcements** to a group: `.announce every day at 08:00 …`, `.announce at 21:00 …`, `.announce list|del` (group admins). Plain text, no mentions, at most 10 per group.
+- **Weekdays** for `.remind` and `.announce`: `friday at 20:00`, `every monday at 9am` (a weekday alone means 09:00).
+- **`.inactive [days]`** (group admins): members who haven't written for N days, listed by number without pinging anyone. Only the time of each member's last message is stored.
+- **`.welcome test` / `.goodbye test`** preview, and a `{count}` variable (member count).
+- 6 tests (122 in total).
+
+### Changed
+- Welcome/goodbye building moved to `services/greetings.js`, shared by the listener and the preview.
+
 ## 2.6.0 — 2026-10-06
 
 ### Added
