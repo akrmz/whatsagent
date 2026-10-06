@@ -2,6 +2,20 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.13.0 — 2026-10-06
+
+### Fixed (found by checking the code against Baileys 6.7.24's real event format)
+- **Captcha could remove real members in LID groups.** The join event and the member's messages can name the same person by LID and by phone number. The answer is now matched against all of a member's known ids.
+- **Captcha and the welcome message treated the bot itself as a new member** when it was added to a group. The bot is now skipped.
+
+### Changed
+- **`.help` is a short overview** (about 1,200 characters instead of 7,900): each section with its size and most useful commands. `.menu` / `.help all` give the full list as plain text instead of a long image caption; `.menu <section>` still opens one section.
+- **Menus show what you can use.** Owner-only commands appear only for the owner, and sudo commands for owner/sudo. Anyone can still ask `.help <command>`.
+
+### Checked
+- Performance with every protection and listener switched on (25 listeners, 50 auto-replies, antilink, antibadword, antispam, levels, activity): **0.06 ms per incoming message**, 48 MB heap after 5,000 messages.
+- 3 tests (154 in total).
+
 ## 2.12.0 — 2026-10-06
 
 ### Added

@@ -3,7 +3,7 @@
 How to use the bot from WhatsApp, and every configuration option.
 
 - The command prefix is `.` by default (change it with `PREFIX` in `.env`). Every example below uses `.`.
-- Send `.help` to see the commands available on *your* bot. Commands whose API key or tool is missing are hidden automatically. Send `.help <command>` for details, e.g. `.help sticker`, or `.help <section>` for one section with descriptions, e.g. `.help tools`, `.help info`, `.help downloads`. A mistyped name gets a "Did you mean …?" suggestion.
+- Send `.help` for a short overview: every section with its most useful commands. `.menu` (or `.help all`) lists every command you can use; owner-only commands are shown only to the owner. Send `.help` to see the commands available on *your* bot. Commands whose API key or tool is missing are hidden automatically. Send `.help <command>` for details, e.g. `.help sticker`, or `.help <section>` for one section with descriptions, e.g. `.help tools`, `.help info`, `.help downloads`. A mistyped name gets a "Did you mean …?" suggestion.
 - The owner can send `.doctor` to see which tools were found (with their paths and versions), which commands are disabled, and exactly what to install or set to enable them.
 - In the tables, "group admins" means admins of the current group. The bot owner and sudo users also count as admins everywhere.
 - "Needs" lists what must be configured or installed for the command to exist:
@@ -175,7 +175,7 @@ This list is generated from the command files themselves.
 | `.fact` | – | Sends a random useless fact. | everyone | `.fact` |
 | `.github` | `.git` `.sc` `.script` `.repo` | Shows the bot's source repository (set GITHUB_REPO in .env). _Needs: githubRepo._ | everyone | `.github` |
 | `.groupinfo` | `.infogp` `.infogrupo` | Shows the group's name, ID, member count, owner, admins and description. | everyone (groups) | `.groupinfo` |
-| `.help` | `.menu` `.bot` `.list` | Lists all commands, one section (tools, info, download, sticker …), or explains one command. | everyone | `.help` |
+| `.help` | `.menu` `.bot` `.list` | A short overview of the sections; .help <section> lists one section, .help <command> explains a command, and .menu (or .help all) lists every command you can use. | everyone | `.help` |
 | `.jid` | – | Shows this group's ID (JID). | everyone (groups) | `.jid` |
 | `.joke` | – | Sends a random dad joke. | everyone | `.joke` |
 | `.lyrics` | – | Finds the lyrics of a song. | everyone | `.lyrics adele hello` |
