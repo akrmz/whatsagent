@@ -2,6 +2,7 @@
 
 const { groupData } = require("../services/settings");
 const { enforce } = require("../services/moderation");
+const linkAllow = require("../services/linkallow");
 
 /**
  * Group protection rules (antibadword, antilink, antitag). Admins, sudo users, owners
@@ -71,6 +72,7 @@ module.exports = [
     async run(ctx) {
       const r = rule(ctx, "antilink");
       if (!r || !ctx.body || !LINK_RE.test(ctx.body)) return undefined;
+      if (linkAllow.allAllowed(ctx.state, ctx.chatId, ctx.body)) return undefined; // .linkallow
       if ((await isExempt(ctx)) || !(await ctx.isBotAdmin())) return undefined;
       await enforce(ctx, r.action, "posting links");
       return "stop";

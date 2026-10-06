@@ -6,6 +6,7 @@ const { spawn } = require("node:child_process");
 const { withTempDir } = require("../core/media");
 const { UserError } = require("../core/errors");
 const { LRU } = require("../core/lru");
+const { heavy } = require("../core/jobs");
 const { HOSTS, AUDIO_SITES, hostIn } = require("./sites");
 const cookies = require("./cookies");
 
@@ -43,7 +44,10 @@ function detectSite(text) {
   return site ? { site, url: url.toString() } : null;
 }
 
-function run(bin, args, timeoutMs) {
+/** Runs yt-dlp through the shared job limit (core/jobs). */
+const run = (bin, args, timeoutMs) => heavy(() => runNow(bin, args, timeoutMs));
+
+function runNow(bin, args, timeoutMs) {
   return new Promise((resolve, reject) => {
     // Force UTF-8 so non-Latin titles (Arabic, emoji …) survive on every OS, and decode
     // the stream as UTF-8 so characters split across chunks are not corrupted.

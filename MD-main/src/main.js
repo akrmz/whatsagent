@@ -19,6 +19,8 @@ const { probeTools } = require("./services/tools");
 const { sudoList } = require("./services/settings");
 const { startReminderLoop } = require("./services/reminders");
 const vars = require("./services/vars");
+const jobs = require("./core/jobs");
+const { startNoticeLoop } = require("./services/notices");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -73,6 +75,7 @@ function enableRuntimeSettings(app, { baseEnv, overrides = {}, forcedCapabilitie
     const previousTools = sameTools ? app.capabilities.tools : undefined;
     app.capabilities = forcedCapabilities || (await detectCapabilities(nextConfig, app.ai, { tools: previousTools }));
     app.config = nextConfig;
+    jobs.setLimit(nextConfig.limits.parallelJobs);
     app.commands = loadCommands(COMMANDS_DIR, { capabilities: app.capabilities, log: app.log });
     app.listeners = loadListeners(LISTENERS_DIR, { capabilities: app.capabilities, log: app.log });
     const after = new Set(app.commands.list.map((c) => c.name));
@@ -98,6 +101,7 @@ async function createApp({ env = process.env, capabilities: forced } = {}) {
     overrides = {};
   }
   const log = createLogger(config.log);
+  jobs.setLimit(config.limits.parallelJobs);
   if (ignored) log.error({ problems: ignored }, "settings saved from chat are invalid and were ignored; fix them with .setvar/.delvar");
   const state = createState({ dataDir: config.paths.data, defaultMode: config.bot.defaultMode, log });
   const identity = new IdentityMap();
@@ -157,6 +161,7 @@ async function start() {
   const stopReminders = startReminderLoop(app);
   const stopAutoUpdate = startAutoUpdate(app);
   const stopGroupSchedule = startGroupScheduleLoop(app);
+  const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
   let shuttingDown = false;
@@ -167,6 +172,7 @@ async function start() {
     stopReminders();
     stopAutoUpdate();
     stopGroupSchedule();
+    stopNotices();
     connection.stop();
     app.state.flush();
     health?.close();

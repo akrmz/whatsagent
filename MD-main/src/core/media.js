@@ -6,6 +6,7 @@ const path = require("node:path");
 const crypto = require("node:crypto");
 const { spawn } = require("node:child_process");
 const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
+const { heavy } = require("./jobs");
 
 class MediaError extends Error {}
 
@@ -109,7 +110,11 @@ async function withTempDir(baseDir, fn) {
  * Runs ffmpeg without a shell. Input protocols are restricted to local files and pipes,
  * so a hostile media file cannot make ffmpeg fetch URLs or read other files.
  */
-function runFfmpeg(ffmpegPath, args, { timeoutMs = 120000 } = {}) {
+function runFfmpeg(ffmpegPath, args, opts) {
+  return heavy(() => runFfmpegNow(ffmpegPath, args, opts)); // shared job limit (core/jobs)
+}
+
+function runFfmpegNow(ffmpegPath, args, { timeoutMs = 120000 } = {}) {
   return new Promise((resolve, reject) => {
     const full = ["-hide_banner", "-loglevel", "error", "-nostdin", "-y", ...args];
     const proc = spawn(ffmpegPath, full, { stdio: ["ignore", "ignore", "pipe"], windowsHide: true });

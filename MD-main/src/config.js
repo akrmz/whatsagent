@@ -207,6 +207,10 @@ function buildConfig(env = process.env) {
       videoSeconds: r.int("MAX_VIDEO_SECONDS", 600, 10, 7200),
       cooldownSeconds: r.int("DEFAULT_COOLDOWN_SECONDS", 3, 0, 3600),
       warnLimit: r.int("WARN_LIMIT", 3, 1, 20),
+      // yt-dlp/ffmpeg processes running at once (more wait in a queue).
+      parallelJobs: r.int("MAX_PARALLEL_JOBS", 2, 1, 16),
+      // Commands one person may run per minute (owner and sudo exempt). 0 = no limit.
+      commandsPerMinute: r.int("COMMANDS_PER_MINUTE", 15, 0, 1000),
       storeChats: r.int("STORE_MAX_CHATS", 500, 10, 100000),
       storePerChat: r.int("STORE_MESSAGES_PER_CHAT", 20, 1, 500),
       antideleteMessages: r.int("ANTIDELETE_MAX_MESSAGES", 5000, 100, 100000),

@@ -1,6 +1,8 @@
 "use strict";
 
 const { createUpdater } = require("../../services/updater");
+const notices = require("../../services/notices");
+const { version } = require("../../../package.json");
 
 let updater;
 let updaterConfig; // rebuilt when settings change (e.g. YTDLP_PATH via .setvar)
@@ -81,6 +83,7 @@ module.exports = {
         );
         await ctx.reply(report.join("\n"));
         ctx.log.info({ from: result.from, to: result.to }, "updated; restarting");
+        notices.setPending(ctx.state, { chat: ctx.chatId, kind: "update", fromVersion: version });
         // Graceful shutdown (state is flushed); PM2/Docker start the new code.
         setTimeout(() => process.kill(process.pid, "SIGTERM"), 1500).unref();
         return undefined;

@@ -64,6 +64,19 @@ function createDispatcher(app) {
     return app.identity.aliases(ctx.sender).some((a) => banned.has(a));
   }
 
+  // Commands per person per minute (COMMANDS_PER_MINUTE), across all commands, so one
+  // person can't make the bot spam (which can get the WhatsApp number banned).
+  const perUser = new LRU({ max: 20000, ttlMs: 60 * 1000 });
+  function overRateLimit(ctx) {
+    const limit = app.config.limits.commandsPerMinute;
+    if (!limit || atLeast(ctx.level, "sudo")) return false;
+    const now = Date.now();
+    const times = (perUser.get(ctx.sender) || []).filter((t) => t > now - 60000);
+    times.push(now);
+    perUser.set(ctx.sender, times);
+    return times.length > limit;
+  }
+
   function checkCooldown(ctx, command) {
     const seconds = command.cooldown ?? app.config.limits.cooldownSeconds;
     if (!seconds || atLeast(ctx.level, "sudo")) return { ok: true };
@@ -98,6 +111,11 @@ function createDispatcher(app) {
     if (!allowed) return ctx.reply(DENIED[command.permission] || DENIED.owner);
 
     if (command.botAdmin && !(await ctx.isBotAdmin())) return ctx.reply("Please make the bot a group admin first.");
+
+    if (overRateLimit(ctx)) {
+      if (noticeOnce(`rate|${ctx.sender}`)) await ctx.reply("🐢 You are sending commands too fast. Wait a minute, please.");
+      return undefined;
+    }
 
     const cd = checkCooldown(ctx, command);
     if (!cd.ok) {

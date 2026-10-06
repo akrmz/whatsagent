@@ -3,6 +3,7 @@
 const { probeTools } = require("../../services/tools");
 const { version } = require("../../../package.json");
 const cookies = require("../../services/cookies");
+const jobs = require("../../core/jobs");
 
 // How to turn on each optional capability (shown for the ones that are off).
 const HOW_TO_ENABLE = {
@@ -62,6 +63,7 @@ module.exports = {
       `📶 WhatsApp: ${app.health.state}${app.health.lastMessageAt ? ` · last message ${ago(now - app.health.lastMessageAt)} ago` : ""}`,
       `🔓 Mode: ${app.state.isPublic() ? "public" : "private"} · prefix ${ctx.prefix} · ${ctx.config.bot.timezone}`,
       `🤖 AI: ${app.ai ? `${app.ai.label} · ${app.ai.model}` : "off"} · 🍪 cookies: ${cookies.savedSites(ctx.config).join(", ") || "none"}`,
+      `🏗️ Downloads/conversions: ${jobs.status().running} running, ${jobs.status().queued} waiting (max ${jobs.status().max} at once)`,
       `⚙️ Settings changed from chat: ${Object.keys(app.overrides || {}).join(", ") || "none"}`,
       `🔄 yt-dlp auto-update: ${ctx.config.tools.ytdlpAutoUpdate ? (app.health.ytdlpAutoUpdate ? `on · last ${new Date(app.health.ytdlpAutoUpdate.at).toISOString().slice(0, 16).replace("T", " ")} UTC: ${app.health.ytdlpAutoUpdate.message}` : "on · not run yet") : "off (.setvar YTDLP_AUTO_UPDATE true)"}`,
       "",

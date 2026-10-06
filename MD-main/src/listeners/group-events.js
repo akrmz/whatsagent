@@ -1,25 +1,20 @@
 "use strict";
 
 const { groupData } = require("../services/settings");
-const { someRandomApi } = require("../services/external");
+const cards = require("../services/cards");
 const { at } = require("../services/targets");
 
 const jidOf = (p) => (typeof p === "string" ? p : p?.id || p?.phoneNumber || "");
 
-async function welcomeCard(sock, user, meta, type) {
-  let avatar = "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ac/Default_pfp.jpg/240px-Default_pfp.jpg";
-  try {
-    avatar = (await sock.profilePictureUrl(user, "image")) || avatar;
-  } catch {
-    /* no profile picture */
-  }
-  return someRandomApi(`welcome/img/2/${type === "join" ? "gaming3" : "gaming1"}`, {
-    type,
-    textcolor: type === "join" ? "green" : "red",
-    username: user.split("@")[0],
-    guildName: meta.subject.slice(0, 50),
-    memberCount: String(meta.participants.length),
-    avatar,
+// Drawn on the server (services/cards.js): the member's photo is not sent to any third party.
+async function welcomeCard(sock, user, meta, type, phoneJid) {
+  return cards.welcomeCard({
+    avatar: await cards.avatarOf(sock, user),
+    kind: type === "join" ? "welcome" : "goodbye",
+    // LID-only members have no phone number to show; then just the photo and group.
+    name: phoneJid?.endsWith("@s.whatsapp.net") ? `+${phoneJid.split("@")[0]}` : type === "join" ? "New member" : "A member",
+    group: meta.subject || "",
+    members: meta.participants?.length || 0,
   });
 }
 
@@ -45,7 +40,7 @@ module.exports = [
         if (!user) continue;
         const text = fill(setting.message || (key === "welcome" ? "Welcome {user} to {group}! 🎉" : "Goodbye {user} 👋"), { user, meta });
         try {
-          const image = await welcomeCard(sock, user, meta, action === "add" ? "join" : "leave");
+          const image = await welcomeCard(sock, user, meta, action === "add" ? "join" : "leave", app.identity.toPn(user) || user);
           await sock.sendMessage(id, { image, caption: text, mentions: [user] });
         } catch {
           await sock.sendMessage(id, { text, mentions: [user] });

@@ -61,6 +61,8 @@ const SETTINGS = [
   { key: "MAX_DOWNLOAD_MB", group: "Limits", about: "Largest file the downloaders fetch (MB)", example: "50" },
   { key: "MAX_VIDEO_SECONDS", group: "Limits", about: "Longest audio/video the downloaders fetch (s)", example: "900" },
   { key: "DEFAULT_COOLDOWN_SECONDS", group: "Limits", about: "Default per-user cooldown (s)", example: "3" },
+  { key: "MAX_PARALLEL_JOBS", group: "Limits", about: "Downloads/conversions running at once (1-16)", example: "3" },
+  { key: "COMMANDS_PER_MINUTE", group: "Limits", about: "Commands one person may run per minute (owner/sudo exempt; 0 = no limit)", example: "20" },
   { key: "WARN_LIMIT", group: "Limits", about: "Warnings before a member is removed", example: "3" },
   // Tools
   { key: "YTDLP_PATH", group: "Tools", about: "yt-dlp program or full path (~ allowed); checked before saving", example: "~/.local/bin/yt-dlp" },
@@ -143,6 +145,8 @@ const EFFECTIVE = {
   MAX_VIDEO_SECONDS: (c) => c.limits.videoSeconds,
   DEFAULT_COOLDOWN_SECONDS: (c) => c.limits.cooldownSeconds,
   WARN_LIMIT: (c) => c.limits.warnLimit,
+  MAX_PARALLEL_JOBS: (c) => c.limits.parallelJobs,
+  COMMANDS_PER_MINUTE: (c) => c.limits.commandsPerMinute,
   YTDLP_PATH: (c) => c.tools.ytdlp,
   FFMPEG_PATH: (c) => c.tools.ffmpeg,
   YTDLP_AUTO_UPDATE: (c) => c.tools.ytdlpAutoUpdate,

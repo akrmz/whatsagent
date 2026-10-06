@@ -6,6 +6,7 @@ const { runVersion, explainFailure } = require("../../services/tools");
 const { tryDeleteSecretMessage } = require("../../services/secrets");
 const { suggest } = require("../../services/help");
 const { UserError } = require("../../core/errors");
+const notices = require("../../services/notices");
 
 // The program must answer like the real tool, so the path can't point at a shell or interpreter.
 const TOOL_CHECK = {
@@ -149,6 +150,7 @@ module.exports = [
     async run(ctx) {
       await ctx.reply("🔁 Restarting… back in a few seconds. (Under PM2/Docker it starts again automatically; with plain `npm start` it just stops.)");
       ctx.log.info("restart requested from chat");
+      notices.setPending(ctx.state, { chat: ctx.chatId, kind: "restart" });
       setTimeout(() => process.kill(process.pid, "SIGTERM"), 1500).unref();
     },
   },
