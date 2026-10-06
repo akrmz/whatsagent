@@ -25,6 +25,8 @@ const { startAzkarLoop, duaText, randomDua } = require("./services/azkar");
 const { startAdhanLoop } = require("./services/adhan");
 const { startAutopostLoop } = require("./services/autopost");
 const quran = require("./services/quran");
+const hadith = require("./services/hadith");
+const { startWirdLoop } = require("./services/wird");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -171,7 +173,9 @@ async function start() {
   const stopAutopost = startAutopostLoop(app, {
     tafsir: () => quran.randomAyahTafsir(),
     dua: async () => duaText(randomDua()),
+    hadith: async () => hadith.format(await hadith.randomHadith()),
   });
+  const stopWird = startWirdLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -187,6 +191,7 @@ async function start() {
     stopAzkar();
     stopAdhan();
     stopAutopost();
+    stopWird();
     connection.stop();
     app.state.flush();
     health?.close();

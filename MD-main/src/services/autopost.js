@@ -7,12 +7,13 @@ const { zoneNow } = require("./gcschedule");
  * Posts that repeat every N hours in a chat (.autotafsir, .autoazkar dua every N):
  *   tafsir – a random verse with al-Tafsir al-Muyassar
  *   dua    – a random supplication from Hisn al-Muslim
+ *   hadith – a random hadith with its grade and explanation (hadeethenc.com)
  * Quiet hours (default 23:00–07:00 in TIMEZONE) hold posts until they end, so groups
  * aren't woken at night. Stored in DATA_DIR/autopost.json as
  *   { [chat]: { quiet: "23:00-07:00" | null, tafsir: { every: 3, next: 1760000000000 }, dua: {…} } }
  */
 
-const KINDS = ["tafsir", "dua"];
+const KINDS = ["tafsir", "dua", "hadith"];
 const MIN_HOURS = 1;
 const MAX_HOURS = 24;
 const MAX_CHATS = 300;
