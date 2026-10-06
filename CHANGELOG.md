@@ -2,6 +2,20 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.19.0 — 2026-10-06
+
+### Added
+- **`.autodl`: automatic downloads in a group** (off by default; group admins). Short-video links (TikTok, Instagram, Facebook, X, Threads, Snapchat, Pinterest, YouTube Shorts) are downloaded and sent back. It runs in the background so other messages aren't held up. Limits: one at a time per group, 15 s apart, 30 an hour. Failures get only a ❌ reaction. Listed in `.autos`, and removed when the bot leaves the group.
+- **Reply to a link** with `.dl`, `.tiktok`, `.facebook`, `.instagram`, `.twitter`, `.song`, `.video` … to download it.
+- **`.todo`**: a shared to-do list per chat. Anyone can add tasks and tick them off; the author or an admin can delete a task; admins can clear the list. Up to 50 tasks.
+
+### Fixed
+- **Photos in downloaded posts were sent as broken "videos".** Every item was sent as `video/mp4`. Items are now sent by type (photo, audio, video), and the title is captioned once instead of on every item.
+- A test loaded listeners with an incomplete capability list. It now uses the same full list as the bot.
+
+### Checked
+- 4 tests (185 in total).
+
 ## 2.18.3 — 2026-10-06
 
 ### Fixed

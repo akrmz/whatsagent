@@ -39,6 +39,8 @@ Many commands work on "the message you reply to":
 
 Media commands also accept the media *with the command as its caption*: attach a picture, type `.sticker` as the caption, and send.
 
+Download commands work the same way with links: reply to a message that contains a link with `.dl` (or `.tiktok`, `.facebook`, `.song` …) and the bot downloads that link.
+
 ## Group protection settings
 
 In a group where the bot is an admin, group admins can enable:
@@ -158,6 +160,20 @@ In a private chat with the bot, `.backup` sends you a file with all settings and
 
 Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other OpenAI-compatible services, pick a model with `.aimodel`. `AI_MAX_TOKENS` (`.setvar AI_MAX_TOKENS 2048`) limits answer length; `AI_EFFORT` applies to Claude only.
 
+## Automatic downloads in a group
+
+`.autodl on` (group admins) makes the bot download short-video links that members post in the group: TikTok, Instagram, Facebook, X, Threads, Snapchat, Pinterest and YouTube Shorts. Ordinary YouTube videos stay manual (`.video`). The bot reacts ⏬ while working, then replies with the video (or the first 4 items of a carousel) and reacts ✅. If a link can't be downloaded it only reacts ❌, so the chat isn't filled with error messages.
+- **Limits:** one download at a time per group, 15 seconds between them, at most 30 an hour per group, plus the usual `MAX_DOWNLOAD_MB` / `MAX_VIDEO_SECONDS`.
+- `.autodl off` turns it off, and `.autos` shows whether it is on. Downloaded videos are converted to H.264 when WhatsApp couldn't play them (needs ffmpeg).
+
+## To-do list
+
+`.todo add Book the hall` adds a task to this chat's shared list, and `.todo` shows it with numbers.
+- Anyone can add tasks and tick them off: `.todo done 2` (send it again to un-tick).
+- The person who added a task, or an admin, can delete it with `.todo del 2`.
+- Admins can remove finished tasks with `.todo clear`, or everything with `.todo clear all`.
+- In a private chat with the bot, the list is yours. Up to 50 tasks per chat.
+
 ## Cookies for downloads (YouTube, Instagram …)
 
 Some videos only download when logged in: age-restricted or members-only YouTube videos, YouTube's "Sign in to confirm you're not a bot", private Instagram, Facebook or X posts. Give the bot your login cookies for that site:
@@ -225,6 +241,7 @@ This list is generated from the command files themselves.
 | `.save` | `.savenote` `.addnote` | Saves a note in this chat (rules, links, FAQ …). Anyone can then send #name to see it. In groups, only admins can save. | everyone | `.save rules Be kind. No spam.` |
 | `.short` | `.shorturl` `.tinyurl` `.shorten` | Shortens a long link with TinyURL. | everyone | `.short https://example.com/a/very/long/link` |
 | `.toaudio` | `.tomp3` `.mp3convert` | Extracts the sound of a video (or converts a voice note/audio file) to an MP3 you can play or save. _Needs: ffmpeg._ | everyone | `.toaudio` _(reply to a video or audio)_ |
+| `.todo` | `.tasks` `.todolist` `.mahamm` | A shared to-do list for this chat: anyone can add tasks and tick them off; the author or an admin can delete one, admins can clear the list. | everyone | `.todo add Buy the projector` |
 | `.tovn` | `.toptt` `.tovoice` | Turns a video, song or audio file into a WhatsApp voice note. _Needs: ffmpeg._ | everyone | `.tovn` _(reply to a video or audio)_ |
 | `.unit` | `.units` `.conv` | Converts units: length, weight, volume, area (incl. feddan), speed, temperature, data, time, energy. | everyone | `.unit 10 km to mi` |
 
@@ -443,6 +460,7 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
+| `.autodl` | `.autodownload` `.autovideo` | Automatic downloads in this group: when someone posts a TikTok, Instagram, Facebook, X, Threads, Snapchat, Pinterest or YouTube Shorts link, the bot replies with the video. One at a time, at most 30 an hour per group; failures only get a ❌ reaction. _Needs: ytdlp._ | group admins (groups) | `.autodl on` |
 | `.dl` | `.download` `.get` | Downloads the video (or SoundCloud audio) from a link on any supported site: youtube, tiktok, facebook, instagram, twitter, reddit, soundcloud, pinterest, vimeo, dailymotion, twitch, threads, snapchat. _Needs: ytdlp._ | everyone | `.dl https://x.com/…/status/…` |
 | `.facebook` | `.fb` | Downloads a public Facebook video. _Needs: ytdlp._ | everyone | `.facebook https://www.facebook.com/watch/?v=10153231379946729` |
 | `.instagram` | `.insta` `.ig` | Downloads the videos of a public Instagram post or reel (photos are not supported; private posts need YTDLP_COOKIES). _Needs: ytdlp._ | everyone | `.instagram https://www.instagram.com/reel/C0abcdefghi/` |
@@ -636,4 +654,5 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
+- With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.
