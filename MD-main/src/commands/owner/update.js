@@ -3,6 +3,7 @@
 const { createUpdater } = require("../../services/updater");
 
 let updater;
+let updaterConfig; // rebuilt when settings change (e.g. YTDLP_PATH via .setvar)
 const short = (sha) => String(sha || "").slice(0, 7);
 
 function botLines(s) {
@@ -36,7 +37,10 @@ module.exports = {
   cooldown: 30,
 
   async run(ctx) {
-    updater ||= createUpdater({ config: ctx.config, log: ctx.log });
+    if (!updater || updaterConfig !== ctx.config) {
+      updater = createUpdater({ config: ctx.config, log: ctx.log });
+      updaterConfig = ctx.config;
+    }
     const apply = (ctx.args[0] || "").toLowerCase() === "now";
     if (ctx.args[0] && !apply) return ctx.reply(`Usage: ${ctx.prefix}update  (check)  or  ${ctx.prefix}update now  (install)`);
 

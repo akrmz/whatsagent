@@ -24,9 +24,17 @@ const REDACT_PATHS = [
   "keys",
   "*.keys",
   "config.ai.apiKey",
+  "config.ai.keys",
   "config.keys",
+  "value",
+  "*.value",
+  "cookies",
+  "*.cookies",
   "headers.authorization",
   'headers["x-api-key"]',
+  'headers["x-goog-api-key"]',
+  "*.headers.authorization",
+  '*.headers["x-goog-api-key"]',
 ];
 
 function createLogger({ level = "info", format = "json" } = {}) {

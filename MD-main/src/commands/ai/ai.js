@@ -6,12 +6,12 @@ module.exports = {
   name: "ai",
   aliases: ["gpt", "gemini", "ask", "claude"],
   category: "ai",
-  description: "Asks the AI a question (Claude). Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the image.",
+  description: "Asks the AI a question (Claude, Gemini or an OpenAI-compatible model — the owner picks it with .setai). Reply to a message to ask about it, or send/reply to a photo or sticker to ask about the image.",
   usage: "<question>",
   examples: [".ai write a haiku about Cairo", ".gpt explain recursion simply", "(reply to a photo) .ai what is written here?"],
   cooldown: 15,
   requires: ["ai"],
-  externalService: "Anthropic Claude API (your question, and the image if any, is sent)",
+  externalService: "the configured AI provider: Anthropic, Google or OpenAI-compatible (your question, and the image if any, is sent)",
 
   async run(ctx) {
     const media = ctx.findMedia({ types: ["image", "sticker"] });

@@ -6,6 +6,7 @@ const { files } = require("../services/settings");
 const { LRU } = require("../core/lru");
 const { findMedia, downloadMedia } = require("../core/media");
 const { at } = require("../services/targets");
+const { isSecretCommand } = require("../services/secrets");
 
 /**
  * Antidelete: while enabled, keeps recent messages (text in memory, media on disk, both
@@ -80,6 +81,8 @@ module.exports = {
       if (proto.type === 0 && proto.key?.id) await handleRevoke(ctx, proto.key.id);
       return "stop";
     }
+    // Never keep a copy of messages that carry API keys or cookies (.setvar, .setcookie …).
+    if (isSecretCommand(ctx.app, ctx.body)) return undefined;
     const { messages: msgs, mediaFiles: media } = stores(ctx);
     const entry = { text: ctx.body.slice(0, 4000), sender: ctx.sender, chat: ctx.chatId, type: null };
     const found = findMedia(ctx.msg, { types: ["image", "video", "audio", "sticker"], quoted: false });

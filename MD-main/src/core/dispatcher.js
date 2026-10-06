@@ -27,7 +27,7 @@ const DENIED = {
 const NETWORK_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EPIPE"]);
 
 function createDispatcher(app) {
-  const { config, log } = app;
+  const { log } = app; // app.config is read per message: it can change at runtime (.setvar)
   const cooldowns = new LRU({ max: 20000 });
 
   const atLeast = (level, wanted) => (LEVELS[level] ?? 0) >= LEVELS[wanted];
@@ -56,7 +56,7 @@ function createDispatcher(app) {
   }
 
   function checkCooldown(ctx, command) {
-    const seconds = command.cooldown ?? config.limits.cooldownSeconds;
+    const seconds = command.cooldown ?? app.config.limits.cooldownSeconds;
     if (!seconds || atLeast(ctx.level, "sudo")) return { ok: true };
     const key = `${ctx.sender}|${command.name}`;
     const entry = cooldowns.get(key);
@@ -72,7 +72,7 @@ function createDispatcher(app) {
 
   async function execute(ctx) {
     const { command } = ctx;
-    const p = config.bot.prefix;
+    const p = app.config.bot.prefix;
     const needsGroup = command.groupOnly || command.permission === "groupAdmin" || command.botAdmin;
     if (needsGroup && !ctx.isGroup) return ctx.reply("This command can only be used in groups.");
     if (command.privateOnly && ctx.isGroup) return ctx.reply("This command only works in a private chat with the bot.");
@@ -128,7 +128,7 @@ function createDispatcher(app) {
     if ((await runListeners("message:pre", ctx)) === "stop") return;
     if (isBanned(ctx)) return;
 
-    const parsed = parseCommand(ctx.body, config.bot.prefix);
+    const parsed = parseCommand(ctx.body, app.config.bot.prefix);
     const command = parsed && app.commands.byName.get(parsed.name);
     if (!command) {
       await runListeners("message:post", ctx);
@@ -154,7 +154,7 @@ function createDispatcher(app) {
   async function handleEvent(event, sock, payload) {
     for (const listener of app.listeners.byEvent.get(event) || []) {
       try {
-        await listener.run({ app, sock, config, log, state: app.state }, payload);
+        await listener.run({ app, sock, config: app.config, log, state: app.state }, payload);
       } catch (err) {
         log.error({ err, listener: listener.name }, "listener failed");
       }

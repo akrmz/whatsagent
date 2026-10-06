@@ -18,6 +18,7 @@ const { createAi } = require("./services/ai");
 const { probeTools } = require("./services/tools");
 const { sudoList } = require("./services/settings");
 const { startReminderLoop } = require("./services/reminders");
+const vars = require("./services/vars");
 
 const COMMANDS_DIR = path.join(__dirname, "commands");
 const LISTENERS_DIR = path.join(__dirname, "listeners");
@@ -26,8 +27,8 @@ const LISTENERS_DIR = path.join(__dirname, "listeners");
  * Which optional features can run. Commands list what they need in `requires`.
  * Also returns a per-tool report (path, version or the exact problem) for logs and .doctor.
  */
-async function detectCapabilities(config, ai) {
-  const tools = await probeTools(config);
+async function detectCapabilities(config, ai, { tools: known } = {}) {
+  const tools = known || (await probeTools(config));
   const capabilities = {
     ffmpeg: tools.ffmpeg.ok,
     ytdlp: tools.ytdlp.ok,
@@ -45,10 +46,54 @@ async function detectCapabilities(config, ai) {
   return capabilities;
 }
 
+/**
+ * Lets settings change at runtime (.setvar, .setai …): app.reconfigure(next) validates the
+ * complete new overrides, saves them, and rebuilds the config, the AI client, the tool
+ * check and the command/listener lists. Nothing is saved if validation fails.
+ * Also used by the tests, so they exercise the same code.
+ */
+function enableRuntimeSettings(app, { baseEnv, overrides = {}, forcedCapabilities = null }) {
+  app.baseEnv = baseEnv;
+  app.overrides = overrides;
+  /** @returns {Promise<{ enabled: string[], disabled: string[] }>} commands that changed state */
+  app.reconfigure = async (next) => {
+    const nextConfig = buildConfig({ ...app.baseEnv, ...next }); // throws ConfigError
+    vars.save(app.config.paths.data, next);
+    const before = new Set(app.commands.list.map((c) => c.name));
+    app.overrides = next;
+    app.ai = createAi(nextConfig, app.log);
+    // Re-check the programs only when one of their paths changed (it takes a few seconds).
+    const t = (c) => [c.tools.ffmpeg, c.tools.ytdlp, c.tools.fontFile].join("|");
+    const sameTools = t(nextConfig) === t(app.config) && app.capabilities.tools;
+    const previousTools = sameTools ? app.capabilities.tools : undefined;
+    app.capabilities = forcedCapabilities || (await detectCapabilities(nextConfig, app.ai, { tools: previousTools }));
+    app.config = nextConfig;
+    app.commands = loadCommands(COMMANDS_DIR, { capabilities: app.capabilities, log: app.log });
+    app.listeners = loadListeners(LISTENERS_DIR, { capabilities: app.capabilities, log: app.log });
+    const after = new Set(app.commands.list.map((c) => c.name));
+    return { enabled: [...after].filter((n) => !before.has(n)), disabled: [...before].filter((n) => !after.has(n)) };
+  };
+  return app;
+}
+
 /** Builds the shared application object without connecting to WhatsApp. */
 async function createApp({ env = process.env, capabilities: forced } = {}) {
-  const config = buildConfig(env);
+  // Settings saved from WhatsApp (.setvar …) override .env. If they no longer validate
+  // (e.g. after an upgrade), start with .env alone rather than not at all.
+  const baseEnv = { ...env };
+  let overrides = vars.load(vars.dataDirOf(baseEnv));
+  let config;
+  let ignored = null;
+  try {
+    config = buildConfig({ ...baseEnv, ...overrides });
+  } catch (err) {
+    if (!(err instanceof ConfigError) || !Object.keys(overrides).length) throw err;
+    config = buildConfig(baseEnv);
+    ignored = err.problems;
+    overrides = {};
+  }
   const log = createLogger(config.log);
+  if (ignored) log.error({ problems: ignored }, "settings saved from chat are invalid and were ignored; fix them with .setvar/.delvar");
   const state = createState({ dataDir: config.paths.data, defaultMode: config.bot.defaultMode, log });
   const identity = new IdentityMap();
   const permissions = createPermissions({ owners: config.owners, identity, getSudoList: () => sudoList(state) });
@@ -71,6 +116,7 @@ async function createApp({ env = process.env, capabilities: forced } = {}) {
   };
   app.commands = loadCommands(COMMANDS_DIR, { capabilities, log });
   app.listeners = loadListeners(LISTENERS_DIR, { capabilities, log });
+  enableRuntimeSettings(app, { baseEnv, overrides, forcedCapabilities: forced });
   return app;
 }
 
@@ -126,4 +172,4 @@ async function start() {
   await connection.start();
 }
 
-module.exports = { start, createApp, detectCapabilities, COMMANDS_DIR, LISTENERS_DIR };
+module.exports = { start, createApp, enableRuntimeSettings, detectCapabilities, COMMANDS_DIR, LISTENERS_DIR };

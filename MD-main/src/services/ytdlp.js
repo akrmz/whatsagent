@@ -6,31 +6,14 @@ const { spawn } = require("node:child_process");
 const { withTempDir } = require("../core/media");
 const { UserError } = require("../core/errors");
 const { LRU } = require("../core/lru");
+const { HOSTS, AUDIO_SITES, hostIn } = require("./sites");
+const cookies = require("./cookies");
 
 /**
  * Downloads media with yt-dlp (https://github.com/yt-dlp/yt-dlp), run without a shell.
  * Used by .song/.video/.tiktok/.fb/.instagram. Hard limits: file size, duration, time.
  * The "generic" extractor is disabled so yt-dlp only talks to sites it explicitly supports.
  */
-
-const HOSTS = {
-  youtube: ["youtube.com", "youtu.be", "music.youtube.com"],
-  tiktok: ["tiktok.com"],
-  facebook: ["facebook.com", "fb.watch"],
-  instagram: ["instagram.com", "instagr.am"],
-  twitter: ["twitter.com", "x.com"],
-  reddit: ["reddit.com", "redd.it"],
-  soundcloud: ["soundcloud.com"],
-  pinterest: ["pinterest.com", "pin.it"],
-  vimeo: ["vimeo.com"],
-  dailymotion: ["dailymotion.com", "dai.ly"],
-  twitch: ["twitch.tv"],
-  threads: ["threads.net", "threads.com"],
-  snapchat: ["snapchat.com"],
-};
-
-/** Sites whose links are music; .dl sends these as audio. */
-const AUDIO_SITES = new Set(["soundcloud"]);
 
 function firstUrl(text) {
   const m = String(text || "").match(/https?:\/\/[^\s<>"']+/i);
@@ -44,8 +27,6 @@ function firstUrl(text) {
   if (!/^https?:$/.test(url.protocol) || url.username || url.password) return null;
   return url;
 }
-
-const hostIn = (host, site) => HOSTS[site].some((h) => host === h || host.endsWith(`.${h}`));
 
 /** Returns the URL if it is https/http and its host belongs to `site`, else null. */
 function matchSiteUrl(text, site) {
@@ -147,7 +128,7 @@ async function download(config, { target, kind, search = false, maxItems = 1, ha
     if (maxItems > 1) args.push("--yes-playlist", "--playlist-items", `1:${maxItems}`);
     else args.push("--no-playlist");
     if (config.tools.ffmpeg !== "ffmpeg") args.push("--ffmpeg-location", config.tools.ffmpeg);
-    if (config.tools.ytdlpCookies) args.push("--cookies", config.tools.ytdlpCookies);
+    args.push(...cookies.ytdlpArgs(config, search ? "youtube" : detectSite(target)?.site));
     if (supportsJsRuntimes) args.push("--js-runtimes", "node");
     if (kind === "audio") {
       args.push("-f", "bestaudio/best", "-x", "--audio-format", "mp3", "--audio-quality", "5");
@@ -192,7 +173,7 @@ async function search(config, query, count = 5) {
     "--print",
     "%(id)s\t%(duration)s\t%(channel,uploader)s\t%(view_count)s\t%(title)s",
   ];
-  if (config.tools.ytdlpCookies) args.push("--cookies", config.tools.ytdlpCookies);
+  args.push(...cookies.ytdlpArgs(config, "youtube"));
   args.push("--", `ytsearch${n}:${String(query).slice(0, 200)}`);
   const { code, out, err } = await run(config.tools.ytdlp, args, 60 * 1000);
   if (code !== 0 && !out.trim()) throw new UserError(explain(err));
@@ -210,6 +191,64 @@ async function search(config, query, count = 5) {
     }));
 }
 
+/** WebVTT → plain text: no header, timings or tags, and without the repeated lines of auto-captions. */
+function vttToText(vtt) {
+  const out = [];
+  for (const raw of String(vtt).split(/\r?\n/)) {
+    const line = raw.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&gt;/g, ">").replace(/&lt;/g, "<").replace(/&nbsp;/g, " ").trim();
+    if (!line || /^(WEBVTT|Kind:|Language:|NOTE\b)/.test(line) || /-->/.test(line) || /^\d+$/.test(line)) continue;
+    if (out[out.length - 1] !== line) out.push(line);
+  }
+  return out.join(" ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Gets the transcript of a video from its subtitles (no video download).
+ * Asks for the original-language auto captions and English only: requesting many
+ * languages makes YouTube answer "429 Too Many Requests".
+ * @returns {Promise<{ title: string, text: string }>}
+ */
+async function transcript(config, url) {
+  return withTempDir(config.paths.tmp, async (dir) => {
+    const args = [
+      "--ignore-config",
+      "--no-cache-dir",
+      "--no-warnings",
+      "--use-extractors",
+      "all,-generic",
+      "--skip-download",
+      "--no-playlist",
+      "--write-subs",
+      "--write-auto-subs",
+      "--sub-langs",
+      ".*-orig,en,ar",
+      "--sub-format",
+      "vtt/best",
+      "--convert-subs",
+      "vtt",
+      "--socket-timeout",
+      "30",
+      "-o",
+      path.join(dir, "s.%(ext)s"),
+      "--print",
+      "%(title)s",
+      "--no-simulate",
+      ...cookies.ytdlpArgs(config, detectSite(url)?.site),
+    ];
+    if (supportsJsRuntimes) args.push("--js-runtimes", "node");
+    args.push("--", url);
+    const { out, err } = await run(config.tools.ytdlp, args, 2 * 60 * 1000);
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith(".vtt"));
+    // Original-language captions first, then manual English, then anything.
+    const pick = files.find((f) => /-orig\.vtt$/.test(f)) || files.find((f) => /^s\.en\.vtt$/.test(f)) || files[0];
+    if (!pick) {
+      if (/429|Too Many Requests/i.test(err)) throw new UserError("YouTube is limiting requests right now. Try again in a few minutes.");
+      throw new UserError(files.length ? "Could not read the subtitles." : "This video has no subtitles or captions to read.");
+    }
+    return { title: out.trim().split("\n")[0] || "video", text: vttToText(fs.readFileSync(path.join(dir, pick), "utf8")) };
+  });
+}
+
 // The last .yts results per chat+user, so ".play 2" / ".video 2" can pick one.
 const lastSearch = new LRU({ max: 2000, ttlMs: 30 * 60 * 1000 });
 const rememberSearch = (ctx, results) => lastSearch.set(`${ctx.chatId}|${ctx.sender}`, results);
@@ -219,4 +258,4 @@ function recallSearch(ctx, n) {
   return results?.[n - 1]?.url || null;
 }
 
-module.exports = { download, search, isAvailable, matchSiteUrl, detectSite, rememberSearch, recallSearch, HOSTS, AUDIO_SITES };
+module.exports = { download, search, transcript, vttToText, isAvailable, matchSiteUrl, detectSite, rememberSearch, recallSearch, HOSTS, AUDIO_SITES };

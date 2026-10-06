@@ -2,20 +2,21 @@
 
 const { probeTools } = require("../../services/tools");
 const { version } = require("../../../package.json");
+const cookies = require("../../services/cookies");
 
 // How to turn on each optional capability (shown for the ones that are off).
 const HOW_TO_ENABLE = {
-  ffmpeg: "install ffmpeg (apt install ffmpeg) or set FFMPEG_PATH",
-  ytdlp: "install yt-dlp and set YTDLP_PATH to its full path",
-  ai: "set ANTHROPIC_API_KEY",
-  font: "install fonts-dejavu-core or set FONT_FILE",
-  newsApi: "set NEWSAPI_KEY",
-  openWeather: "set OPENWEATHER_KEY (optional; .weather works without it)",
-  tenor: "set TENOR_KEY",
-  telegramBot: "set TELEGRAM_BOT_TOKEN",
-  removeBg: "set REMOVEBG_API_KEY",
-  remini: "set REMINI_API_KEY",
-  githubRepo: "set GITHUB_REPO",
+  ffmpeg: "install ffmpeg (apt install ffmpeg), or .setvar FFMPEG_PATH <full path>",
+  ytdlp: "install yt-dlp, then .setvar YTDLP_PATH ~/.local/bin/yt-dlp",
+  ai: ".setai gemini <key> (or claude/openai) in private chat",
+  font: "install fonts-dejavu-core or set FONT_FILE in .env",
+  newsApi: ".setvar NEWSAPI_KEY <key>",
+  openWeather: "not needed (.weather works without it)",
+  tenor: ".setvar TENOR_KEY <key>",
+  telegramBot: ".setvar TELEGRAM_BOT_TOKEN <token>",
+  removeBg: ".setvar REMOVEBG_API_KEY <key>",
+  remini: ".setvar REMINI_API_KEY <key>",
+  githubRepo: ".setvar GITHUB_REPO owner/repo",
 };
 
 const ago = (ms) => {
@@ -58,6 +59,8 @@ module.exports = {
       `⏱️ Up ${ago(now - app.health.startedAt)} · 🧠 ${mb(mem.rss)} RAM (heap ${mb(mem.heapUsed)})`,
       `📶 WhatsApp: ${app.health.state}${app.health.lastMessageAt ? ` · last message ${ago(now - app.health.lastMessageAt)} ago` : ""}`,
       `🔓 Mode: ${app.state.isPublic() ? "public" : "private"} · prefix ${ctx.prefix} · ${ctx.config.bot.timezone}`,
+      `🤖 AI: ${app.ai ? `${app.ai.label} · ${app.ai.model}` : "off"} · 🍪 cookies: ${cookies.savedSites(ctx.config).join(", ") || "none"}`,
+      `⚙️ Settings changed from chat: ${Object.keys(app.overrides || {}).join(", ") || "none"}`,
       "",
       "*Tools (checked now)*",
     ];

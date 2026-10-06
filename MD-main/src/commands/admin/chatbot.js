@@ -9,7 +9,7 @@ module.exports = {
   usage: "on | off",
   permission: "groupAdmin",
   requires: ["ai"],
-  externalService: "Anthropic Claude API (the triggering message is sent)",
+  externalService: "the configured AI provider (the triggering message is sent)",
 
   async run(ctx) {
     const store = groupData(ctx.state);

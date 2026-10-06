@@ -10,6 +10,10 @@ const path = require("node:path");
  * To add a new setting, see docs/ADDING_FEATURES.md ("Adding a config value").
  */
 
+const AI_PROVIDERS = ["claude", "gemini", "openai"];
+// Defaults when no model is configured (checked against the providers' docs, 2026-10).
+const AI_DEFAULT_MODELS = { claude: "claude-opus-5-5", gemini: "gemini-3.8-flash", openai: "gpt-6-luna" };
+
 class ConfigError extends Error {
   constructor(problems) {
     super("Invalid configuration:\n" + problems.map((p) => `  - ${p}`).join("\n"));
@@ -123,6 +127,30 @@ function buildConfig(env = process.env) {
   if (!/^\S{1,3}$/.test(prefix)) problems.push(`PREFIX must be 1-3 non-space characters (got "${prefix}")`);
 
   const aiEffort = r.oneOf("AI_EFFORT", "low", ["low", "medium", "high", "xhigh", "max"]);
+  const aiKeys = {
+    claude: r.str("ANTHROPIC_API_KEY"),
+    gemini: r.str("GEMINI_API_KEY"),
+    openai: r.str("OPENAI_API_KEY"),
+  };
+  const aiModels = {
+    // AI_MODEL is the 2.x name of the Claude model setting and still works.
+    claude: r.str("CLAUDE_MODEL", r.str("AI_MODEL", AI_DEFAULT_MODELS.claude)),
+    gemini: r.str("GEMINI_MODEL", AI_DEFAULT_MODELS.gemini),
+    openai: r.str("OPENAI_MODEL", AI_DEFAULT_MODELS.openai),
+  };
+  for (const [name, value] of [["CLAUDE_MODEL", aiModels.claude], ["GEMINI_MODEL", aiModels.gemini], ["OPENAI_MODEL", aiModels.openai]]) {
+    if (!/^[\w.:/@-]{1,100}$/.test(value)) problems.push(`${name} must be a model name such as ${AI_DEFAULT_MODELS[name.split("_")[0].toLowerCase()]} (got "${value}")`);
+  }
+  const wantedProvider = r.oneOf("AI_PROVIDER", "auto", ["auto", ...AI_PROVIDERS]);
+  const aiProvider = wantedProvider === "auto" ? AI_PROVIDERS.find((p) => aiKeys[p]) || "claude" : wantedProvider;
+  // Any OpenAI-compatible HTTPS endpoint (OpenAI, Groq, OpenRouter, DeepSeek, Mistral …).
+  const openaiBaseUrl = r.str("OPENAI_BASE_URL", "https://api.openai.com/v1").replace(/\/+$/, "");
+  try {
+    const u = new URL(openaiBaseUrl);
+    if (u.protocol !== "https:" || u.username || u.password || u.search || u.hash) throw new Error("bad");
+  } catch {
+    problems.push(`OPENAI_BASE_URL must be an https:// URL such as https://api.openai.com/v1 (got "${openaiBaseUrl}")`);
+  }
 
   const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const timezone = r.str("TIMEZONE", systemZone);
@@ -186,9 +214,14 @@ function buildConfig(env = process.env) {
       fontFile: toolPath(r.str("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
     },
     ai: {
-      // Claude via the official Anthropic SDK. AI commands are disabled when no key is set.
-      apiKey: r.str("ANTHROPIC_API_KEY"),
-      model: r.str("AI_MODEL", "claude-opus-5-5"),
+      // Which AI answers .ai and the chatbot. "auto" = the first provider with a key.
+      // AI commands are disabled when the chosen provider has no key.
+      provider: aiProvider,
+      keys: aiKeys,
+      apiKey: aiKeys[aiProvider] || "",
+      model: aiModels[aiProvider] || "",
+      models: aiModels,
+      openaiBaseUrl,
       effort: aiEffort,
       maxTokens: r.int("AI_MAX_TOKENS", 1024, 64, 16000),
       persona: r.str(
@@ -224,4 +257,4 @@ function deepFreeze(obj) {
   return Object.freeze(obj);
 }
 
-module.exports = { buildConfig, loadEnvFile, ConfigError, expandHome, toolPath };
+module.exports = { buildConfig, loadEnvFile, ConfigError, expandHome, toolPath, AI_PROVIDERS, AI_DEFAULT_MODELS };

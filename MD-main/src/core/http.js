@@ -162,7 +162,8 @@ function requestOnce(url, { method, headers, body, timeoutMs, maxBytes }) {
 /**
  * request(url, options) → { status, headers, body: Buffer, url }
  * Options: method, headers, body (Buffer|string), timeoutMs (20s), maxBytes (10 MB),
- *          maxRedirects (5), allowHttp (false), okStatuses (2xx by default)
+ *          maxRedirects (5), allowHttp (false),
+ *          throwOnStatus (true: non-2xx throws HttpError; false: the response is returned)
  */
 async function request(input, opts = {}) {
   const {
@@ -173,12 +174,13 @@ async function request(input, opts = {}) {
     maxBytes = 10 * 1024 * 1024,
     maxRedirects = 5,
     allowHttp = false,
+    throwOnStatus = true,
   } = opts;
   let url = assertSafeUrl(input, { allowHttp });
   for (let hop = 0; hop <= maxRedirects; hop++) {
     const res = await requestOnce(url, { method, headers, body, timeoutMs, maxBytes });
     if (!res.redirect) {
-      if (res.status < 200 || res.status >= 300) {
+      if (throwOnStatus && (res.status < 200 || res.status >= 300)) {
         throw new HttpError(`HTTP ${res.status} from ${url.hostname}`, { status: res.status, code: "HTTP_STATUS" });
       }
       return res;
