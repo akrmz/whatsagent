@@ -355,7 +355,7 @@ This list is generated from the command files themselves.
 | `.settings` | – | Shows the bot's global settings and, in a group, that group's protection settings. | owner, sudo | `.settings` |
 | `.setvar` | `.set` `.setenv` | Changes a setting from WhatsApp — AI keys and models, bot name, prefix, API keys, limits, tool paths. Applied immediately, saved across restarts, overrides .env. Secrets only in private chat. | owner | `.setvar BOT_NAME Akram Bot` |
 | `.stats` | `.usage` `.botstats` | Shows which commands are used most, total commands run, and since when. ".stats reset" starts counting again. | owner | `.stats` |
-| `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. | owner | `.sudo add @friend` |
+| `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. Both their phone number and WhatsApp's hidden id (LID) are saved, so they are recognized however WhatsApp sends their messages. | owner | `.sudo add @friend` |
 | `.unblock` | – | Unblocks someone on the bot's WhatsApp account. | owner | `.unblock` |
 | `.update` | – | Checks GitHub for a newer version of the bot and of yt-dlp (nightly). '.update now' installs them: the bot is fast-forwarded from your repository, validated, rolled back if the check fails, and restarted. | owner | `.update` |
 | `.vars` | `.getvar` `.env` `.config` | Lists the settings you can change from chat with their current values (keys are hidden) and where each comes from. | owner | `.vars` |

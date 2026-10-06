@@ -81,6 +81,12 @@ The account may be restricted or banned by WhatsApp. Check the phone. The bot re
 ### "This command is only for the bot owner" although I am the owner
 - `OWNER_NUMBERS` must be your number with the country code.
 - In some groups WhatsApp shows members by an anonymous `@lid` ID. Send `.whoami` in that group: it lists your IDs. Add the digits of your `@lid` ID to `OWNER_LIDS` in `.env` and restart. Commands you send from the bot's own WhatsApp account always count as owner.
+- Since 2.18.2 the bot also asks WhatsApp for the owner's `@lid` ID each time it connects, so `OWNER_LIDS` is rarely needed.
+
+### Sudo users get no reply (private mode), or "only for the bot owner and sudo users"
+- WhatsApp often sends a message with only the sender's hidden `@lid` ID, not their phone number. Before 2.18.2 the bot learned which `@lid` belongs to which number only from messages that carried both, and forgot it on every restart (including `.update now`). Until such a message arrived, a sudo user added by number counted as a stranger. In private mode (`.mode private`) that meant no reply at all.
+- Now the bot asks WhatsApp for the `@lid` of every owner and sudo number each time it connects, and reads the member lists of its groups. `.sudo add` saves both forms. Check with `.sudo list`: a ✓ means the user is recognized by both.
+- A user shown as "(LID only)" was added by mention and doesn't share a group with the bot. Add them again by number: `.sudo add 201012345678`.
 
 ### "Please make the bot a group admin first"
 Commands that remove members, delete messages or change group settings need the bot to be an admin. Make it one in the group's settings.

@@ -2,6 +2,16 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.18.2 — 2026-10-06
+
+### Fixed
+- **Sudo users were sometimes not recognized:** no reply at all in private mode, or "only for the bot owner and sudo users" in public mode. WhatsApp often sends messages with only the sender's LID, without the phone number. The bot linked LIDs to phone numbers only from messages that carried both, and kept those links in memory, so they were lost on every restart. A sudo user stored by number was then a stranger until such a message arrived. Reproduced with the real dispatcher: LID-only messages from a sudo user got no reply in private mode.
+  - On every connect the bot now asks WhatsApp for the LID of each owner and sudo number (one `onWhatsApp` query). It also reads the member lists of its groups (one `groupFetchAllParticipating` query; each entry has both forms). Nothing is written to disk. Owners without `OWNER_LIDS` benefit too.
+  - `.sudo add` looks the number up right away and saves both the phone number and the LID. `.sudo list` shows one line per person (✓ = both known). `.sudo del` removes every form.
+
+### Checked
+- 3 tests (179 in total).
+
 ## 2.18.1 — 2026-10-06
 
 ### Fixed
