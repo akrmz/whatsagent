@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.11.0 — 2026-10-06
+
+### Added
+- **Daily Quran reading (الورد اليومي)**:
+  - `.autowird on [pages 1-20] [time]` sends that many mushaf pages every day at that time, in order from page 1 to 604, then starts a new khatma and counts it.
+  - `.autowird` shows the position, pages left and estimated days to finish. `.autowird page <n>` moves the position; `.autowird off` stops.
+  - `.wird` sends the next portion now; `.wird page <n>` shows any page.
+  - Page text is from alquran.cloud. Each surah's basmala is shown on its own line as in the mushaf (it's verse 1 only in al-Fatiha, and At-Tawbah has none). Verse numbers are in Arabic digits ﴿١﴾.
+- **Hadith**:
+  - `.hadith [id]` gives a random hadith, weighted so every hadith has the same chance, with its grade (درجة), source (رواه) and a short explanation, from موسوعة الأحاديث النبوية (hadeethenc.com, public developer API, credited in each message).
+  - `.autohadith every <hours>` posts one every 1–24 hours, the first right away, with the same quiet hours.
+- **`.zakat <amount> [currency]`**: nisab by gold (85 g) and silver (595 g) at today's price, and the 2.5 % due.
+- **`.gold [currency]`**: price per gram for 24k/21k/18k gold, the ounce, and silver (gold-api.com spot price).
+- 5 tests (147 in total).
+
 ## 2.10.1 — 2026-10-06
 
 ### Fixed

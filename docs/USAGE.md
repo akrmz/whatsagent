@@ -111,6 +111,11 @@ More in the same 🕌 section of `.help`:
 | `.surah الكهف` / `.surah 18` / `.surah yaseen` | The full surah recited by Mishary Alafasy. Surahs longer than `MAX_DOWNLOAD_MB` (e.g. Al-Baqarah) come as a link instead. |
 | `.qibla <city>` | The Qibla direction in degrees from north. |
 | `.asma` / `.asma 1` / `.asma all` | The names of Allah (al-Asma' al-Husna). |
+| `.autowird on 2 20:00` | **Daily Quran reading (الورد اليومي)**: 2 mushaf pages (1–20) every day at 20:00, in order from page 1 to 604, then a new khatma. Shows progress, days left and completed khatmas. `.autowird` shows the position, `.autowird page 100` moves it, `.autowird off` stops. `.wird` sends the next portion now; `.wird page 50` shows any page. Each surah's basmala is on its own line as in the mushaf. |
+| `.hadith` / `.hadith 2962` | A random hadith (or one by number) with its grade, source and a short explanation, from موسوعة الأحاديث النبوية (hadeethenc.com). |
+| `.autohadith every 6` | A random hadith every 6 hours (1–24), the first one right away; quiet hours as for `.autotafsir`. `.autohadith off` stops. |
+| `.zakat 300000 egp` | Zakat on money: today's nisab by gold (85 g) and silver (595 g) and the 2.5 % due. Global spot prices; for special cases, ask a scholar. |
+| `.gold` / `.gold egp` | (🛠️ Tools) Gold price per gram (24k, 21k, 18k) and silver in any currency. Global spot price, without local margins. |
 
 ## Backup and restore
 
@@ -191,6 +196,7 @@ This list is generated from the command files themselves.
 | `.currency` | `.convert` `.cur` `.exchange` | Converts money between currencies with today's exchange rate. | everyone | `.currency 100 usd egp` |
 | `.delnote` | `.rmnote` `.clearnote` | Deletes a saved note. In groups, only admins can. | everyone | `.delnote` |
 | `.getpp` | `.pp` `.avatar` `.pfp` | Sends the profile picture of the person you mention or reply to (or yours). Add "group" for the group photo. | everyone | `.getpp @someone` |
+| `.gold` | `.dahab` `.silver` | سعر الذهب للجرام (عيار 24 و21 و18) والفضة بأي عملة — gold price per gram (24k/21k/18k) and silver, in any currency. | everyone | `.gold` |
 | `.hash` | – | Shows the MD5, SHA-1, SHA-256 and SHA-512 hashes of a text (or the replied message). | everyone | `.hash hello` |
 | `.note` | `.getnote` | Shows a saved note (same as sending #name). | everyone | `.note rules` |
 | `.notes` | `.listnotes` | Lists the notes saved in this chat. | everyone | `.notes` |
@@ -222,10 +228,13 @@ This list is generated from the command files themselves.
 |---|---|---|---|---|
 | `.asma` | `.asmaulhusna` `.names99` `.asmaallah` | من أسماء الله الحسنى — a name of Allah from al-Asma' al-Husna (random, by number 1-99, or "all"). | everyone | `.asma` |
 | `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day, and a random dua once a day or every few hours. Set a city to follow prayer times. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoazkar on` |
+| `.autohadith` | `.dailyhadith` | يرسل حديثاً عشوائياً مع شرحه كل عدد من الساعات (1–24) في هذه المحادثة، أولها فوراً — posts a random hadith here every N hours, the first right away. Quiet hours as for .autotafsir. | everyone | `.autohadith every 6` |
 | `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autoprayer on Cairo` |
 | `.autotafsir` | `.dailyayah` `.autoayah` `.ayahtafsir` | يرسل آية عشوائية مع تفسيرها (التفسير الميسر) كل عدد من الساعات في هذه المحادثة — posts a random verse with al-Tafsir al-Muyassar here every N hours (1–24); the first one right away. No automatic posts during quiet hours (default 23:00–07:00). Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autotafsir on` |
+| `.autowird` | `.dailywird` `.khatma` | الورد اليومي: يرسل كل يوم عدداً من صفحات المصحف بالترتيب حتى الختم ثم يبدأ ختمة جديدة — sends N mushaf pages a day in order until the Quran is completed, then starts again. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on). | everyone | `.autowird on 2 20:00` |
 | `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
 | `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
+| `.hadith` | `.hadeeth` `.hadis` | حديث نبوي عشوائي مع درجته ومصدره وشرح مختصر، من موسوعة الأحاديث النبوية — a random hadith with its grade, source and a short explanation (hadeethenc.com). | everyone | `.hadith` |
 | `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
 | `.hisn` | `.hisnmuslim` `.husn` | حصن المسلم: كل الأبواب (132)، أو باب برقمه أو بكلمة من عنوانه — browse all 132 chapters of Hisn al-Muslim by number or by a word. | everyone | `.hisn` |
 | `.prayer` | `.salah` `.salat` `.mawaqit` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
@@ -234,6 +243,8 @@ This list is generated from the command files themselves.
 | `.ramadan` | `.occasions` `.eid` `.mawasim` | كم بقي على رمضان والعيدين ويوم عرفة وعاشوراء ورأس السنة الهجرية — countdown to Ramadan, the Eids and other Islamic occasions. | everyone | `.ramadan` |
 | `.surah` | `.sura` `.tilawa` | تلاوة سورة كاملة بصوت الشيخ مشاري العفاسي، بالاسم أو الرقم — a full surah recited by Mishary Alafasy (by name or number). Long surahs come as a link. | everyone | `.surah الكهف` |
 | `.tafsir` | `.tafseer` `.muyassar` | الآية مع تفسيرها من التفسير الميسر، أو آية عشوائية — a verse with its explanation from al-Tafsir al-Muyassar (random without a reference). For automatic posts see .autotafsir. | everyone | `.tafsir 2:255` |
+| `.wird` | `.werd` | يرسل الورد التالي الآن (ويتقدّم الموضع)، أو صفحة محددة من المصحف — sends the next portion of this chat's daily wird now, or any mushaf page. | everyone | `.wird` |
+| `.zakat` | `.zakah` | حاسبة زكاة المال: النصاب (85 جم ذهب / 595 جم فضة) بسعر اليوم ومقدار الزكاة 2.5% — zakat calculator for money held a full lunar year. | everyone | `.zakat 300000 egp` |
 
 ### Group admin
 
