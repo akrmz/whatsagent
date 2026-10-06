@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.9.0 — 2026-10-06
+
+### Added
+- **Prayer-time alerts** (`.autoprayer on <city>` / `.adhan`, `.autoprayer off`): "حان الآن موعد أذان …" in the chat at each of the five prayers, in the city's own time zone (aladhan.com). Each is sent once and never more than 20 minutes late. Group admins only in groups.
+- `.hijri`: today's Hijri date (Umm al-Qura, offline).
+- `.ramadan`: countdown to Ramadan, Eid al-Fitr, Arafah, Eid al-Adha, the Hijri new year and Ashura.
+- `.tafsir 2:255`: the verse with al-Tafsir al-Muyassar.
+- `.surah <name|number>`: full recitation by Mishary Alafasy. Matches Arabic names typed with or without diacritics, English names and numbers; surahs over `MAX_DOWNLOAD_MB` come as a link.
+- `.quran 2:255 audio`: the verse's recitation.
+- `.qibla <city>` and `.asma [n|all]` (the 99 names).
+- 5 tests (132 in total).
+
+### Fixed
+- `.autoazkar city` compared the city's prayer times with the bot's `TIMEZONE`. For a city in another time zone, the adhkar came at the wrong hour. Times now follow the city's own clock, through a shared prayer-time service (`services/prayertimes.js`) that asks aladhan for that city's local date.
+- The HTTP client returns `HEAD` responses without trying to read or decompress a body.
+
+### Changed
+- `.prayer` alias `adhan` → `mawaqit` (`.adhan` is now the alerts).
+
 ## 2.8.0 — 2026-10-06
 
 ### Added

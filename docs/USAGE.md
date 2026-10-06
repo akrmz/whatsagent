@@ -93,7 +93,21 @@ The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn W
 | `.autoazkar dua 21:00` | Also sends a random dua every day at that time (`.autoazkar dua off` stops it). |
 | `.autoazkar off` | Stops everything for this chat. `.autoazkar` alone shows the current setup. |
 
-If the bot was offline at the time, it sends the message when it comes back (up to 3 hours late), once per day. Turning it on at noon does not send that morning's adhkar late. `.prayer <city>` and `.quran <surah:ayah>` are in the same 🕌 section of `.help`.
+If the bot was offline at the time, it sends the message when it comes back (up to 3 hours late), once per day. Turning it on at noon does not send that morning's adhkar late. With `.autoazkar city`, the times follow that city's own clock, even if the bot's `TIMEZONE` is different.
+
+More in the same 🕌 section of `.help`:
+
+| Command | What it does |
+|---|---|
+| `.autoprayer on Cairo` (`.adhan`) | Announces each of the five prayers in this chat ("حان الآن موعد أذان العصر"), using the city's prayer times (aladhan.com picks the method used in that region) and its time zone. An alert more than 20 minutes late (bot offline) is skipped. `.autoprayer off` stops it. Group admins only in groups. |
+| `.prayer <city>` | Today's prayer times and which prayer is next. |
+| `.hijri` | Today's Hijri date (Umm al-Qura, works offline). |
+| `.ramadan` | Days left until Ramadan, the Eids, Arafah, Ashura and the Hijri new year. Moon sighting can shift these by a day. |
+| `.quran 2:255` / `.quran 2:255 audio` | A verse with English translation; `audio` adds Mishary Alafasy's recitation. |
+| `.tafsir 2:255` | The verse with al-Tafsir al-Muyassar (Arabic). |
+| `.surah الكهف` / `.surah 18` / `.surah yaseen` | The full surah recited by Mishary Alafasy. Surahs longer than `MAX_DOWNLOAD_MB` (e.g. Al-Baqarah) come as a link instead. |
+| `.qibla <city>` | The Qibla direction in degrees from north. |
+| `.asma` / `.asma 1` / `.asma all` | The names of Allah (al-Asma' al-Husna). |
 
 ## Backup and restore
 
@@ -203,12 +217,19 @@ This list is generated from the command files themselves.
 
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
+| `.asma` | `.asmaulhusna` `.names99` `.asmaallah` | من أسماء الله الحسنى — a name of Allah from al-Asma' al-Husna (random, by number 1-99, or "all"). | everyone | `.asma` |
 | `.autoazkar` | `.dailyazkar` `.azkarauto` | يرسل أذكار الصباح والمساء تلقائياً كل يوم في هذه المحادثة، ودعاءً يومياً إن شئت — sends the morning and evening adhkar here every day (and an optional daily dua). Set a city to follow prayer times. In groups, admins only. | everyone | `.autoazkar on` |
+| `.autoprayer` | `.adhan` `.azan` `.prayeralert` | تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. In groups, admins only. | everyone | `.autoprayer on Cairo` |
 | `.azkar` | `.adhkar` `.athkar` `.zikr` `.dhikr` | أذكار الصباح والمساء وغيرها من حصن المسلم — morning/evening adhkar and more from Hisn al-Muslim. Without a word: morning before noon, evening after. | everyone | `.azkar` |
 | `.dua` | `.doaa` `.duaa` `.doa` `.dua2` | دعاء عشوائي من حصن المسلم، أو في موضوع معيّن — a random dua from Hisn al-Muslim, or on a topic (الكرب، الهم، الدين، الاستغفار …). | everyone | `.dua` |
+| `.hijri` | `.hijridate` `.islamicdate` | التاريخ الهجري اليوم (تقويم أم القرى) — today's Hijri date (Umm al-Qura). | everyone | `.hijri` |
 | `.hisn` | `.hisnmuslim` `.husn` | حصن المسلم: كل الأبواب (132)، أو باب برقمه أو بكلمة من عنوانه — browse all 132 chapters of Hisn al-Muslim by number or by a word. | everyone | `.hisn` |
-| `.prayer` | `.salah` `.salat` `.adhan` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
-| `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation. Without a reference, a random verse. | everyone | `.quran 2:255` |
+| `.prayer` | `.salah` `.salat` `.mawaqit` | Shows today's prayer times for a city and which prayer is next. | everyone | `.prayer Cairo` |
+| `.qibla` | `.kibla` | اتجاه القبلة من مدينة — the Qibla direction from a city (degrees from north). | everyone | `.qibla Cairo` |
+| `.quran` | `.ayah` `.ayat` | Shows a Quran verse in Arabic with an English translation; add "audio" for the recitation (Alafasy). Without a reference, a random verse. | everyone | `.quran 2:255` |
+| `.ramadan` | `.occasions` `.eid` `.mawasim` | كم بقي على رمضان والعيدين ويوم عرفة وعاشوراء ورأس السنة الهجرية — countdown to Ramadan, the Eids and other Islamic occasions. | everyone | `.ramadan` |
+| `.surah` | `.sura` `.tilawa` | تلاوة سورة كاملة بصوت الشيخ مشاري العفاسي، بالاسم أو الرقم — a full surah recited by Mishary Alafasy (by name or number). Long surahs come as a link. | everyone | `.surah الكهف` |
+| `.tafsir` | `.tafseer` `.muyassar` | الآية مع تفسيرها من التفسير الميسر — a verse with its explanation from al-Tafsir al-Muyassar. | everyone | `.tafsir 2:255` |
 
 ### Group admin
 
