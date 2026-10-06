@@ -5,7 +5,7 @@ const { getJson, HttpError } = require("../../core/http");
 module.exports = {
   name: "quran",
   aliases: ["ayah", "ayat"],
-  category: "info",
+  category: "islamic",
   description: "Shows a Quran verse in Arabic with an English translation. Without a reference, a random verse.",
   usage: "[surah:ayah]",
   examples: [".quran 2:255", ".quran 112:1", ".quran"],

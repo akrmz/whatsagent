@@ -21,6 +21,7 @@ const { startReminderLoop } = require("./services/reminders");
 const vars = require("./services/vars");
 const jobs = require("./core/jobs");
 const { startNoticeLoop } = require("./services/notices");
+const { startAzkarLoop } = require("./services/azkar");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -161,6 +162,7 @@ async function start() {
   const stopReminders = startReminderLoop(app);
   const stopAutoUpdate = startAutoUpdate(app);
   const stopGroupSchedule = startGroupScheduleLoop(app);
+  const stopAzkar = startAzkarLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -173,6 +175,7 @@ async function start() {
     stopAutoUpdate();
     stopGroupSchedule();
     stopNotices();
+    stopAzkar();
     connection.stop();
     app.state.flush();
     health?.close();

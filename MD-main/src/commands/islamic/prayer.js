@@ -21,7 +21,7 @@ const minutes = (hhmm) => {
 module.exports = {
   name: "prayer",
   aliases: ["salah", "salat", "adhan"],
-  category: "info",
+  category: "islamic",
   description: "Shows today's prayer times for a city and which prayer is next.",
   usage: "<city>",
   examples: [".prayer Cairo", ".salah Makkah"],
