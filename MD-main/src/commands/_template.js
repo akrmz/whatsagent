@@ -46,7 +46,7 @@ module.exports = {
 
   // Optional. Capabilities this command needs; if any is missing the command is
   // disabled at startup and hidden from .help. See detectCapabilities() in src/main.js
-  // (ffmpeg, ytdlp, ai, font, newsApi, openWeather, tenor, telegramBot, removeBg, remini, githubRepo).
+  // (ffmpeg, ytdlp, ai, aiImage, aiAudio, font, newsApi, openWeather, tenor, telegramBot, removeBg, remini, githubRepo).
   requires: [],
 
   // Optional. Shown in .help <command> when the command sends data to a third party.

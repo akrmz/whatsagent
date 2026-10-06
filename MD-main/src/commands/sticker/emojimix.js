@@ -13,7 +13,7 @@ module.exports = {
   usage: "<emoji1>+<emoji2>",
   examples: [".emojimix 😎+🥰"],
   cooldown: 5,
-  requires: ["tenor", "ffmpeg"],
+  requires: ["tenor"], // static stickers are made with sharp, no ffmpeg needed
   externalService: "tenor.googleapis.com",
 
   async run(ctx) {

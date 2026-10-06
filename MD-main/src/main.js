@@ -14,11 +14,12 @@ const { loadCommands, loadListeners, LoaderError } = require("./core/loader");
 const { createDispatcher } = require("./core/dispatcher");
 const { createConnection } = require("./core/connection");
 const { startHealthServer } = require("./core/health");
-const { createAi } = require("./services/ai");
+const { createAi, createMedia, mediaProviders } = require("./services/ai");
 const { probeTools } = require("./services/tools");
 const { sudoList } = require("./services/settings");
 const { startReminderLoop } = require("./services/reminders");
 const vars = require("./services/vars");
+const { startAutoUpdate } = require("./services/autoupdate");
 
 const COMMANDS_DIR = path.join(__dirname, "commands");
 const LISTENERS_DIR = path.join(__dirname, "listeners");
@@ -33,6 +34,8 @@ async function detectCapabilities(config, ai, { tools: known } = {}) {
     ffmpeg: tools.ffmpeg.ok,
     ytdlp: tools.ytdlp.ok,
     ai: Boolean(ai),
+    aiImage: mediaProviders(config).length > 0, // .imagine (Gemini or OpenAI key)
+    aiAudio: mediaProviders(config).length > 0, // .transcribe
     font: tools.font.ok,
     newsApi: Boolean(config.keys.newsApi),
     openWeather: Boolean(config.keys.openWeather),
@@ -62,6 +65,7 @@ function enableRuntimeSettings(app, { baseEnv, overrides = {}, forcedCapabilitie
     const before = new Set(app.commands.list.map((c) => c.name));
     app.overrides = next;
     app.ai = createAi(nextConfig, app.log);
+    app.media = createMedia(nextConfig, app.log);
     // Re-check the programs only when one of their paths changed (it takes a few seconds).
     const t = (c) => [c.tools.ffmpeg, c.tools.ytdlp, c.tools.fontFile].join("|");
     const sameTools = t(nextConfig) === t(app.config) && app.capabilities.tools;
@@ -98,6 +102,7 @@ async function createApp({ env = process.env, capabilities: forced } = {}) {
   const identity = new IdentityMap();
   const permissions = createPermissions({ owners: config.owners, identity, getSudoList: () => sudoList(state) });
   const ai = createAi(config, log);
+  const media = createMedia(config, log);
   const capabilities = forced || (await detectCapabilities(config, ai));
 
   const app = {
@@ -107,6 +112,7 @@ async function createApp({ env = process.env, capabilities: forced } = {}) {
     identity,
     permissions,
     ai,
+    media,
     capabilities,
     groups: createGroupCache({ identity }),
     store: createMessageStore({ maxChats: config.limits.storeChats, perChat: config.limits.storePerChat }),
@@ -148,6 +154,7 @@ async function start() {
   const connection = createConnection(app, dispatcher, baileysLogger);
   const health = startHealthServer(app);
   const stopReminders = startReminderLoop(app);
+  const stopAutoUpdate = startAutoUpdate(app);
   app.connection = connection;
 
   let shuttingDown = false;
@@ -156,6 +163,7 @@ async function start() {
     shuttingDown = true;
     log.info({ signal }, "shutting down");
     stopReminders();
+    stopAutoUpdate();
     connection.stop();
     app.state.flush();
     health?.close();

@@ -24,7 +24,7 @@ const silentLog = { info() {}, warn() {}, error() {}, debug() {}, fatal() {}, ch
 /** Builds an app object like src/main.js does, but with fakes and no WhatsApp connection. */
 // Every optional capability off: a fresh install without tools or keys.
 const ALL_OFF = Object.freeze(
-  Object.fromEntries(["ffmpeg", "ytdlp", "ai", "font", "newsApi", "openWeather", "tenor", "telegramBot", "removeBg", "remini", "githubRepo"].map((k) => [k, false])),
+  Object.fromEntries(["ffmpeg", "ytdlp", "ai", "aiImage", "aiAudio", "font", "newsApi", "openWeather", "tenor", "telegramBot", "removeBg", "remini", "githubRepo"].map((k) => [k, false])),
 );
 
 function makeApp({ env = {}, commands, listeners, capabilities = ALL_OFF } = {}) {

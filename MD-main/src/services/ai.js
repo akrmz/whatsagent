@@ -53,13 +53,14 @@ function httpFailure(log, provider, status, message) {
 }
 
 /** JSON over the SSRF-safe client; returns parsed JSON or throws a friendly error. */
-async function callJson(log, provider, url, { method = "GET", headers = {}, body } = {}) {
+async function callJson(log, provider, url, { method = "GET", headers = {}, body, raw, timeoutMs = 90000 } = {}) {
+  // raw: { body: Buffer, contentType } for multipart uploads; otherwise body is sent as JSON.
   const res = await request(url, {
     method,
-    headers: { "content-type": "application/json", accept: "application/json", ...headers },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    timeoutMs: 90000,
-    maxBytes: 8 * 1024 * 1024,
+    headers: { "content-type": raw ? raw.contentType : "application/json", accept: "application/json", ...headers },
+    body: raw ? raw.body : body === undefined ? undefined : JSON.stringify(body),
+    timeoutMs,
+    maxBytes: 30 * 1024 * 1024, // generated pictures come back as base64
     throwOnStatus: false,
   });
   let json = null;
@@ -235,4 +236,100 @@ function createAi(config, log) {
   return { provider, model, label: LABELS[provider], ask, listModels };
 }
 
-module.exports = { createAi, LABELS, scrub };
+// ---- Pictures and voice: Gemini (Interactions API) or OpenAI ---------------------------
+
+const isOfficialOpenAi = (config) => new URL(config.ai.openaiBaseUrl).hostname === "api.openai.com";
+
+/**
+ * Providers that can draw pictures and transcribe audio, best first: the chosen AI if it
+ * can, then Gemini, then OpenAI (api.openai.com only; compatible services differ).
+ */
+function mediaProviders(config) {
+  const k = config.ai.keys;
+  const order = config.ai.provider === "openai" ? ["openai", "gemini"] : ["gemini", "openai"];
+  return order.filter((p) => k[p] && (p !== "openai" || isOfficialOpenAi(config)));
+}
+
+/** POST /v1beta/interactions (stateless: store=false). @returns {{ texts: string[], images: Array<{data, mime_type}> }} */
+async function geminiInteraction(config, log, model, input, { system, timeoutMs } = {}) {
+  const body = { model, input, store: false };
+  if (system) body.system_instruction = system;
+  const json = await callJson(log, "gemini", `${GEMINI}/interactions`, {
+    method: "POST",
+    headers: { "x-goog-api-key": config.ai.keys.gemini },
+    body,
+    timeoutMs,
+  });
+  if (json.status === "failed") throw new UserError("The AI could not do that. Try different words.");
+  const parts = (json.steps || []).filter((s) => s.type === "model_output").flatMap((s) => s.content || []);
+  return {
+    texts: parts.filter((p) => p.type === "text" && p.text).map((p) => p.text),
+    images: parts.filter((p) => p.type === "image" && p.data),
+  };
+}
+
+function createMedia(config, log) {
+  const providers = mediaProviders(config);
+  if (!providers.length) return null;
+  const provider = providers[0];
+
+  /**
+   * Draws a picture, or edits `image` (Buffer) following the prompt (Gemini only).
+   * @returns {Promise<{ buffer: Buffer, mimetype: string, text: string, provider: string }>}
+   */
+  async function imagine(prompt, { image } = {}) {
+    const text = String(prompt || "").slice(0, 2000);
+    if (provider === "gemini") {
+      const input = [{ type: "text", text }];
+      if (image) input.push({ type: "image", mime_type: "image/jpeg", data: await toJpegBase64(image) });
+      const out = await geminiInteraction(config, log, config.ai.imageModels.gemini, input, { timeoutMs: 150000 });
+      const img = out.images[0];
+      if (!img) throw new UserError(out.texts.join(" ").slice(0, 300) || "No picture came back. Try describing it differently.");
+      return { buffer: Buffer.from(img.data, "base64"), mimetype: img.mime_type || "image/png", text: out.texts.join(" ").trim(), provider };
+    }
+    if (image) throw new UserError("Editing a picture needs a Gemini key (.setai gemini <key>). OpenAI can only draw new pictures here.");
+    const json = await callJson(log, "openai", `${config.ai.openaiBaseUrl}/images/generations`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${config.ai.keys.openai}` },
+      body: { model: config.ai.imageModels.openai, prompt: text, n: 1, size: "1024x1024", output_format: "jpeg" },
+      timeoutMs: 150000,
+    });
+    const b64 = json.data?.[0]?.b64_json;
+    if (!b64) throw new UserError("No picture came back. Try describing it differently.");
+    return { buffer: Buffer.from(b64, "base64"), mimetype: "image/jpeg", text: "", provider };
+  }
+
+  /**
+   * Speech → text in the original language.
+   * @param {Buffer} buffer  audio as received from WhatsApp
+   * @param {{ mimetype: string, toMp3: (b: Buffer) => Promise<Buffer> }} opts  toMp3 is needed for OpenAI (no Ogg support)
+   */
+  async function transcribe(buffer, { mimetype, toMp3 }) {
+    if (provider === "gemini") {
+      const mime = String(mimetype || "audio/ogg").split(";")[0].trim() || "audio/ogg";
+      const input = [
+        { type: "text", text: "Transcribe this audio exactly, in the language that is spoken. Output only the transcript, with no comments. If nothing is said, output: [no speech]" },
+        { type: "audio", mime_type: mime, data: buffer.toString("base64") },
+      ];
+      const out = await geminiInteraction(config, log, config.ai.models.gemini, input, { timeoutMs: 120000 });
+      return out.texts.join(" ").trim();
+    }
+    if (!toMp3) throw new UserError("ffmpeg is needed to prepare the audio for OpenAI.");
+    const { multipart } = require("../core/http");
+    const form = multipart([
+      { name: "model", value: config.ai.transcribeModel },
+      { name: "file", filename: "audio.mp3", contentType: "audio/mpeg", value: await toMp3(buffer) },
+    ]);
+    const json = await callJson(log, "openai", `${config.ai.openaiBaseUrl}/audio/transcriptions`, {
+      method: "POST",
+      headers: { authorization: `Bearer ${config.ai.keys.openai}` },
+      raw: { body: form.body, contentType: form.contentType },
+      timeoutMs: 120000,
+    });
+    return String(json.text || "").trim();
+  }
+
+  return { provider, label: LABELS[provider], imagine, transcribe };
+}
+
+module.exports = { createAi, createMedia, mediaProviders, LABELS, scrub };

@@ -162,11 +162,28 @@ async function addStickerExif(webpBuffer, { pack = "", author = "", emojis = ["�
 
 const STICKER_MAX = 950 * 1024;
 
+/** A 512×512 WebP for a static sticker: fitted on a transparent square, or cropped to it. */
+async function staticWebp(buffer, crop) {
+  const sharp = require("sharp");
+  let out;
+  for (const quality of [80, 60, 40]) {
+    out = await sharp(buffer, { animated: false, limitInputPixels: 64e6 })
+      .rotate()
+      .resize(512, 512, { fit: crop ? "cover" : "contain", background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .webp({ quality })
+      .toBuffer();
+    if (out.length <= STICKER_MAX) break;
+  }
+  return out;
+}
+
 /**
  * Converts an image/video/GIF buffer into a WhatsApp sticker (WebP, ≤ ~1 MB).
  * Tries progressively smaller settings until the result fits.
  */
 async function toSticker(buffer, { animated = false, crop = false, pack, author, emojis, ffmpegPath = "ffmpeg", tmpDir }) {
+  // Pictures are converted with sharp (no ffmpeg needed); only GIFs/videos use ffmpeg.
+  if (!animated) return addStickerExif(await staticWebp(buffer, crop), { pack, author, emojis });
   return withTempDir(tmpDir, async (dir) => {
     const input = path.join(dir, "input");
     fs.writeFileSync(input, buffer);
@@ -212,14 +229,16 @@ const AUDIO_FORMATS = {
  * Extracts/converts the audio of a video, voice note or audio file.
  * @returns {Promise<{ buffer: Buffer, mimetype: string }>}
  */
-async function toAudio(buffer, { format = "mp3", ffmpegPath = "ffmpeg", tmpDir, maxSeconds = 1800 }) {
+async function toAudio(buffer, { format = "mp3", ffmpegPath = "ffmpeg", tmpDir, maxSeconds = 1800, filter }) {
   const f = AUDIO_FORMATS[format];
   if (!f) throw new MediaError(`Unknown audio format ${format}`);
   return withTempDir(tmpDir, async (dir) => {
     const input = path.join(dir, "input");
     const out = path.join(dir, `out.${f.ext}`);
     fs.writeFileSync(input, buffer);
-    await runFfmpeg(ffmpegPath, [...SAFE_INPUT, "-i", input, "-vn", "-map", "0:a:0", "-t", String(maxSeconds), ...f.args, out], { timeoutMs: 180000 });
+    // filter: an audio filter chain chosen by the bot (never user text), e.g. "atempo=1.25"
+    const af = filter ? ["-af", filter] : [];
+    await runFfmpeg(ffmpegPath, [...SAFE_INPUT, "-i", input, "-vn", "-map", "0:a:0", "-t", String(maxSeconds), ...af, ...f.args, out], { timeoutMs: 180000 });
     return { buffer: fs.readFileSync(out), mimetype: f.mimetype };
   });
 }

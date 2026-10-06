@@ -6,6 +6,8 @@ const { files, groupData } = require("../services/settings");
 const { handleTicTacToeMove } = require("../services/games");
 const { LRU } = require("../core/lru");
 const { isBot } = require("../services/targets");
+const aiUsage = require("../services/aiusage");
+const { UserError } = require("../core/errors");
 
 const ASSETS_ROOT = path.join(__dirname, "..", "..");
 const pmNotified = new LRU({ max: 5000, ttlMs: 60 * 60 * 1000 });
@@ -110,11 +112,18 @@ module.exports = [
       const text = ctx.body.replace(/@\d+/g, "").trim();
       if (!text) return undefined;
       await ctx.sock.sendPresenceUpdate("composing", ctx.chatId).catch(() => {});
+      // One shared memory per group; names tell the AI who said what.
+      const key = `chatbot|${ctx.chatId}`;
+      const turns = ctx.config.ai.memoryTurns;
+      const said = `${(ctx.senderName || "Someone").slice(0, 40)}: ${text}`;
       try {
-        const answer = await ctx.app.ai.ask(text);
+        aiUsage.takeQuota(ctx);
+        const answer = await ctx.app.ai.ask(said, { history: aiUsage.history(key, turns) });
+        aiUsage.remember(key, turns, said, answer);
         await ctx.reply(answer);
       } catch (err) {
-        ctx.log.warn({ err: err.message }, "chatbot reply failed");
+        if (err instanceof UserError) await ctx.reply(`❌ ${err.message}`).catch(() => {});
+        else ctx.log.warn({ err: err.message }, "chatbot reply failed");
       }
       return "stop";
     },

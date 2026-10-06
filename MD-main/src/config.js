@@ -160,6 +160,9 @@ function buildConfig(env = process.env) {
     problems.push(`TIMEZONE must be an IANA time zone such as Africa/Cairo or Europe/London (got "${timezone}")`);
   }
 
+  const newsRegion = r.str("NEWS_REGION", "US:en");
+  if (!/^[A-Z]{2}:[a-z]{2}$/.test(newsRegion)) problems.push(`NEWS_REGION must look like COUNTRY:language, e.g. EG:ar or US:en (got "${newsRegion}")`);
+
   const githubRepo = r.str("GITHUB_REPO");
   if (githubRepo && !/^[\w.-]+\/[\w.-]+$/.test(githubRepo)) {
     problems.push(`GITHUB_REPO must look like owner/repository (got "${githubRepo}")`);
@@ -176,6 +179,8 @@ function buildConfig(env = process.env) {
       stickerPack: r.str("STICKER_PACK", r.str("BOT_NAME", "WhatsApp Bot")),
       stickerAuthor: r.str("STICKER_AUTHOR", ""),
       timezone,
+      // Reply "did you mean .sticker?" to a mistyped command.
+      suggestCommands: r.bool("SUGGEST_COMMANDS", true),
     },
     owners: {
       numbers: Object.freeze([...new Set(ownerNumbers)]),
@@ -210,6 +215,8 @@ function buildConfig(env = process.env) {
     tools: {
       ffmpeg: toolPath(r.str("FFMPEG_PATH", "ffmpeg")),
       ytdlp: toolPath(r.str("YTDLP_PATH", "yt-dlp")),
+      // Update yt-dlp to the latest nightly once a day (yt-dlp only, never the bot code).
+      ytdlpAutoUpdate: r.bool("YTDLP_AUTO_UPDATE", false),
       ytdlpCookies: r.str("YTDLP_COOKIES") ? path.resolve(expandHome(r.str("YTDLP_COOKIES"))) : "",
       fontFile: toolPath(r.str("FONT_FILE", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")),
     },
@@ -222,6 +229,17 @@ function buildConfig(env = process.env) {
       model: aiModels[aiProvider] || "",
       models: aiModels,
       openaiBaseUrl,
+      // Picture generation (.imagine) and voice transcription (.transcribe) use Gemini or
+      // OpenAI (whichever has a key); Claude does neither.
+      imageModels: {
+        gemini: r.str("GEMINI_IMAGE_MODEL", "gemini-3.1-flash-image"),
+        openai: r.str("OPENAI_IMAGE_MODEL", "gpt-image-2.5-flare"),
+      },
+      transcribeModel: r.str("OPENAI_TRANSCRIBE_MODEL", "gpt-transcribe"),
+      // AI requests per person per day (owner and sudo are exempt). 0 = unlimited.
+      dailyLimit: r.int("AI_DAILY_LIMIT", 50, 0, 100000),
+      // How many earlier question/answer pairs .ai and the chatbot remember (0 = none).
+      memoryTurns: r.int("AI_MEMORY_TURNS", 6, 0, 20),
       effort: aiEffort,
       maxTokens: r.int("AI_MAX_TOKENS", 1024, 64, 16000),
       persona: r.str(
@@ -238,12 +256,20 @@ function buildConfig(env = process.env) {
       remini: r.str("REMINI_API_KEY"),
     },
     githubRepo,
+    news: { region: newsRegion },
     update: {
       // .update pulls only from this git remote and branch of the clone the bot runs from.
       remote: r.str("UPDATE_REMOTE", "origin"),
       branch: r.str("UPDATE_BRANCH", "main"),
     },
   };
+  for (const [name, value] of [
+    ["GEMINI_IMAGE_MODEL", config.ai.imageModels.gemini],
+    ["OPENAI_IMAGE_MODEL", config.ai.imageModels.openai],
+    ["OPENAI_TRANSCRIBE_MODEL", config.ai.transcribeModel],
+  ]) {
+    if (!/^[\w.:/@-]{1,100}$/.test(value)) problems.push(`${name} must be a model name (got "${value}")`);
+  }
   for (const [name, value] of [["UPDATE_REMOTE", config.update.remote], ["UPDATE_BRANCH", config.update.branch]]) {
     if (!/^[A-Za-z0-9._/-]{1,100}$/.test(value) || value.startsWith("-")) problems.push(`${name} contains invalid characters`);
   }

@@ -32,6 +32,11 @@ const SETTINGS = [
   { key: "GEMINI_MODEL", group: "AI", about: "Gemini model (.aimodel lists them)", example: "gemini-3.8-flash" },
   { key: "OPENAI_MODEL", group: "AI", about: "OpenAI-compatible model (.aimodel lists them)", example: "gpt-6-luna" },
   { key: "AI_MAX_TOKENS", group: "AI", about: "Maximum answer length (64-16000)", example: "2048" },
+  { key: "AI_DAILY_LIMIT", group: "AI", about: "AI requests per person per day (owner/sudo exempt; 0 = unlimited)", example: "30" },
+  { key: "AI_MEMORY_TURNS", group: "AI", about: "Earlier exchanges .ai and the chatbot remember (0 = none, max 20)", example: "6" },
+  { key: "GEMINI_IMAGE_MODEL", group: "AI", about: ".imagine model when Gemini is used", example: "gemini-3.1-flash-image" },
+  { key: "OPENAI_IMAGE_MODEL", group: "AI", about: ".imagine model when OpenAI is used", example: "gpt-image-2.5-flare" },
+  { key: "OPENAI_TRANSCRIBE_MODEL", group: "AI", about: ".transcribe model when OpenAI is used", example: "gpt-transcribe" },
   { key: "AI_EFFORT", group: "AI", about: "Claude thinking effort: low, medium, high, xhigh, max", example: "medium" },
   { key: "CHATBOT_PERSONA", group: "AI", about: "Instructions for the group chatbot", example: "You are a funny Egyptian friend. Reply in Arabic." },
   // Bot
@@ -41,6 +46,8 @@ const SETTINGS = [
   { key: "STICKER_PACK", group: "Bot", about: "Pack name written into stickers", example: "My Pack" },
   { key: "STICKER_AUTHOR", group: "Bot", about: "Author written into stickers", example: "Akram" },
   { key: "TIMEZONE", group: "Bot", about: "Time zone for .time and .remind", example: "Africa/Cairo" },
+  { key: "NEWS_REGION", group: "Bot", about: ".news default COUNTRY:language", example: "EG:ar" },
+  { key: "SUGGEST_COMMANDS", group: "Bot", about: "Answer mistyped commands with \"did you mean …?\" (true/false)", example: "false" },
   { key: "MARK_ONLINE", group: "Bot", about: "Show the bot as online (true/false)", restart: true, example: "false" },
   // API keys
   { key: "NEWSAPI_KEY", group: "API keys", about: ".news (newsapi.org)", secret: true },
@@ -57,6 +64,7 @@ const SETTINGS = [
   { key: "WARN_LIMIT", group: "Limits", about: "Warnings before a member is removed", example: "3" },
   // Tools
   { key: "YTDLP_PATH", group: "Tools", about: "yt-dlp program or full path (~ allowed); checked before saving", example: "~/.local/bin/yt-dlp" },
+  { key: "YTDLP_AUTO_UPDATE", group: "Tools", about: "Update yt-dlp to the latest nightly once a day (true/false)", example: "true" },
   { key: "FFMPEG_PATH", group: "Tools", about: "ffmpeg program or full path; checked before saving", example: "/usr/bin/ffmpeg" },
   { key: "LOG_LEVEL", group: "Tools", about: "fatal, error, warn, info, debug", restart: true, example: "info" },
 ];
@@ -108,6 +116,11 @@ const EFFECTIVE = {
   GEMINI_MODEL: (c) => c.ai.models.gemini,
   OPENAI_MODEL: (c) => c.ai.models.openai,
   AI_MAX_TOKENS: (c) => c.ai.maxTokens,
+  AI_DAILY_LIMIT: (c) => c.ai.dailyLimit,
+  AI_MEMORY_TURNS: (c) => c.ai.memoryTurns,
+  GEMINI_IMAGE_MODEL: (c) => c.ai.imageModels.gemini,
+  OPENAI_IMAGE_MODEL: (c) => c.ai.imageModels.openai,
+  OPENAI_TRANSCRIBE_MODEL: (c) => c.ai.transcribeModel,
   AI_EFFORT: (c) => c.ai.effort,
   CHATBOT_PERSONA: (c) => c.ai.persona,
   BOT_NAME: (c) => c.bot.name,
@@ -116,7 +129,9 @@ const EFFECTIVE = {
   STICKER_PACK: (c) => c.bot.stickerPack,
   STICKER_AUTHOR: (c) => c.bot.stickerAuthor,
   TIMEZONE: (c) => c.bot.timezone,
+  NEWS_REGION: (c) => c.news.region,
   MARK_ONLINE: (c) => c.bot.markOnline,
+  SUGGEST_COMMANDS: (c) => c.bot.suggestCommands,
   NEWSAPI_KEY: (c) => c.keys.newsApi,
   TENOR_KEY: (c) => c.keys.tenor,
   TELEGRAM_BOT_TOKEN: (c) => c.keys.telegramBot,
@@ -130,6 +145,7 @@ const EFFECTIVE = {
   WARN_LIMIT: (c) => c.limits.warnLimit,
   YTDLP_PATH: (c) => c.tools.ytdlp,
   FFMPEG_PATH: (c) => c.tools.ffmpeg,
+  YTDLP_AUTO_UPDATE: (c) => c.tools.ytdlpAutoUpdate,
   LOG_LEVEL: (c) => c.log.level,
 };
 const effective = (key, config) => {

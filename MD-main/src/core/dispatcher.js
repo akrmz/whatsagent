@@ -7,6 +7,8 @@ const { UserError } = require("./errors");
 const { MediaError } = require("./media");
 const { HttpError } = require("../core/http");
 const { maskJid } = require("../logger");
+const groupcmds = require("../services/groupcmds");
+const { suggest } = require("../services/help");
 
 /**
  * The one place where every incoming message is processed:
@@ -29,6 +31,13 @@ const NETWORK_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ECONNREF
 function createDispatcher(app) {
   const { log } = app; // app.config is read per message: it can change at runtime (.setvar)
   const cooldowns = new LRU({ max: 20000 });
+  // One "turned off here" / "did you mean" notice per chat (and command) per minute.
+  const notices = new LRU({ max: 5000, ttlMs: 60 * 1000 });
+  const noticeOnce = (key) => {
+    if (notices.get(key)) return false;
+    notices.set(key, true);
+    return true;
+  };
 
   const atLeast = (level, wanted) => (LEVELS[level] ?? 0) >= LEVELS[wanted];
   const listenerApplies = (l, ctx) =>
@@ -76,6 +85,10 @@ function createDispatcher(app) {
     const needsGroup = command.groupOnly || command.permission === "groupAdmin" || command.botAdmin;
     if (needsGroup && !ctx.isGroup) return ctx.reply("This command can only be used in groups.");
     if (command.privateOnly && ctx.isGroup) return ctx.reply("This command only works in a private chat with the bot.");
+    if (ctx.isGroup && !atLeast(ctx.level, "sudo") && !groupcmds.PROTECTED.has(command.name) && groupcmds.isDisabled(app.state, ctx.chatId, command.name)) {
+      if (noticeOnce(`off|${ctx.chatId}|${command.name}`)) await ctx.reply(`🚫 ${p}${command.name} is turned off in this group.`);
+      return undefined;
+    }
 
     const allowed = await app.permissions.allows(command.permission, {
       level: ctx.level,
@@ -93,6 +106,7 @@ function createDispatcher(app) {
     }
 
     log.info({ command: command.name, chat: maskJid(ctx.chatId), sender: maskJid(ctx.sender) }, "command");
+    groupcmds.countCommand(app.state, command.name);
     try {
       await command.run(ctx);
     } catch (err) {
@@ -131,12 +145,23 @@ function createDispatcher(app) {
     const parsed = parseCommand(ctx.body, app.config.bot.prefix);
     const command = parsed && app.commands.byName.get(parsed.name);
     if (!command) {
-      await runListeners("message:post", ctx);
+      const handled = await runListeners("message:post", ctx);
+      if (parsed && handled !== "stop") await suggestCommand(ctx, parsed.name);
       return;
     }
     if (!app.state.isPublic() && !atLeast(ctx.level, "sudo")) return; // private mode
     Object.assign(ctx, { command, commandName: parsed.name, args: parsed.args, text: parsed.text });
     await execute(ctx);
+  }
+
+  /** ".stiker" → "did you mean .sticker?" (SUGGEST_COMMANDS; once per chat a minute). */
+  async function suggestCommand(ctx, name) {
+    if (!app.config.bot.suggestCommands || name.length < 3 || ctx.fromMe) return;
+    if (!app.state.isPublic() && !atLeast(ctx.level, "sudo")) return;
+    const close = suggest(name, app.commands.byName);
+    if (!close.length || !noticeOnce(`suggest|${ctx.chatId}`)) return;
+    const p = app.config.bot.prefix;
+    await ctx.reply(`❓ There is no ${p}${name}. Did you mean ${close.map((n) => p + n).join(" or ")}?`).catch(() => {});
   }
 
   async function handleUpsert(sock, { messages, type }) {

@@ -19,7 +19,7 @@ const GROUP = "120363000000000000@g.us";
 
 // Every optional capability off: what a fresh install without tools or keys looks like.
 const CAPS = Object.fromEntries(
-  ["ffmpeg", "ytdlp", "ai", "font", "newsApi", "openWeather", "tenor", "telegramBot", "removeBg", "remini", "githubRepo"].map((k) => [k, false]),
+  ["ffmpeg", "ytdlp", "ai", "aiImage", "aiAudio", "font", "newsApi", "openWeather", "tenor", "telegramBot", "removeBg", "remini", "githubRepo"].map((k) => [k, false]),
 );
 
 function realBot() {

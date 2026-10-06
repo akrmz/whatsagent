@@ -2,7 +2,7 @@
 
 /** Builds the .help menu from command metadata, so it can never drift from the real commands. */
 
-const CATEGORY_ORDER = ["general", "tools", "info", "admin", "owner", "sticker", "image", "textmaker", "download", "ai", "fun", "misc", "anime", "games"];
+const CATEGORY_ORDER = ["general", "tools", "info", "admin", "owner", "sticker", "image", "audio", "textmaker", "download", "ai", "fun", "misc", "anime", "games"];
 const CATEGORY_TITLES = {
   general: "🌐 General",
   tools: "🛠️ Tools",
@@ -11,6 +11,7 @@ const CATEGORY_TITLES = {
   owner: "🔒 Owner",
   sticker: "🎨 Stickers",
   image: "🖼️ Images",
+  audio: "🎵 Audio effects",
   textmaker: "🔤 Text effects",
   download: "📥 Downloads",
   ai: "🤖 AI",

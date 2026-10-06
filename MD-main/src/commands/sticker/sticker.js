@@ -15,7 +15,11 @@ async function makeSticker(ctx, { crop }) {
   const buffer = await ctx.download(media);
   const kind = sniff(buffer);
   const animated = media.type === "video" || /gif|video/.test(media.mimetype) || kind === "gif" || kind === "mp4" || kind === "webm";
-  const sticker = await toSticker(buffer, { ...stickerOptions(ctx), animated, crop });
+  if (animated && !ctx.app.capabilities.ffmpeg) throw new UserError("ffmpeg is not installed on the server, so GIFs and videos can't become stickers (pictures still work).");
+  // ".sticker My Pack | Me" sets the pack name and author for this sticker.
+  const [pack, author] = ctx.text ? ctx.text.split("|").map((x) => x.trim().slice(0, 60)) : [];
+  const options = { ...stickerOptions(ctx), ...(pack ? { pack } : {}), ...(author !== undefined ? { author } : {}) };
+  const sticker = await toSticker(buffer, { ...options, animated, crop });
   return ctx.reply({ sticker });
 }
 
@@ -24,19 +28,18 @@ module.exports = [
     name: "sticker",
     aliases: ["s"],
     category: "sticker",
-    description: "Turns an image, GIF or short video (first 6 s) into a sticker.",
-    usage: "(send or reply to media)",
+    description: "Turns an image, GIF or short video (first 6 s) into a sticker. Optionally give a pack name and author. Pictures work without ffmpeg.",
+    usage: "[pack | author] (send or reply to media)",
+    examples: [".sticker", ".sticker My Pack | Akram"],
     cooldown: 5,
-    requires: ["ffmpeg"],
     run: (ctx) => makeSticker(ctx, { crop: false }),
   },
   {
     name: "crop",
     category: "sticker",
     description: "Like .sticker but crops the media to a square.",
-    usage: "(send or reply to media)",
+    usage: "[pack | author] (send or reply to media)",
     cooldown: 5,
-    requires: ["ffmpeg"],
     run: (ctx) => makeSticker(ctx, { crop: true }),
   },
   {

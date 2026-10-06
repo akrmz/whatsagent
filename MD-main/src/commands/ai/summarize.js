@@ -3,6 +3,7 @@
 const { getText } = require("../../core/context");
 const ytdlp = require("../../services/ytdlp");
 const { fetchPageText } = require("../../services/webtext");
+const usage = require("../../services/aiusage");
 
 const MAX_CHARS = 60000;
 const URL_RE = /https?:\/\/[^\s<>"']+/i;
@@ -42,6 +43,7 @@ module.exports = {
       return ctx.reply(`Reply to a long message, or send a link:\n${ctx.prefix}summarize <web page or YouTube link> [question]`);
     }
     if (content.length < 80) return ctx.reply("There is too little text there to summarize.");
+    usage.takeQuota(ctx);
 
     const task = question
       ? `Answer this question using only the content below: ${question}`
