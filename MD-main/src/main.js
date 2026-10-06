@@ -21,8 +21,10 @@ const { startReminderLoop } = require("./services/reminders");
 const vars = require("./services/vars");
 const jobs = require("./core/jobs");
 const { startNoticeLoop } = require("./services/notices");
-const { startAzkarLoop } = require("./services/azkar");
+const { startAzkarLoop, duaText, randomDua } = require("./services/azkar");
 const { startAdhanLoop } = require("./services/adhan");
+const { startAutopostLoop } = require("./services/autopost");
+const quran = require("./services/quran");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -165,6 +167,10 @@ async function start() {
   const stopGroupSchedule = startGroupScheduleLoop(app);
   const stopAzkar = startAzkarLoop(app);
   const stopAdhan = startAdhanLoop(app);
+  const stopAutopost = startAutopostLoop(app, {
+    tafsir: () => quran.randomAyahTafsir(),
+    dua: async () => duaText(randomDua()),
+  });
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -179,6 +185,7 @@ async function start() {
     stopNotices();
     stopAzkar();
     stopAdhan();
+    stopAutopost();
     connection.stop();
     app.state.flush();
     health?.close();

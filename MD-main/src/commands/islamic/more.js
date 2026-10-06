@@ -1,9 +1,11 @@
 "use strict";
 
+const { canManage, DENIED } = require("../../services/islamic-access");
 const adhan = require("../../services/adhan");
 const prayertimes = require("../../services/prayertimes");
 const hijri = require("../../services/hijri");
 const geo = require("../../services/geo");
+const quran = require("../../services/quran");
 const { getJson, request, HttpError } = require("../../core/http");
 const { UserError } = require("../../core/errors");
 const { LRU } = require("../../core/lru");
@@ -19,10 +21,6 @@ async function cached(key, url) {
   return data;
 }
 
-async function canEdit(ctx) {
-  if (!ctx.isGroup || ctx.isSudoOrOwner) return true;
-  return ctx.isSenderAdmin();
-}
 
 /** Arabic letters only, for matching surah names typed with or without diacritics. */
 const bare = (s) =>
@@ -50,7 +48,7 @@ module.exports = [
     name: "autoprayer",
     aliases: ["adhan", "azan", "prayeralert"],
     category: "islamic",
-    description: "تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. In groups, admins only.",
+    description: "تنبيه بموعد كل صلاة من الصلوات الخمس في هذه المحادثة حسب مدينتك — announces each of the five prayers here, by your city's prayer times and time zone. Anyone in the group can set it (unless ISLAMIC_ADMIN_ONLY is on).",
     usage: "on <city> | off",
     examples: [".autoprayer on Cairo", ".autoprayer on مكة", ".autoprayer off", ".autoprayer"],
     cooldown: 5,
@@ -61,7 +59,7 @@ module.exports = [
       if (!sub) {
         return ctx.reply(entry ? `🕌 تنبيهات الصلاة: *تعمل* — ${entry.city}\n${ctx.prefix}autoprayer off للإيقاف` : `🕌 تنبيهات الصلاة: *متوقفة*\nللتشغيل: ${ctx.prefix}autoprayer on <المدينة>`);
       }
-      if (!(await canEdit(ctx))) return ctx.reply("❌ في المجموعات المشرفون فقط. Only group admins can change this.");
+      if (!(await canManage(ctx))) return ctx.reply(DENIED);
       if (sub === "off") {
         adhan.remove(ctx.state, ctx.chatId);
         return ctx.reply("⏹️ تم إيقاف تنبيهات الصلاة. Prayer alerts turned off.");
@@ -117,24 +115,17 @@ module.exports = [
     name: "tafsir",
     aliases: ["tafseer", "muyassar"],
     category: "islamic",
-    description: "الآية مع تفسيرها من التفسير الميسر — a verse with its explanation from al-Tafsir al-Muyassar.",
-    usage: "<سورة:آية>",
-    examples: [".tafsir 2:255", ".tafsir 112:1"],
+    description: "الآية مع تفسيرها من التفسير الميسر، أو آية عشوائية — a verse with its explanation from al-Tafsir al-Muyassar (random without a reference). For automatic posts see .autotafsir.",
+    usage: "[سورة:آية]",
+    examples: [".tafsir 2:255", ".tafsir"],
     cooldown: 5,
     externalService: "alquran.cloud",
     async run(ctx) {
       const ref = ctx.text.trim();
-      if (!/^\d{1,3}:\d{1,3}$/.test(ref)) return ctx.reply(`الاستخدام: ${ctx.prefix}tafsir 2:255`);
-      let res;
-      try {
-        res = await getJson(`${QURAN_API}/ayah/${ref}/editions/quran-uthmani,ar.muyassar`, { timeoutMs: 15000 });
-      } catch (err) {
-        if (err instanceof HttpError && (err.status === 404 || err.status === 400)) return ctx.reply(`لا توجد الآية ${ref}.`);
-        throw err;
-      }
-      const [ayah, tafsir] = res.data || [];
-      if (!ayah) return ctx.reply(`لا توجد الآية ${ref}.`);
-      return ctx.reply(`📖 *${ayah.surah.name}* ${ayah.surah.number}:${ayah.numberInSurah}\n\n﴿${ayah.text.trim()}﴾\n\n📝 *التفسير الميسر:*\n${tafsir?.text || ""}`);
+      // No reference: a random verse.
+      if (!ref) return ctx.reply(await quran.randomAyahTafsir());
+      if (!/^\d{1,3}:\d{1,3}$/.test(ref)) return ctx.reply(`الاستخدام: ${ctx.prefix}tafsir 2:255 (أو بدون رقم لآية عشوائية)`);
+      return ctx.reply(await quran.ayahWithTafsir(ref));
     },
   },
   {

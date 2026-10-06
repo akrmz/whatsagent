@@ -261,6 +261,8 @@ function buildConfig(env = process.env) {
     },
     githubRepo,
     news: { region: newsRegion },
+    // Who may switch the automatic Islamic posts on/off in groups: everyone (false) or admins only.
+    islamic: { adminOnly: r.bool("ISLAMIC_ADMIN_ONLY", false) },
     update: {
       // .update pulls only from this git remote and branch of the clone the bot runs from.
       remote: r.str("UPDATE_REMOTE", "origin"),

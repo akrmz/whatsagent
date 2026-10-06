@@ -13,11 +13,11 @@ const USER = "447911123456@s.whatsapp.net";
 const ADMIN = "447911000001@s.whatsapp.net";
 const GROUP = "120363000000000000@g.us";
 
-function realBot() {
+function realBot(env = {}) {
   const loaded = loadCommands(COMMANDS_DIR, { capabilities: ALL_OFF });
   const copies = new Map(loaded.list.map((c) => [c, { ...c, cooldown: 0 }]));
   const commands = { list: [...copies.values()], byName: new Map([...loaded.byName].map(([k, c]) => [k, copies.get(c)])), disabled: loaded.disabled };
-  const app = makeApp({ env: { TIMEZONE: "Africa/Cairo" }, commands, listeners: loadListeners(LISTENERS_DIR, { capabilities: ALL_OFF }) });
+  const app = makeApp({ env: { TIMEZONE: "Africa/Cairo", ...env }, commands, listeners: loadListeners(LISTENERS_DIR, { capabilities: ALL_OFF }) });
   const sock = makeSock({ participants: [{ id: ADMIN, admin: "admin" }, { id: USER }] });
   app.sock = sock;
   app.health.state = "open";
@@ -80,10 +80,17 @@ test("daily adhkar: sent once at each time, and turning on later skips times alr
   assert.match(t.last(), /^🌅 \*أذكار الصباح\*/);
 });
 
-test(".autoazkar: admins in groups, anyone in their own chat; on/off and times", async () => {
+test(".autoazkar: any member can set it, unless ISLAMIC_ADMIN_ONLY is on", async () => {
+  const strict = realBot({ ISLAMIC_ADMIN_ONLY: "true" });
+  await strict.send({ text: ".autoazkar on", chat: GROUP, sender: USER });
+  assert.match(strict.last(), /المشرفون فقط/);
+  const open = realBot();
+  await open.send({ text: ".autoazkar on", chat: GROUP, sender: USER });
+  assert.match(open.last(), /الأذكار اليومية\* \(on\)/, "default: no admin needed");
+});
+
+test(".autoazkar: on/off and times, in groups and private chats", async () => {
   const t = realBot();
-  await t.send({ text: ".autoazkar on", chat: GROUP, sender: USER });
-  assert.match(t.last(), /المشرفون فقط/);
   await t.send({ text: ".autoazkar on", chat: GROUP, sender: ADMIN });
   assert.match(t.last(), /الأذكار اليومية\* \(on\)/);
   await t.send({ text: ".autoazkar evening 4:45pm", chat: GROUP, sender: ADMIN });
