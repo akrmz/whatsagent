@@ -12,6 +12,7 @@ const { stopAll } = require("../../services/automations");
 const jumuah = require("../../services/jumuah");
 const khatma = require("../../services/khatma");
 const siyam = require("../../services/siyam");
+const hamla = require("../../services/hamla");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -34,6 +35,8 @@ function overview(ctx) {
   if (sy) lines.push(`🌙 تذكير صيام السنة الساعة ${sy.time}${sy.weekly === false ? " (بدون الاثنين والخميس)" : ""} — ${p}autosiyam`);
   const k = khatma.get(state, chat);
   if (k) lines.push(`📖 ختمة جماعية: ${khatma.ar(khatma.counts(k).read)}/${khatma.ar(khatma.PARTS)} جزءاً — ${p}khatma`);
+  const h = hamla.active(state, chat);
+  if (h) lines.push(`📿 حملة ${h.dhikr}: ${hamla.fmt(h.total)} من ${hamla.fmt(h.goal)} — ${p}hamla`);
   const g = schedule.get(state, chat);
   if (g && (g.close || g.open)) lines.push(`🔒 إغلاق/فتح المجموعة: ${g.close || "—"} / ${g.open || "—"} — ${p}gcschedule`);
   const ann = reminders.announcementsIn(state, chat);

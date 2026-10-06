@@ -48,6 +48,6 @@ function greetingCommand(key, label, variables) {
 }
 
 module.exports = [
-  greetingCommand("welcome", "Welcome", "{user}, {group}, {description}, {count}"),
+  greetingCommand("welcome", "Welcome", "{user}, {group}, {description}, {count}, {rules} (from .setrules)"),
   greetingCommand("goodbye", "Goodbye", "{user}, {group}, {count}"),
 ];

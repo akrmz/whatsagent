@@ -2,17 +2,22 @@
 
 const cards = require("./cards");
 const { at } = require("./targets");
+const notes = require("./notes");
 
 /** Welcome/goodbye messages: text with variables plus a card drawn on the server. */
 
 const DEFAULTS = { welcome: "Welcome {user} to {group}! 🎉", goodbye: "Goodbye {user} 👋" };
 
-function fill(template, { user, meta }) {
-  return template
-    .replace(/{user}/g, at(user))
-    .replace(/{group}/g, meta.subject || "")
-    .replace(/{description}/g, meta.desc?.toString() || "")
-    .replace(/{count}/g, String(meta.participants?.length || 0));
+/** One pass over the template, so "$&" or "{user}" inside a group name or the rules stays as written. */
+function fill(template, { user, meta, rules = "" }) {
+  const values = {
+    user: at(user),
+    group: meta.subject || "",
+    description: meta.desc?.toString() || "",
+    count: String(meta.participants?.length || 0),
+    rules,
+  };
+  return template.replace(/{(user|group|description|count|rules)}/g, (_, k) => values[k]);
 }
 
 /**
@@ -20,7 +25,8 @@ function fill(template, { user, meta }) {
  * @param {"welcome"|"goodbye"} kind
  */
 async function build(app, sock, { kind, user, meta, template }) {
-  const text = fill(template || DEFAULTS[kind], { user, meta });
+  const rules = notes.get(app.state, meta.id, "rules")?.text || "";
+  const text = fill(template || DEFAULTS[kind], { user, meta, rules });
   const phone = app.identity.toPn(user) || user;
   try {
     const image = await cards.welcomeCard({
