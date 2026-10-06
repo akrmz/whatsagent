@@ -1,6 +1,6 @@
 "use strict";
 
-const { canManage, DENIED } = require("../../services/islamic-access");
+const { canManage, DENIED, zoneLine } = require("../../services/islamic-access");
 const azkar = require("../../services/azkar");
 const autopost = require("../../services/autopost");
 const { zoneNow } = require("../../services/gcschedule");
@@ -8,15 +8,27 @@ const { parseClock } = require("../../services/reminders");
 const { UserError } = require("../../core/errors");
 
 
-function autoStatus(ctx, entry) {
-  const every = autopost.get(ctx.state, ctx.chatId)?.dua?.every;
-  const duaEvery = every ? `🤲 دعاء ${autopost.everyHoursAr(every)} (${ctx.prefix}autoazkar dua off للإيقاف)` : "";
-  if (!entry) return ["📿 الأذكار اليومية: *متوقفة* (off)", duaEvery].filter(Boolean).join("\n");
+const KIND_AR = { morning: "أذكار الصباح", evening: "أذكار المساء", dua: "الدعاء اليومي" };
+
+async function autoStatus(ctx, entry) {
+  const post = autopost.get(ctx.state, ctx.chatId);
+  const zone = ctx.config.bot.timezone;
+  const duaEvery = post?.dua
+    ? `🤲 دعاء ${autopost.everyHoursAr(post.dua.every)} — التالي ${autopost.describeNext(autopost.effectiveNext(post.dua, post.quiet, zone), zone)}`
+    : "";
+  if (!entry) return ["📿 الأذكار اليومية: *متوقفة* (off)", duaEvery, zoneLine(ctx)].filter(Boolean).join("\n");
   const lines = ["📿 *الأذكار اليومية* (on)"];
   if (entry.city) lines.push(`🏙️ ${entry.city}: الصباح بعد الفجر بنصف ساعة، والمساء بعد العصر بنصف ساعة (بتوقيت المدينة)`);
   else lines.push(`🌅 الصباح ${entry.morning || azkar.DEFAULTS.morning} · 🌇 المساء ${entry.evening || azkar.DEFAULTS.evening}`);
   lines.push(duaEvery || (entry.dua ? `🤲 دعاء يومي ${entry.dua}` : "🤲 دعاء: off"));
-  if (!entry.city) lines.push(`🕒 ${ctx.config.bot.timezone}`); // with a city, its own time zone applies
+  try {
+    const n = await azkar.nextSend(entry, zone);
+    const left = n.inMinutes >= 60 ? `${Math.floor(n.inMinutes / 60)} س ${n.inMinutes % 60} د` : `${n.inMinutes} د`;
+    lines.push(`⏭️ التالي: ${KIND_AR[n.kind]} الساعة ${azkar.hhmm(n.at)} (بعد ${left})${n.zone !== zone ? ` بتوقيت ${n.zone}` : ""}`);
+  } catch {
+    /* city lookup failed: no "next" line */
+  }
+  lines.push(zoneLine(ctx));
   return lines.join("\n");
 }
 
@@ -86,7 +98,7 @@ module.exports = [
       const value = ctx.args.slice(1).join(" ").trim();
       const zone = ctx.config.bot.timezone;
       const entry = azkar.getAuto(ctx.state, ctx.chatId);
-      if (!sub || sub === "status") return ctx.reply(`${autoStatus(ctx, entry)}\n\n${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00`);
+      if (!sub || sub === "status") return ctx.reply(`${await autoStatus(ctx, entry)}\n\n${ctx.prefix}autoazkar on | off | city <مدينة> | morning 06:30 | evening 17:00 | dua 21:00`);
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
 
       // ".autoazkar dua every 3": a random dua every 3 hours (independent of the daily adhkar).
@@ -95,12 +107,14 @@ module.exports = [
         const hours = Number(every[1]);
         if (hours < autopost.MIN_HOURS || hours > autopost.MAX_HOURS) throw new UserError(`اختر من ${autopost.MIN_HOURS} إلى ${autopost.MAX_HOURS} ساعة.`);
         try {
-          autopost.setEvery(ctx.state, ctx.chatId, "dua", hours);
+          // The first dua right away (asked for now), then every N hours.
+          autopost.setEvery(ctx.state, ctx.chatId, "dua", hours, Date.now(), { sentNow: true });
         } catch {
           throw new UserError("وصل البوت إلى الحد الأقصى من المحادثات. The bot already posts to the maximum number of chats.");
         }
         if (entry?.dua) azkar.setAuto(ctx.state, ctx.chatId, { dua: null }); // replaces the once-a-day dua
-        return ctx.reply(`✅ سأرسل دعاءً عشوائياً ${autopost.everyHoursAr(hours)}، أولها خلال دقيقة.\n🌙 لا رسائل بين ${autopost.get(ctx.state, ctx.chatId).quiet || "—"} (${ctx.prefix}autotafsir quiet لتغييرها).`);
+        await ctx.send(azkar.duaText(azkar.randomDua()));
+        return ctx.reply(`✅ دعاء عشوائي ${autopost.everyHoursAr(hours)}.\n${await autoStatus(ctx, azkar.getAuto(ctx.state, ctx.chatId))}`);
       }
       if (sub === "off") {
         autopost.stop(ctx.state, ctx.chatId, "dua");
@@ -109,7 +123,7 @@ module.exports = [
       }
       const changes = {};
       if (sub === "on") {
-        if (entry) return ctx.reply(autoStatus(ctx, entry));
+        if (entry) return ctx.reply(await autoStatus(ctx, entry));
       } else if (sub === "morning" || sub === "evening" || sub === "dua") {
         if (sub === "dua" && /^(off|stop|إيقاف)$/i.test(value)) {
           changes.dua = null;
@@ -142,7 +156,7 @@ module.exports = [
         throw new UserError("وصل البوت إلى الحد الأقصى من المحادثات التي ترسل إليها الأذكار. The bot already sends daily adhkar to the maximum number of chats.");
       }
       await azkar.skipPassed(ctx.state, ctx.chatId, zone);
-      return ctx.reply(`✅ ${autoStatus(ctx, saved)}`);
+      return ctx.reply(`✅ ${await autoStatus(ctx, saved)}`);
     },
   },
 ];

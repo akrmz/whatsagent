@@ -140,6 +140,21 @@ async function schedule(entry, botZone, now = Date.now(), lookup) {
   return { zone: botZone, ...zoneNow(botZone, now), at };
 }
 
+/**
+ * The next daily message for a chat, for status replies: which one, at what local time,
+ * and in how many minutes. @returns {Promise<{ kind, at, inMinutes, zone }>}
+ */
+async function nextSend(entry, botZone, now = Date.now(), lookup) {
+  const { zone, day, minutes, at } = await schedule(entry, botZone, now, lookup);
+  const today = ["morning", "evening", "dua"]
+    .filter((k) => at[k] !== null && at[k] !== undefined && at[k] > minutes && entry.done?.[k] !== day)
+    .sort((a, b) => at[a] - at[b]);
+  if (today.length) return { kind: today[0], at: at[today[0]], inMinutes: at[today[0]] - minutes, zone };
+  // Tomorrow's first (times barely move from one day to the next).
+  const first = ["morning", "evening", "dua"].filter((k) => at[k] !== null && at[k] !== undefined).sort((a, b) => at[a] - at[b])[0];
+  return { kind: first, at: at[first], inMinutes: 1440 - minutes + at[first], zone };
+}
+
 /** What is due now for one chat. Exported for tests. */
 async function dueFor(entry, botZone, now = Date.now(), lookup) {
   const { zone, day, minutes, at } = await schedule(entry, botZone, now, lookup);
@@ -221,6 +236,7 @@ module.exports = {
   setAuto,
   removeAuto,
   schedule,
+  nextSend,
   dueFor,
   runDue,
   startAzkarLoop,

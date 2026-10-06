@@ -12,4 +12,20 @@ async function canManage(ctx) {
 
 const DENIED = "❌ في هذه المجموعة المشرفون فقط يغيّرون هذا الإعداد. Only group admins can change this here.";
 
-module.exports = { canManage, DENIED };
+const SOURCE_AR = { TIMEZONE: "", "owner number": " — حسب رقم المالك", server: " — توقيت الخادم" };
+
+/**
+ * "🕒 Africa/Cairo — 08:43" plus a warning when the bot is on UTC only because the server
+ * is (times like 06:30 would then be 06:30 UTC).
+ */
+function zoneLine(ctx) {
+  const { timezone, timezoneSource } = ctx.config.bot;
+  const now = new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date());
+  const line = `🕒 توقيت البوت: ${timezone} (الآن ${now})${SOURCE_AR[timezoneSource] || ""}`;
+  if (timezoneSource === "server" && /UTC|GMT|Universal|Zulu/i.test(timezone)) {
+    return `${line}\n⚠️ إن لم يكن هذا توقيتك فاضبطه: ${ctx.prefix}setvar TIMEZONE Africa/Cairo`;
+  }
+  return line;
+}
+
+module.exports = { canManage, DENIED, zoneLine };

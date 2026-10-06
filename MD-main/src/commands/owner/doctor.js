@@ -61,7 +61,7 @@ module.exports = {
       `Bot v${version} · Node ${process.version} · Baileys ${baileysVersion()}`,
       `⏱️ Up ${ago(now - app.health.startedAt)} · 🧠 ${mb(mem.rss)} RAM (heap ${mb(mem.heapUsed)})`,
       `📶 WhatsApp: ${app.health.state}${app.health.lastMessageAt ? ` · last message ${ago(now - app.health.lastMessageAt)} ago` : ""}`,
-      `🔓 Mode: ${app.state.isPublic() ? "public" : "private"} · prefix ${ctx.prefix} · ${ctx.config.bot.timezone}`,
+      `🔓 Mode: ${app.state.isPublic() ? "public" : "private"} · prefix ${ctx.prefix} · 🕒 ${ctx.config.bot.timezone} (from ${ctx.config.bot.timezoneSource})`,
       `🤖 AI: ${app.ai ? `${app.ai.label} · ${app.ai.model}` : "off"} · 🍪 cookies: ${cookies.savedSites(ctx.config).join(", ") || "none"}`,
       `🏗️ Downloads/conversions: ${jobs.status().running} running, ${jobs.status().queued} waiting (max ${jobs.status().max} at once)`,
       `⚙️ Settings changed from chat: ${Object.keys(app.overrides || {}).join(", ") || "none"}`,

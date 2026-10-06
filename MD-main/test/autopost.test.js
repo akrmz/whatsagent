@@ -87,9 +87,74 @@ test(".autoazkar dua every 2: a random dua every 2 hours, replacing the once-a-d
   await t.send({ text: ".autoazkar on", chat: GROUP, sender: USER });
   await t.send({ text: ".autoazkar dua 21:00", chat: GROUP, sender: USER });
   await t.send({ text: ".autoazkar dua every 2", chat: GROUP, sender: USER });
-  assert.match(t.last(), /دعاءً عشوائياً كل ساعتين/);
+  assert.match(t.last(), /دعاء عشوائي كل ساعتين/);
+  assert.ok(t.sock.sent.some((s) => /^🤲/.test(s.content.text || "")), "the first dua is sent right away");
   assert.equal(autopost.get(t.app.state, GROUP).dua.every, 2);
   assert.equal(require("../src/services/azkar").getAuto(t.app.state, GROUP).dua, null);
   await t.send({ text: ".autoazkar dua off", chat: GROUP, sender: USER });
   assert.equal(autopost.get(t.app.state, GROUP), null);
+});
+
+// ---- first post right away, next times shown, time zone default --------------------------------
+
+test(".autotafsir every 3 posts the first verse immediately and the next one 3 hours later", async () => {
+  const quran = require("../src/services/quran");
+  const original = quran.randomAyahTafsir;
+  quran.randomAyahTafsir = async () => "📖 FIRST VERSE";
+  try {
+    const t = realBot();
+    const before = Date.now();
+    await t.send({ text: ".autotafsir every 3", chat: GROUP, sender: USER });
+    const texts = t.sock.sent.map((s) => s.content.text);
+    assert.ok(texts.includes("📖 FIRST VERSE"), "first verse sent at once");
+    assert.match(t.last(), /⏭️ التالية: .*\(بعد [23] س/);
+    const next = autopost.get(t.app.state, GROUP).tafsir.next;
+    assert.ok(next >= before + 3 * HOUR && next <= Date.now() + 3 * HOUR);
+  } finally {
+    quran.randomAyahTafsir = original;
+  }
+});
+
+test("if the first verse can't be fetched, the loop tries again in a minute", async () => {
+  const quran = require("../src/services/quran");
+  const original = quran.randomAyahTafsir;
+  quran.randomAyahTafsir = async () => {
+    throw new Error("offline");
+  };
+  try {
+    const t = realBot();
+    const before = Date.now();
+    await t.send({ text: ".autotafsir on", chat: GROUP, sender: USER });
+    assert.ok(autopost.get(t.app.state, GROUP).tafsir.next <= before + 2 * 60 * 1000);
+  } finally {
+    quran.randomAyahTafsir = original;
+  }
+});
+
+test("the shown next time includes quiet hours", () => {
+  const zone = "Africa/Cairo";
+  const night = Date.parse("2026-10-06T21:00:00Z"); // 00:00 Cairo
+  assert.equal(autopost.effectiveNext({ next: night }, "23:00-07:00", zone, night), Date.parse("2026-10-07T04:00:00Z"));
+  assert.equal(autopost.effectiveNext({ next: night }, null, zone, night), night);
+});
+
+test("on a UTC server without TIMEZONE, the owner's country decides the time zone", () => {
+  const { chooseTimezone } = require("../src/config");
+  assert.deepEqual(chooseTimezone({ system: "Etc/UTC", ownerNumber: "201012345678" }), { zone: "Africa/Cairo", source: "owner number" });
+  assert.deepEqual(chooseTimezone({ system: "UTC", ownerNumber: "966501234567" }), { zone: "Asia/Riyadh", source: "owner number" });
+  assert.deepEqual(chooseTimezone({ system: "UTC", ownerNumber: "15551234567" }), { zone: "UTC", source: "server" }, "multi-zone countries are not guessed");
+  assert.deepEqual(chooseTimezone({ system: "Europe/Berlin", ownerNumber: "201012345678" }), { zone: "Europe/Berlin", source: "server" }, "a real server zone is kept");
+  assert.deepEqual(chooseTimezone({ explicit: "Asia/Tokyo", system: "UTC", ownerNumber: "20" }), { zone: "Asia/Tokyo", source: "TIMEZONE" });
+});
+
+test(".autoazkar and .autoprayer say when the next message comes", async () => {
+  const azkar = require("../src/services/azkar");
+  const adhan = require("../src/services/adhan");
+  const noon = Date.parse("2026-10-06T09:00:00Z"); // 12:00 Cairo
+  const n = await azkar.nextSend({ morning: "06:30", evening: "17:00", done: {} }, "Africa/Cairo", noon);
+  assert.deepEqual([n.kind, n.at, n.inMinutes], ["evening", 17 * 60, 5 * 60]);
+  const late = await azkar.nextSend({ morning: "06:30", evening: "17:00", done: {} }, "Africa/Cairo", Date.parse("2026-10-06T19:00:00Z"));
+  assert.deepEqual([late.kind, late.inMinutes], ["morning", 8 * 60 + 30], "22:00 → tomorrow 06:30");
+  const p = { minutes: 20 * 60, times: { Fajr: 300, Dhuhr: 760, Asr: 965, Maghrib: 1115, Isha: 1190 } };
+  assert.deepEqual(adhan.nextPrayer(p), { name: "Fajr", at: 300, inMinutes: 1440 - 1200 + 300 });
 });

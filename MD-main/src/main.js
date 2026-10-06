@@ -153,6 +153,7 @@ async function start() {
     { commands: app.commands.list.length, disabled: app.commands.disabled.map((d) => d.name), capabilities: app.capabilities },
     `${config.bot.name} starting`,
   );
+  log.info({ timezone: config.bot.timezone, from: config.bot.timezoneSource }, `time zone ${config.bot.timezone} (from ${config.bot.timezoneSource})`);
   for (const [name, t] of Object.entries(app.capabilities.tools || {})) {
     if (t.ok) log.info({ tool: name, path: t.path, version: t.version }, "tool found");
     else log.warn({ tool: name }, `${name} unavailable: ${t.problem}`);

@@ -41,6 +41,13 @@ async function findSurah(query) {
   return list.find((s) => bare(s.name.replace(/^سُورَةُ\s*/, "")) === b) || list.find((s) => en && s.englishName.toLowerCase().replace(/[^a-z]/g, "") === en) || null;
 }
 
+/** "⏭️ أول تنبيه: العصر الساعة 15:32 (بعد 6 س 49 د) بتوقيت المدينة" */
+function nextLine(p) {
+  const n = adhan.nextPrayer(p);
+  const left = n.inMinutes >= 60 ? `${Math.floor(n.inMinutes / 60)} س ${n.inMinutes % 60} د` : `${n.inMinutes} د`;
+  return `⏭️ التنبيه التالي: ${prayertimes.AR[n.name]} الساعة ${prayertimes.hhmm(n.at)} (بعد ${left}) بتوقيت المدينة`;
+}
+
 const COMPASS = ["الشمال", "الشمال الشرقي", "الشرق", "الجنوب الشرقي", "الجنوب", "الجنوب الغربي", "الغرب", "الشمال الغربي"];
 
 module.exports = [
@@ -57,7 +64,12 @@ module.exports = [
       const city = ctx.args.slice(1).join(" ").trim().slice(0, 60);
       const entry = adhan.get(ctx.state, ctx.chatId);
       if (!sub) {
-        return ctx.reply(entry ? `🕌 تنبيهات الصلاة: *تعمل* — ${entry.city}\n${ctx.prefix}autoprayer off للإيقاف` : `🕌 تنبيهات الصلاة: *متوقفة*\nللتشغيل: ${ctx.prefix}autoprayer on <المدينة>`);
+        if (!entry) return ctx.reply(`🕌 تنبيهات الصلاة: *متوقفة*\nللتشغيل: ${ctx.prefix}autoprayer on <المدينة>`);
+        const next = await prayertimes
+          .forCity(entry.city)
+          .then((p) => `\n${nextLine(p)}`)
+          .catch(() => "");
+        return ctx.reply(`🕌 تنبيهات الصلاة: *تعمل* — ${entry.city}${next}\n${ctx.prefix}autoprayer off للإيقاف`);
       }
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
       if (sub === "off") {
@@ -79,7 +91,7 @@ module.exports = [
       }
       await adhan.skipPassed(ctx.state, ctx.chatId);
       const lines = prayertimes.PRAYERS.map((n) => `▫️ ${prayertimes.AR[n]}: ${prayertimes.hhmm(p.times[n])}`);
-      return ctx.reply(`✅ تنبيهات الصلاة تعمل — *${p.city}* (${p.zone})\n\nمواقيت اليوم:\n${lines.join("\n")}${p.method ? `\n\n_${p.method}_` : ""}`);
+      return ctx.reply(`✅ تنبيهات الصلاة تعمل — *${p.city}* (${p.zone})\n\nمواقيت اليوم:\n${lines.join("\n")}\n\n${nextLine(p)}${p.method ? `\n_${p.method}_` : ""}`);
     },
   },
   {

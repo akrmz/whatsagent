@@ -42,13 +42,32 @@ function quietLeft(quiet, minutes) {
   return inside ? (q.end - minutes + 1440) % 1440 : 0;
 }
 
-function setEvery(state, chat, kind, hours, now = Date.now()) {
+/**
+ * sentNow: the command already posted the first one, so the next comes after `hours`;
+ * otherwise (e.g. it couldn't be fetched) the loop tries in about a minute.
+ */
+function setEvery(state, chat, kind, hours, now = Date.now(), { sentNow = false } = {}) {
   return store(state).update((d) => {
     if (!d[chat] && Object.keys(d).length >= MAX_CHATS) throw new Error("full");
     d[chat] ||= { quiet: DEFAULT_QUIET };
-    d[chat][kind] = { every: hours, next: now + 60 * 1000 }; // the first one about a minute from now
+    d[chat][kind] = { every: hours, next: sentNow ? now + hours * 3600 * 1000 : now + 60 * 1000 };
     return d[chat];
   });
+}
+
+/** When a job will really post: its next time, pushed to the end of quiet hours if needed. */
+function effectiveNext(job, quiet, timeZone, now = Date.now()) {
+  const at = Math.max(job.next, now);
+  const { minutes } = zoneNow(timeZone, at);
+  return at + quietLeft(quiet, minutes) * 60 * 1000;
+}
+
+/** "07:00" style local time of a timestamp, and how far away it is. */
+function describeNext(next, timeZone, now = Date.now()) {
+  const time = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(next));
+  const mins = Math.max(0, Math.round((next - now) / 60000));
+  const left = mins >= 60 ? `${Math.floor(mins / 60)} س ${mins % 60} د` : `${mins} د`;
+  return `${time} (بعد ${left})`;
 }
 
 function setQuiet(state, chat, quiet) {
@@ -116,4 +135,4 @@ function startAutopostLoop(app, builders) {
   return () => clearInterval(timer);
 }
 
-module.exports = { everyHoursAr, get, setEvery, setQuiet, stop, runDue, startAutopostLoop, parseQuiet, quietLeft, MIN_HOURS, MAX_HOURS, DEFAULT_QUIET };
+module.exports = { everyHoursAr, describeNext, effectiveNext, get, setEvery, setQuiet, stop, runDue, startAutopostLoop, parseQuiet, quietLeft, MIN_HOURS, MAX_HOURS, DEFAULT_QUIET };

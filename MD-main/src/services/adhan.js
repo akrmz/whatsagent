@@ -35,6 +35,13 @@ async function dueFor(entry, now = Date.now(), lookup) {
   }).map((name) => ({ name, day: p.day, at: p.times[name], city: p.city }));
 }
 
+/** The next prayer after now, from a prayertimes.forCity() result (tomorrow's Fajr after Isha). */
+function nextPrayer(p) {
+  const name = prayertimes.PRAYERS.find((n) => p.times[n] > p.minutes) || "Fajr";
+  const inMinutes = (p.times[name] - p.minutes + 1440) % 1440;
+  return { name, at: p.times[name], inMinutes };
+}
+
 const message = ({ name, at, city }) =>
   `🕌 حان الآن موعد أذان *${prayertimes.AR[name]}* (${prayertimes.hhmm(at)}) بتوقيت ${city}\n\n_📿 أذكار الأذان: .hisn 15_`;
 
@@ -95,4 +102,4 @@ function startAdhanLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { get, set, remove, dueFor, runDue, skipPassed, startAdhanLoop, message, MAX_CHATS };
+module.exports = { nextPrayer, get, set, remove, dueFor, runDue, skipPassed, startAdhanLoop, message, MAX_CHATS };

@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
+const { zoneForNumber } = require("./core/phonezones");
 
 /**
  * Configuration: read once from the environment (and `.env`), validated, frozen.
@@ -107,6 +108,21 @@ function parsePhoneList(values, name, problems) {
   return out;
 }
 
+/**
+ * The bot's time zone: TIMEZONE if set; otherwise the server's, unless the server runs on
+ * UTC (usual for a VPS) — then the zone of the owner's country, guessed from the phone
+ * number (20… → Africa/Cairo), so daily messages come at the owner's local times.
+ */
+function chooseTimezone({ explicit, system, ownerNumber }) {
+  if (explicit) return { zone: explicit, source: "TIMEZONE" };
+  const isUtc = !system || /^(UTC|Etc\/UTC|Etc\/GMT|GMT|Etc\/Universal|Universal|Etc\/Zulu|Zulu)$/i.test(system);
+  if (isUtc) {
+    const guess = zoneForNumber(ownerNumber);
+    if (guess) return { zone: guess, source: "owner number" };
+  }
+  return { zone: system || "UTC", source: "server" };
+}
+
 function buildConfig(env = process.env) {
   const problems = [];
   const r = createReader(env, problems);
@@ -152,8 +168,11 @@ function buildConfig(env = process.env) {
     problems.push(`OPENAI_BASE_URL must be an https:// URL such as https://api.openai.com/v1 (got "${openaiBaseUrl}")`);
   }
 
-  const systemZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const timezone = r.str("TIMEZONE", systemZone);
+  const { zone: timezone, source: timezoneSource } = chooseTimezone({
+    explicit: r.str("TIMEZONE"),
+    system: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    ownerNumber: ownerNumbers[0],
+  });
   try {
     new Intl.DateTimeFormat("en", { timeZone: timezone });
   } catch {
@@ -179,6 +198,7 @@ function buildConfig(env = process.env) {
       stickerPack: r.str("STICKER_PACK", r.str("BOT_NAME", "WhatsApp Bot")),
       stickerAuthor: r.str("STICKER_AUTHOR", ""),
       timezone,
+      timezoneSource, // "TIMEZONE" | "owner number" | "server"
       // Reply "did you mean .sticker?" to a mistyped command.
       suggestCommands: r.bool("SUGGEST_COMMANDS", true),
     },
@@ -289,4 +309,4 @@ function deepFreeze(obj) {
   return Object.freeze(obj);
 }
 
-module.exports = { buildConfig, loadEnvFile, ConfigError, expandHome, toolPath, AI_PROVIDERS, AI_DEFAULT_MODELS };
+module.exports = { buildConfig, loadEnvFile, ConfigError, expandHome, toolPath, chooseTimezone, AI_PROVIDERS, AI_DEFAULT_MODELS };
