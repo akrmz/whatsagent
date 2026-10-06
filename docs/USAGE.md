@@ -49,6 +49,7 @@ In a group where the bot is an admin, group admins can enable:
 | `.antibadword on` | Deletes messages that contain bad words | `delete`, `kick`, `warn` |
 | `.antitag on` | Deletes messages that mention more than half the group | `delete`, `kick` |
 | `.disable <command> …` | Turns commands off in this group for everyone except owner and sudo (e.g. `.disable sticker song`). `.enable <command>` or `.enable all` turns them back on; `.disabled` lists them. `.help` can't be disabled | – |
+| `.gcschedule close 23:00` / `.gcschedule open 08:00` | Closes the group (only admins can write) and opens it again every day at those times (`TIMEZONE`). `.gcschedule` shows it, `.gcschedule off` removes it | – |
 | `.antispam on` | Deletes messages from a member who sends more than 6 messages in 10 seconds (change with `.antispam set 8 15`) | `delete` (default), `warn`, `kick` (`.antispam action warn`) |
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
@@ -130,7 +131,7 @@ This list is generated from the command files themselves.
 | `.staff` | `.admins` `.listadmin` | Lists the group admins. | everyone (groups) | `.staff` |
 | `.tourl` | `.url` | Uploads the media you send or reply to and returns a PUBLIC link (anyone with the link can see it). | everyone | `.tourl` _(send or reply to media)_ |
 | `.translate` | `.trt` | Translates text, or the message you reply to, into another language. | everyone | `.translate hello fr` |
-| `.tts` | – | Turns text into an English voice note. | everyone | `.tts Good morning everyone` |
+| `.tts` | `.say` `.speak` | Turns text into a voice note. Arabic and other scripts are detected automatically; for other languages start with a code and a colon (fr:, es:, de:, tr: …). | everyone | `.tts Good morning everyone` |
 | `.whoami` | – | Shows the IDs WhatsApp uses for you and your permission level. Useful when setting OWNER_LIDS. | everyone | `.whoami` |
 
 ### Tools
@@ -187,6 +188,9 @@ This list is generated from the command files themselves.
 | `.disable` | `.cmdoff` | Turns commands off in this group (for everyone except the bot owner and sudo). .help and .enable can't be turned off. | group admins (groups) | `.disable sticker song` |
 | `.disabled` | `.offcommands` | Lists the commands turned off in this group. | everyone (groups) | `.disabled` |
 | `.enable` | `.cmdon` | Turns commands back on in this group. ".enable all" turns every one back on. | group admins (groups) | `.enable sticker` |
+| `.filter` | `.autoreply` `.addfilter` | Adds an auto-reply: when someone writes the trigger word or phrase, the bot answers with your text. Or reply to a message to use it as the answer. | group admins (groups) | `.filter hello \| Welcome to the group! 👋` |
+| `.filters` | `.autoreplies` | Lists this group's auto-replies. | everyone (groups) | `.filters` |
+| `.gcschedule` | `.autoclose` `.groupschedule` | Closes the group every day at one time (only admins can write) and opens it at another. Times use the bot's TIMEZONE. The bot must be a group admin. | group admins (groups) | `.gcschedule close 23:00` |
 | `.goodbye` | – | Goodbye messages when members leave. Variables: {user}, {group}. | group admins (groups) | `.goodbye on` |
 | `.hidetag` | – | Like .tag but only mentions members who are not admins. | group admins (groups) | `.hidetag Meeting at 8 pm` |
 | `.kick` | – | Removes members from the group. The bot and its owners cannot be kicked. The bot must be a group admin. | group admins (groups) | `.kick @201012345678` |
@@ -198,6 +202,7 @@ This list is generated from the command files themselves.
 | `.setgdesc` | – | Changes the group description. The bot must be a group admin. | group admins (groups) | `.setgdesc Welcome to our study group` |
 | `.setgname` | – | Changes the group name. The bot must be a group admin. | group admins (groups) | `.setgname Study Group` |
 | `.setgpp` | – | Sets the group photo from the image or sticker you reply to. The bot must be a group admin. | group admins (groups) | `.setgpp` _(reply to an image)_ |
+| `.stopfilter` | `.delfilter` `.rmfilter` | Removes an auto-reply (".stopfilter all" removes every one). | group admins (groups) | `.stopfilter` |
 | `.tag` | – | Sends your text (or re-sends the replied message) while silently mentioning everyone. | group admins (groups) | `.tag Meeting at 8 pm` |
 | `.tagall` | – | Mentions every member, one per line. | group admins (groups) | `.tagall` |
 | `.tagnotadmin` | – | Mentions every member who is not an admin. | group admins (groups) | `.tagnotadmin` |
@@ -218,13 +223,17 @@ This list is generated from the command files themselves.
 | `.autoread` | – | Marks every incoming message as read (except ones that mention the bot). | owner | `.autoread on` |
 | `.autostatus` | – | Automatically views contacts' statuses, and optionally reacts to them with 💚. | owner | `.autostatus react on` |
 | `.autotyping` | – | Shows a 'typing…' indicator when the bot receives messages. | owner | `.autotyping on` |
+| `.block` | – | Blocks someone on the bot's WhatsApp account (they can't message or call it). Mention them, reply to them, or give the number. | owner | `.block` |
 | `.clearsession` | `.clearsesi` | Deletes cached encryption key files from the session folder (keeps creds.json). Only for fixing persistent 'waiting for this message' errors; restart the bot afterwards. | owner | `.clearsession confirm` |
 | `.cleartmp` | – | Deletes leftover temporary files. | owner, sudo | `.cleartmp` |
 | `.cookies` | `.listcookies` `.cookie` | Shows which sites have saved cookies, whether they contain a login, and when it expires (values are never shown). | owner | `.cookies` |
 | `.delcookie` | `.delcookies` `.rmcookie` | Deletes the saved cookies of a site (or all). | owner | `.delcookie youtube` |
 | `.delvar` | `.unset` `.resetvar` | Removes a setting made with .setvar, so the value from .env (or the default) is used again. | owner | `.delvar PREFIX` |
 | `.doctor` | `.diag` `.diagnose` `.status` | Health report: connection, memory, tools (yt-dlp, ffmpeg …) checked live, and which commands are disabled and why. | owner | `.doctor` |
+| `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with member counts and whether the bot is an admin there. | owner | `.groups` |
+| `.join` | `.joingroup` | Makes the bot join a group from an invite link. | owner | `.join https://chat.whatsapp.com/AbCdEf123456` |
 | `.leave` | `.leavegc` `.exit` | Makes the bot leave this group. | owner (groups) | `.leave` |
+| `.leavegroup` | `.exitgroup` | Makes the bot leave a group by its number from .groups. | owner | `.leavegroup` |
 | `.mention` | – | Turns the automatic reply on or off for messages that mention the bot in groups. | owner | `.mention on` |
 | `.mode` | – | Public: everyone can use commands. Private: only owner and sudo (group moderation keeps working). | owner | `.mode private` |
 | `.pmblocker` | – | Blocks anyone who is not owner/sudo and messages the bot privately (they get a notice first). | owner | `.pmblocker on` |
@@ -236,6 +245,7 @@ This list is generated from the command files themselves.
 | `.setvar` | `.set` `.setenv` | Changes a setting from WhatsApp — AI keys and models, bot name, prefix, API keys, limits, tool paths. Applied immediately, saved across restarts, overrides .env. Secrets only in private chat. | owner | `.setvar BOT_NAME Akram Bot` |
 | `.stats` | `.usage` `.botstats` | Shows which commands are used most, total commands run, and since when. ".stats reset" starts counting again. | owner | `.stats` |
 | `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. | owner | `.sudo add @friend` |
+| `.unblock` | – | Unblocks someone on the bot's WhatsApp account. | owner | `.unblock` |
 | `.update` | – | Checks GitHub for a newer version of the bot and of yt-dlp (nightly). '.update now' installs them: the bot is fast-forwarded from your repository, validated, rolled back if the check fails, and restarted. | owner | `.update` |
 | `.vars` | `.getvar` `.env` `.config` | Lists the settings you can change from chat with their current values (keys are hidden) and where each comes from. | owner | `.vars` |
 | `.vv` | – | Reveals the view-once photo or video you reply to (owner only, to protect other people's privacy). | owner | `.vv` _(reply to a view-once message)_ |
@@ -253,6 +263,8 @@ This list is generated from the command files themselves.
 | `.sticker` | `.s` | Turns an image, GIF or short video (first 6 s) into a sticker. Optionally give a pack name and author. Pictures work without ffmpeg. | everyone | `.sticker` |
 | `.take` | `.steal` | Re-labels the sticker you reply to with your own pack name. | everyone | `.take My Pack` |
 | `.tg` | `.stickertelegram` `.tgsticker` `.telesticker` | Copies a public Telegram sticker pack (up to 30 stickers; animated .tgs stickers are skipped). _Needs: telegramBot, ffmpeg._ | everyone | `.tg https://t.me/addstickers/Animals` |
+| `.togif` | – | Turns an animated sticker into a GIF file. | everyone | `.togif` _(reply to an animated sticker)_ |
+| `.tovideo` | `.tomp4` `.togifv` | Turns an animated sticker into a video that plays like a GIF (needs ffmpeg; without it, use .togif). _Needs: ffmpeg._ | everyone | `.tovideo` _(reply to an animated sticker)_ |
 
 ### Images
 
@@ -418,6 +430,8 @@ This list is generated from the command files themselves.
 | `.answer` | – | Answers the current trivia question. | everyone | `.answer Paris` |
 | `.guess` | – | Guesses a letter in the current hangman game. | everyone | `.guess e` |
 | `.hangman` | – | Starts a game of hangman in this chat. Guess with .guess <letter>. | everyone | `.hangman` |
+| `.mathquiz` | `.quiz` `.mquiz` | A quick maths question: the first person to send the right number within 30 seconds wins points (easy 1, medium 2, hard 3). ".mathquiz top" shows the leaderboard. | everyone | `.mathquiz` |
+| `.rps` | `.rockpaperscissors` | Rock, paper, scissors against the bot. | everyone | `.rps rock` |
 | `.surrender` | – | Gives up your current tic-tac-toe game. | everyone | `.surrender` |
 | `.tictactoe` | `.ttt` | Starts or joins a tic-tac-toe game. Play by sending a number 1-9; send 'surrender' to give up. | everyone | `.tictactoe` |
 | `.topmembers` | – | Shows the 5 most active members of this group (since the bot joined). | everyone (groups) | `.topmembers` |
@@ -431,6 +445,8 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 | Feature | Turned on with | Behaviour |
 |---|---|---|
 | Group chatbot | `.chatbot on` (group admins; needs an AI key, see `.setai`) | Replies when someone mentions the bot or replies to one of its messages. Only that message is sent to the AI. |
+| Auto-replies | `.filter <trigger> \| <reply>` (group admins) | When a message contains the trigger word or phrase (whole words, any language), the bot answers. At most one auto-reply per group every 5 s, the same one at most every 30 s. `.filters` lists them, `.stopfilter <trigger>` removes one. Max 50 per group |
+| Math quiz | `.mathquiz [easy\|medium\|hard]` (anyone) | The first message with the right number within 30 s wins points; `.mathquiz top` shows the leaderboard |
 | Notes | `.save <name> <text>` (group admins in groups) | Anyone sending `#name` gets the note back. `.notes` lists them. Max 100 per chat |
 | Anti-spam | `.antispam on` (group admins) | See [Group protection settings](#group-protection-settings) |
 | Mention reply | `.mention on`, `.setmention` (owner) | Replies with your chosen text/sticker/media when the bot is mentioned in a group |

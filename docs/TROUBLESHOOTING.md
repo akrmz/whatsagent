@@ -120,6 +120,12 @@ Raise the limit: `.setvar AI_MAX_TOKENS 2048`.
 ### `.imagine` / `.transcribe` missing from `.help`
 They need a **Gemini** or **OpenAI** key (Claude can't draw pictures or listen to audio). Add one next to Claude: `.setvar GEMINI_API_KEY <key>` in a private chat. With an OpenAI-compatible service other than api.openai.com they stay off. "No picture came back" usually means the request was refused for safety reasons: describe it differently. Image generation may need a paid Gemini plan; check your quota at aistudio.google.com.
 
+### `.gcschedule` didn't close or open the group
+The bot must be a group admin at that moment. Times use `TIMEZONE` (`.vars TIMEZONE`). If the bot was offline at the time, it applies the change when it comes back, up to 3 hours late, once per day. A time that had already passed when you set it starts the next day.
+
+### A command says "isn't available on this bot right now"
+It needs a tool or key that isn't set up. The owner sees exactly what in that message and in `.doctor`.
+
 ### `.crypto`: "CoinGecko's free limit was reached"
 CoinGecko's free API allows only a few requests a minute. Prices are cached for 60 seconds; try again shortly.
 
