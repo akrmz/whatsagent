@@ -29,7 +29,7 @@ The 🛠️ Tools and 📚 Info & search commands (`.calc`, `.qr`, `.remind`, `.
 
 Banned users (`.ban`) are ignored completely. Owners can never be banned.
 
-A short cooldown (default 3 seconds, `DEFAULT_COOLDOWN_SECONDS`) applies per person and command. Some heavy commands have longer cooldowns. Owner and sudo are exempt.
+A short cooldown (default 3 seconds, `DEFAULT_COOLDOWN_SECONDS`) applies per person and command, and one person can run at most 15 commands a minute in total (`COMMANDS_PER_MINUTE`), so nobody can make the bot spam. Some heavy commands have longer cooldowns. Owner and sudo are exempt.
 
 ## Replying to messages
 
@@ -50,6 +50,7 @@ In a group where the bot is an admin, group admins can enable:
 | `.antitag on` | Deletes messages that mention more than half the group | `delete`, `kick` |
 | `.disable <command> …` | Turns commands off in this group for everyone except owner and sudo (e.g. `.disable sticker song`). `.enable <command>` or `.enable all` turns them back on; `.disabled` lists them. `.help` can't be disabled | – |
 | `.gcschedule close 23:00` / `.gcschedule open 08:00` | Closes the group (only admins can write) and opens it again every day at those times (`TIMEZONE`). `.gcschedule` shows it, `.gcschedule off` removes it | – |
+| `.linkallow youtube.com` | Lets links to that domain (and its subdomains) through antilink in this group. `.linkallow` lists them, `.linkallow remove youtube.com` removes one | – |
 | `.antispam on` | Deletes messages from a member who sends more than 6 messages in 10 seconds (change with `.antispam set 8 15`) | `delete` (default), `warn`, `kick` (`.antispam action warn`) |
 
 Change the action with e.g. `.antilink set warn`, and check it with `.antilink get`. With `warn`, a member is removed after `WARN_LIMIT` warnings (default 3). Admins, sudo users and owners are never affected.
@@ -194,7 +195,9 @@ This list is generated from the command files themselves.
 | `.goodbye` | – | Goodbye messages when members leave. Variables: {user}, {group}. | group admins (groups) | `.goodbye on` |
 | `.hidetag` | – | Like .tag but only mentions members who are not admins. | group admins (groups) | `.hidetag Meeting at 8 pm` |
 | `.kick` | – | Removes members from the group. The bot and its owners cannot be kicked. The bot must be a group admin. | group admins (groups) | `.kick @201012345678` |
+| `.levelup` | `.levelmsg` | Turns level-up announcements in this group on or off (XP is always counted). ".levelup reset" clears all levels here. | group admins (groups) | `.levelup` |
 | `.link` | `.invite` `.grouplink` `.gclink` | Shows the group's invite link. The bot must be a group admin. | group admins (groups) | `.link` |
+| `.linkallow` | `.allowlink` `.antilinkallow` | Domains antilink lets through in this group (subdomains included). Without arguments, lists them. | group admins (groups) | `.linkallow youtube.com` |
 | `.lock` | – | Only admins can change the group name, photo and description. The bot must be a group admin. | group admins (groups) | `.lock` |
 | `.mute` | – | Only admins can send messages. Optionally unmute automatically after N minutes. The bot must be a group admin. | group admins (groups) | `.mute` |
 | `.promote` | – | Makes members group admins. The bot must be a group admin. | group admins (groups) | `.promote @201012345678` |
@@ -430,7 +433,9 @@ This list is generated from the command files themselves.
 | `.answer` | – | Answers the current trivia question. | everyone | `.answer Paris` |
 | `.guess` | – | Guesses a letter in the current hangman game. | everyone | `.guess e` |
 | `.hangman` | – | Starts a game of hangman in this chat. Guess with .guess <letter>. | everyone | `.hangman` |
+| `.leaderboard` | `.lb` `.top` `.levels` | The 10 most active members of this group by XP. | everyone (groups) | `.leaderboard` |
 | `.mathquiz` | `.quiz` `.mquiz` | A quick maths question: the first person to send the right number within 30 seconds wins points (easy 1, medium 2, hard 3). ".mathquiz top" shows the leaderboard. | everyone | `.mathquiz` |
+| `.rank` | `.level` `.xp` | Shows your level card in this group (or someone else's): level, rank and XP. Members earn XP by chatting (once a minute). | everyone (groups) | `.rank` |
 | `.rps` | `.rockpaperscissors` | Rock, paper, scissors against the bot. | everyone | `.rps rock` |
 | `.surrender` | – | Gives up your current tic-tac-toe game. | everyone | `.surrender` |
 | `.tictactoe` | `.ttt` | Starts or joins a tic-tac-toe game. Play by sending a number 1-9; send 'surrender' to give up. | everyone | `.tictactoe` |
@@ -446,6 +451,7 @@ During a tic-tac-toe game, players send a bare number `1`–`9` to place their m
 |---|---|---|
 | Group chatbot | `.chatbot on` (group admins; needs an AI key, see `.setai`) | Replies when someone mentions the bot or replies to one of its messages. Only that message is sent to the AI. |
 | Auto-replies | `.filter <trigger> \| <reply>` (group admins) | When a message contains the trigger word or phrase (whole words, any language), the bot answers. At most one auto-reply per group every 5 s, the same one at most every 30 s. `.filters` lists them, `.stopfilter <trigger>` removes one. Max 50 per group |
+| Levels | always on in groups; `.levelup on` (group admins) announces level-ups | Members earn 15–25 XP for a chat message, at most once a minute; commands don't count. `.rank` shows a level card, `.leaderboard` the top 10, `.levelup reset` clears the group |
 | Math quiz | `.mathquiz [easy\|medium\|hard]` (anyone) | The first message with the right number within 30 s wins points; `.mathquiz top` shows the leaderboard |
 | Notes | `.save <name> <text>` (group admins in groups) | Anyone sending `#name` gets the note back. `.notes` lists them. Max 100 per chat |
 | Anti-spam | `.antispam on` (group admins) | See [Group protection settings](#group-protection-settings) |
@@ -489,6 +495,8 @@ cp MD-main/.env.example MD-main/.env
 | `MAX_VIDEO_SECONDS` | `600` | Longest audio/video the downloaders fetch |
 | `DEFAULT_COOLDOWN_SECONDS` | `3` | Default per-user command cooldown |
 | `WARN_LIMIT` | `3` | Warnings before removal |
+| `MAX_PARALLEL_JOBS` | `2` | Downloads/conversions running at once (others wait) |
+| `COMMANDS_PER_MINUTE` | `15` | Commands per person per minute (owner/sudo exempt; 0 = no limit) |
 | `STORE_MAX_CHATS` / `STORE_MESSAGES_PER_CHAT` | `500` / `20` | Recent messages kept in memory (for `.delete`) |
 | `ANTIDELETE_MAX_MESSAGES` / `ANTIDELETE_MAX_MEDIA_MB` | `5000` / `10` | Antidelete limits |
 | `FFMPEG_PATH` / `YTDLP_PATH` | `ffmpeg` / `yt-dlp` | Tool locations: a program name found in `PATH`, or a full path. `~` means your home folder (`~/.local/bin/yt-dlp`). Use the standalone yt-dlp nightly binary so `.update now` can update it |

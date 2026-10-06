@@ -123,6 +123,12 @@ They need a **Gemini** or **OpenAI** key (Claude can't draw pictures or listen t
 ### `.gcschedule` didn't close or open the group
 The bot must be a group admin at that moment. Times use `TIMEZONE` (`.vars TIMEZONE`). If the bot was offline at the time, it applies the change when it comes back, up to 3 hours late, once per day. A time that had already passed when you set it starts the next day.
 
+### "You are sending commands too fast"
+One person can run `COMMANDS_PER_MINUTE` commands a minute (default 15). Wait a minute, or raise it: `.setvar COMMANDS_PER_MINUTE 30`. Owner and sudo are never limited.
+
+### "The server is busy with other downloads and conversions"
+At most `MAX_PARALLEL_JOBS` yt-dlp/ffmpeg jobs run at once (default 2) and 25 more can wait; `.doctor` shows how many are running. On a strong server raise it: `.setvar MAX_PARALLEL_JOBS 4`.
+
 ### A command says "isn't available on this bot right now"
 It needs a tool or key that isn't set up. The owner sees exactly what in that message and in `.doctor`.
 

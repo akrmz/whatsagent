@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.6.0 — 2026-10-06
+
+### Added
+- **Levels**: members earn XP by chatting (15–25 per message, once a minute; commands don't count).
+  - `.rank` sends a level card; `.leaderboard` shows the top 10.
+  - `.levelup on|off|reset` (group admins) controls level-up announcements, which are off by default.
+- **Antilink allow-list**: `.linkallow youtube.com` lets that domain and its subdomains through. Look-alikes such as `youtube.com.evil.example` are still removed.
+- **Command rate limit per person**: `COMMANDS_PER_MINUTE`, default 15; owner and sudo exempt. This protects the bot's number from being flagged for spam.
+- **Job queue for heavy work**: at most `MAX_PARALLEL_JOBS` (default 2) yt-dlp/ffmpeg processes run at once and up to 25 wait, so a busy group can't overload the server. `.doctor` shows the queue.
+- **"Update finished" message**: after `.update now` or `.restart`, the bot reports the version it now runs once it's connected again.
+- 9 tests (116 in total).
+
+### Changed
+- **Welcome/goodbye pictures are drawn on the server** with sharp instead of a third-party image API. New members' photos and numbers are no longer sent to some-random-api.com, and the card works even when that service is down. Arabic group names render correctly.
+
 ## 2.5.0 — 2026-10-06
 
 ### Added
