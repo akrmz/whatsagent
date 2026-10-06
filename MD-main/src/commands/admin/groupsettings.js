@@ -1,5 +1,7 @@
 "use strict";
 
+const { stopAll } = require("../../services/automations");
+
 const base = { category: "admin", permission: "groupAdmin", botAdmin: true, cooldown: 10 };
 
 module.exports = [
@@ -44,6 +46,7 @@ module.exports = [
       await ctx.reply("👋 Goodbye!");
       await new Promise((r) => setTimeout(r, 1000));
       await ctx.sock.groupLeave(ctx.chatId);
+      stopAll(ctx.state, ctx.chatId, { all: true });
       ctx.app.groups.invalidate(ctx.chatId);
     },
   },

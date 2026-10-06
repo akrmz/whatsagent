@@ -73,4 +73,9 @@ function cancel(group, user) {
   pending.delete(key(group, user));
 }
 
-module.exports = { get, set, challenge, answer, expel, cancel, isPending, MAX_ATTEMPTS };
+/** Drops every pending question in a group (the bot left it). */
+function cancelGroup(group) {
+  for (const k of [...pending.keys()]) if (k.startsWith(`${group}|`)) cancel(group, k.slice(group.length + 1));
+}
+
+module.exports = { get, set, challenge, answer, expel, cancel, cancelGroup, isPending, MAX_ATTEMPTS };

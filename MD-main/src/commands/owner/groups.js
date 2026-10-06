@@ -2,6 +2,7 @@
 
 const { resolveTargets, at } = require("../../services/targets");
 const { LRU } = require("../../core/lru");
+const { stopAll } = require("../../services/automations");
 
 // The last .groups list, so ".leavegroup 3" can refer to it.
 const lastList = new LRU({ max: 10, ttlMs: 30 * 60 * 1000 });
@@ -46,9 +47,10 @@ module.exports = [
       const meta = await ctx.app.groups.get(ctx.sock, id).catch(() => null);
       await ctx.sock.sendMessage(id, { text: "👋 Goodbye!" }).catch(() => {});
       await ctx.sock.groupLeave(id);
+      const stopped = stopAll(ctx.state, id, { all: true });
       ctx.app.groups.invalidate(id);
       lastList.delete(ctx.chatId);
-      return ctx.reply(`✅ Left *${meta?.subject || id}*.`);
+      return ctx.reply(`✅ Left *${meta?.subject || id}*.${stopped.length ? `\nStopped there:${stopped.join(", ")}` : ""}`);
     },
   },
   {

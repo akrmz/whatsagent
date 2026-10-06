@@ -19,6 +19,11 @@ const MAX_HOURS = 24;
 const MAX_CHATS = 300;
 const DEFAULT_QUIET = "23:00-07:00";
 const RETRY_MS = 10 * 60 * 1000;
+const MAX_RETRY_MS = 6 * 3600 * 1000;
+const MAX_SEND_FAILURES = 12; // about 2 days of failed sends: the bot is no longer in that chat
+
+/** 10 min, 20, 40, 80, 160, 320, then every 6 hours. */
+const retryDelay = (failures) => Math.min(RETRY_MS * 2 ** Math.max(0, failures - 1), MAX_RETRY_MS);
 
 const store = (state) => state.store("autopost", {});
 const get = (state, chat) => store(state).data[chat] || null;
@@ -90,7 +95,9 @@ function stop(state, chat, kind) {
 
 /**
  * Sends what is due. builders: { tafsir: async () => text, dua: async () => text }.
- * Failures (e.g. the Quran API is down) are retried 10 minutes later.
+ * Failures are retried after 10 minutes, then less and less often (up to every 6 hours).
+ * If the content can't be fetched (an API is down) the post keeps retrying; if sending to the
+ * chat fails 12 times in a row (the bot was removed), that post is stopped.
  */
 async function runDue(app, builders, now = Date.now()) {
   if (!app.sock || app.health.state !== "open") return 0;
@@ -106,13 +113,32 @@ async function runDue(app, builders, now = Date.now()) {
         s.update(() => (job.next = now + wait * 60 * 1000));
         continue;
       }
+      let text;
       try {
-        await app.sock.sendMessage(chat, { text: await builders[kind]() });
-        s.update(() => (job.next = now + job.every * 3600 * 1000));
+        text = await builders[kind]();
+      } catch (err) {
+        const failures = (job.failures || 0) + 1;
+        s.update(() => Object.assign(job, { failures, next: now + retryDelay(failures) }));
+        app.log.warn({ err: err.message, kind, failures }, "auto post: could not get the content; retrying later");
+        continue;
+      }
+      try {
+        await app.sock.sendMessage(chat, { text });
+        s.update(() => {
+          job.next = now + job.every * 3600 * 1000;
+          delete job.failures;
+          delete job.sendFailures;
+        });
         sent++;
       } catch (err) {
-        s.update(() => (job.next = now + RETRY_MS));
-        app.log.warn({ err: err.message, kind }, "auto post failed; retrying in 10 minutes");
+        const sendFailures = (job.sendFailures || 0) + 1;
+        if (sendFailures >= MAX_SEND_FAILURES) {
+          stop(app.state, chat, kind);
+          app.log.warn({ err: err.message, kind, sendFailures }, "auto post stopped: sending to this chat keeps failing");
+          continue;
+        }
+        s.update(() => Object.assign(job, { sendFailures, next: now + retryDelay(sendFailures) }));
+        app.log.warn({ err: err.message, kind, sendFailures }, "auto post: sending failed; retrying later");
       }
     }
   }
@@ -136,4 +162,4 @@ function startAutopostLoop(app, builders) {
   return () => clearInterval(timer);
 }
 
-module.exports = { everyHoursAr, describeNext, effectiveNext, get, setEvery, setQuiet, stop, runDue, startAutopostLoop, parseQuiet, quietLeft, MIN_HOURS, MAX_HOURS, DEFAULT_QUIET };
+module.exports = { everyHoursAr, describeNext, effectiveNext, get, setEvery, setQuiet, stop, runDue, startAutopostLoop, retryDelay, MAX_SEND_FAILURES, parseQuiet, quietLeft, MIN_HOURS, MAX_HOURS, DEFAULT_QUIET };

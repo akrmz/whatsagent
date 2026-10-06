@@ -8,6 +8,7 @@ const schedule = require("../../services/gcschedule");
 const reminders = require("../../services/reminders");
 const captcha = require("../../services/captcha");
 const { canManage, DENIED, zoneLine } = require("../../services/islamic-access");
+const { stopAll } = require("../../services/automations");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -44,10 +45,7 @@ module.exports = {
   async run(ctx) {
     if ((ctx.args[0] || "").toLowerCase() === "off") {
       if (!(await canManage(ctx))) return ctx.reply(DENIED);
-      azkar.removeAuto(ctx.state, ctx.chatId);
-      adhan.remove(ctx.state, ctx.chatId);
-      for (const kind of ["tafsir", "dua", "hadith"]) autopost.stop(ctx.state, ctx.chatId, kind);
-      wird.remove(ctx.state, ctx.chatId);
+      stopAll(ctx.state, ctx.chatId);
       const rest = overview(ctx);
       return ctx.reply(`⏹️ أُوقفت الأذكار والتنبيهات والآيات والأحاديث والورد التلقائي هنا.${rest.length ? `\n\nما زال يعمل (يديره المشرفون):\n${rest.join("\n")}` : ""}`);
     }
