@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.26.0 — 2026-10-07
+
+### Added — getting listings to clients
+- **`#12` in any chat** shows that listing with its photo (Arabic digits work). A note saved as "12" still takes precedence.
+- **`.agent autoleads on`**: a private question about a listing (`#12`) creates a client, or adds a note to the existing one, and the owner gets a 🔔 message. Groups and staff are never captured.
+- **`.autolistings`**: a listing of the day per chat at a set time. It's a flyer with details, rotating through available listings (optionally filtered by a search) and skipping reserved or sold ones. It's posted up to 3 hours late after downtime, retried after failures, listed in `.autos`, and stopped when the bot leaves the group.
+- **`.brochure`**: a PDF catalogue with one flyer per page (up to 20, filterable).
+- **`.export listings | leads`**: CSV for Excel/Sheets, with a UTF-8 byte-order mark (so Arabic shows correctly) and proper quoting of commas, quotes and line breaks.
+- **`.market`**: average and median price per m² from your own sale listings, by area words and by type.
+
+### Changed
+- Showing a listing is shared between `.listing` and the new `#12` lookup (`services/listingview.js`).
+
+### Checked
+- 4 tests (216 in total).
+
 ## 2.25.0 — 2026-10-07
 
 ### Added — clients for real-estate agents

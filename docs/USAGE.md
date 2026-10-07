@@ -208,6 +208,17 @@ Or forward a broker's post to the bot and reply to it with `.listing add`. Lines
 | `.ppm 3.5m 150` | Price per square metre. |
 | `.roi 3.5m 25k` | Rental yield: yearly rent as % of the price, and years to recover it from rent. |
 
+### Getting listings to clients
+
+| Command | What it does |
+|---|---|
+| `#12` | Anyone who sends a listing's number (as on its flyer, "للاستفسار أرسل: #12") gets the listing with its photo, in a group or a private chat. A note saved as `#12` with `.save` takes precedence. |
+| `.agent autoleads on` | When someone asks about a listing (`#12`) **in a private chat**, they are saved as a client (their WhatsApp name and number, the listing's type and sale/rent, source "واتساب") or, if already saved, the question is added to their history. You get a message: "🔔 عميل جديد: … سأل عن #12". Questions in groups, and from you or sudo users, are not captured. |
+| `.autolistings on 10:00` | **Listing of the day** in this chat: every day at that time, the next available listing as a flyer with its details, going round your catalogue. `.autolistings on 19:00 شقة التجمع` posts only matching ones; `.autolistings now` posts one right away; `.autolistings off` stops it. Shown in `.autos`. |
+| `.brochure` / `.brochure شقة التجمع 2m-4m` | A PDF catalogue with one flyer page per available listing (up to 20), to send to a client. |
+| `.export listings` / `.export leads` | Your listings or clients as a CSV file that opens in Excel or Google Sheets, Arabic included. Owner and sudo users. |
+| `.market` / `.market التجمع` | Price per m² from your own listings for sale: average, median, range and by type. Only as good as your catalogue, so not an official market price. |
+
 ### Clients (العملاء)
 
 A small client tracker for the owner and sudo users. Clients' details are never shown to anyone else.
@@ -348,7 +359,10 @@ This list is generated from the command files themselves.
 | Command | Aliases | What it does | Who | Example |
 |---|---|---|---|---|
 | `.adcopy` | `.ad` `.elan` `.marketingpost` | يكتب إعلاناً تسويقياً للعقار بالذكاء الاصطناعي — writes a marketing post for a listing (or for the property text you reply to): a catchy WhatsApp post with emojis, features and your contact. Options: en (English), short (for status), formal. _Needs: ai._ | owner, sudo | `.adcopy 12` |
-| `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
+| `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. "autoleads on" saves people who ask about a listing (#12) in a private chat as clients and tells you. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
+| `.autolistings` | `.listingofday` `.dailylisting` | عقار اليوم — posts one available listing a day in this chat at the time you choose, as a flyer with its details, going round your catalogue. Add a search to post only some (e.g. شقة التجمع). Owner and sudo users. | owner, sudo | `.autolistings on 10:00` |
+| `.brochure` | `.catalog` `.catalogue` `.katalog` | كتالوج PDF — a PDF with one flyer page per available listing (up to 20), optionally only those matching a search, ready to send to a client. | everyone | `.brochure` |
+| `.export` | `.csv` `.excel` | تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users. | owner, sudo | `.export listings` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
 | `.installments` | `.aqsat` `.plan` `.paymentplan` | حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. | everyone | `.installments 3.5m 10% 8 quarterly maint 8%` |
 | `.lead` | `.client` `.customer` `.ameel` | متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users. | owner, sudo | `.lead add
@@ -366,6 +380,7 @@ This list is generated from the command files themselves.
 المساحة: 150
 الغرف: 3` |
 | `.listings` | `.properties` `.aqarat` | البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. | everyone | `.listings` |
+| `.market` | `.prices` `.areastats` | متوسط الأسعار — price statistics from your own listings (sale): average and median price per m², range, and by property type; optionally for an area (words from the location). Only as good as your catalogue. | everyone | `.market` |
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
 | `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
@@ -787,6 +802,6 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
-- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them.
+- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them. With `.agent autoleads on`, people who send `#<number>` to the bot in a private chat are saved there with their WhatsApp name and number.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.
