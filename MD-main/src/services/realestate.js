@@ -361,6 +361,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, extractFree, cleanFields, typeIn, dealIn,
-  add, update, get, all, remove, addPhoto, photos, card, search, line, findDuplicate,
+  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, line, findDuplicate,
   STATUS_AR, MAX_PHOTOS,
 };
