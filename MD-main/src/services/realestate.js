@@ -89,9 +89,19 @@ const TYPES = [
   ["عمارة", ["عمارة", "عماره", "building"]],
 ];
 const DEALS = [
-  ["بيع", /للبيع|بيع|for sale|\bsale\b|\bsell\b/i],
-  ["إيجار", /للإيجار|للايجار|إيجار|ايجار|for rent|\brent\b|\blease\b/i],
+  ["بيع", ["بيع", "sale", "for sale", "sell", "selling"]],
+  ["إيجار", ["إيجار", "ايجار", "rent", "for rent", "rental", "lease"]],
 ];
+
+/**
+ * A whole word, with the prefixes Arabic attaches to it: و/ف/ب/ك (and, so, with, like) and
+ * ال/لل/ل (the, for the). So "للبيع", "الشقة", "وفيلا" match, but "الربيع" (a district) is
+ * not "بيع", "المحلة" is not "محل" and "الأرضي" (ground floor) is not "أرض".
+ */
+const wordRe = (word, flags = "iu") => new RegExp(`(?<![\\p{L}\\p{N}])(?:[وفبك])?(?:ال|لل|ل)?${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?![\\p{L}\\p{N}])`, flags);
+const TYPE_RES = TYPES.map(([type, words]) => [type, words.map((w) => wordRe(w))]);
+const DEAL_RES = DEALS.map(([deal, words]) => [deal, words.map((w) => wordRe(w))]);
+const ALL_RE = /(?<![\p{L}\p{N}])(?:all|الكل|كل)(?![\p{L}\p{N}])/giu;
 const LABELS = {
   type: ["النوع", "نوع", "نوع العقار", "العقار", "type", "property"],
   deal: ["الغرض", "الغرض من", "نوع العرض", "deal", "for", "purpose"],
@@ -106,11 +116,8 @@ const LABELS = {
 };
 const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.map((w) => [w.toLowerCase(), k])));
 
-const typeIn = (text) => {
-  const t = String(text).toLowerCase();
-  return TYPES.find(([, words]) => words.some((w) => t.includes(w)))?.[0] || null;
-};
-const dealIn = (text) => DEALS.find(([, re]) => re.test(text))?.[0] || null;
+const typeIn = (text) => TYPE_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
+const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
 
 /**
  * Reads a description written as "label: value" lines (Arabic or English labels), the way
@@ -231,8 +238,8 @@ function card(l, a) {
  */
 function search(state, query) {
   let q = latinDigits(String(query || "")).toLowerCase();
-  const f = { type: typeIn(q), deal: dealIn(q), all: /\b(all|كل)\b|الكل/.test(q) };
-  q = q.replace(/\b(all)\b|الكل|كل/g, " ");
+  const f = { type: typeIn(q), deal: dealIn(q), all: new RegExp(ALL_RE.source, "iu").test(q) };
+  q = q.replace(ALL_RE, " ");
   const amount = String.raw`(\d+(?:\.\d+)?)\s*(m|مليون|k|ألف|الف)?`;
   const toN = (n, u) => Number(n) * (/^(m|مليون)$/.test(u || "") ? 1e6 : u ? 1e3 : 1);
   let r;
@@ -249,8 +256,8 @@ function search(state, query) {
     f.rooms = Number(r[1]);
     q = q.replace(r[0], " ");
   }
-  for (const [, words] of TYPES) for (const w of words) q = q.replace(w, " ");
-  for (const [, re] of DEALS) q = q.replace(new RegExp(re.source, "gi"), " ");
+  // Take out the type and deal words that were used as filters (whole words only, as above).
+  for (const [, words] of [...TYPES, ...DEALS]) for (const w of words) q = q.replace(wordRe(w, "giu"), " ");
   const words = q.replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
   const list = all(state).filter((l) => {
     if (!f.all && l.status !== "available") return false;

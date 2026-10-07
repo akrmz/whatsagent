@@ -32,6 +32,19 @@ const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.q
 
 const { show } = require("../../services/listingview");
 
+/** After a price cut: the clients whose budget the listing fits now but didn't before. */
+function priceDropLine(ctx, before, after) {
+  if (!before.price || !after.price || after.price >= before.price) return "";
+  const pct = Math.round((1 - after.price / before.price) * 100);
+  const fitsNow = leads.matchingLeads(ctx.state, after).filter(({ lead, fit }) => {
+    if (fit.over) return false; // still over their budget
+    const was = leads.fits(lead, before);
+    return !was || was.over; // didn't match at all, or was over budget, before the cut
+  });
+  const names = fitsNow.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ");
+  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك: ${names}${fitsNow.length > 5 ? " …" : ""}\n${ctx.prefix}lead send <client> ${after.id}` : ""}`;
+}
+
 const HELP = (p) =>
   [
     "🏠 *Listings · العقارات*",
@@ -85,8 +98,9 @@ module.exports = [
         const text = textOrQuoted(ctx, ctx.text.replace(/^\S+\s+\S+\s*/, ""));
         const changes = re.parseListingText(text);
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
+        const before = { ...re.get(ctx.state, id) };
         const l = re.update(ctx.state, id, changes);
-        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}`);
+        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${priceDropLine(ctx, before, l)}`);
       }
       if (sub === "match" || sub === "clients") {
         const m = leads.matchingLeads(ctx.state, re.get(ctx.state, id));
