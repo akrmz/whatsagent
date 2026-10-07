@@ -1,0 +1,124 @@
+"use strict";
+
+const fs = require("node:fs");
+const re = require("../../services/realestate");
+const img = require("../../services/reimages");
+const { getText } = require("../../core/context");
+const { UserError } = require("../../core/errors");
+
+const STATUS_WORDS = {
+  available: ["available", "متاح", "متاحة"],
+  reserved: ["reserved", "reserve", "محجوز", "حجز"],
+  sold: ["sold", "مباع", "تم-البيع", "بيع"],
+  rented: ["rented", "مؤجر", "تم-التأجير"],
+};
+const statusFrom = (w) => Object.keys(STATUS_WORDS).find((k) => STATUS_WORDS[k].includes(w)) || null;
+
+const idOf = (s) => {
+  const n = Number(re.latinDigits(String(s || "")).replace(/^#/, ""));
+  return Number.isInteger(n) && n > 0 ? n : null;
+};
+
+/** Text of the command, or of the message it replies to (a broker's post forwarded to the bot). */
+const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
+
+async function show(ctx, l, { allPhotos = false } = {}) {
+  const a = re.agent(ctx.state);
+  const pics = re.photos(ctx.config, l);
+  if (!pics.length) return ctx.reply(re.card(l, a));
+  const shown = allPhotos ? pics : pics.slice(0, 1);
+  for (const [i, p] of shown.entries()) {
+    await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? re.card(l, a) : undefined });
+  }
+  if (!allPhotos && pics.length > 1) await ctx.send(`📷 ${pics.length} صور — ${ctx.prefix}listing ${l.id} photos`);
+  return undefined;
+}
+
+const HELP = (p) =>
+  [
+    "🏠 *Listings · العقارات*",
+    `${p}listing add (then the details, or reply to a post) — add`,
+    `${p}listing photo 12 (on a picture) — add a photo`,
+    `${p}listing 12 — show · ${p}listing 12 photos — all photos`,
+    `${p}listing edit 12 السعر: 3.4 مليون — change fields`,
+    `${p}listing status 12 reserved|sold|rented|available`,
+    `${p}listing del 12 — delete`,
+    `${p}listings [filters] — search · ${p}flyer 12 — image for posting`,
+  ].join("\n");
+
+module.exports = [
+  {
+    name: "listing",
+    aliases: ["property", "aqar"],
+    category: "realestate",
+    description:
+      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage.",
+    usage: "add <details> | photo <id> | <id> [photos] | edit <id> <details> | status <id> <status> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", ".listing status 12 sold"],
+    cooldown: 2,
+    async run(ctx) {
+      const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
+      const direct = idOf(sub);
+      if (direct) {
+        const l = re.get(ctx.state, direct);
+        if (!l) return ctx.reply(`There is no listing #${direct}.`);
+        return show(ctx, l, { allPhotos: /^(photos|all|صور)$/.test(arg) });
+      }
+      if (!sub) return ctx.reply(HELP(ctx.prefix));
+      if (!ctx.isSudoOrOwner) return ctx.reply("Only the owner and sudo users manage listings. Anyone can view them: .listing <number> · .listings");
+
+      if (sub === "add" || sub === "new") {
+        const text = textOrQuoted(ctx, ctx.text.slice(ctx.args[0].length));
+        const l = re.add(ctx.state, re.parseListingText(text), ctx.sender);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}`);
+      }
+      const id = idOf(arg);
+      if (!id) return ctx.reply(HELP(ctx.prefix));
+      if (!re.get(ctx.state, id)) return ctx.reply(`There is no listing #${id}.`);
+
+      if (sub === "photo" || sub === "photos" || sub === "صورة") {
+        const media = ctx.findMedia({ types: ["image", "document"] });
+        if (!media || (media.type === "document" && !/^image\//.test(media.mimetype || ""))) return ctx.reply(`Send a picture with ${ctx.prefix}listing photo ${id} as its caption, or reply to one.`);
+        const n = re.addPhoto(ctx.state, ctx.config, id, await img.toListingJpeg(await ctx.download(media, 15 * 1024 * 1024)));
+        return ctx.reply(`📷 Photo ${n}/${re.MAX_PHOTOS} added to #${id}.`);
+      }
+      if (sub === "edit") {
+        // Everything after "edit 12", line breaks kept (several fields can be changed at once).
+        const text = textOrQuoted(ctx, ctx.text.replace(/^\S+\s+\S+\s*/, ""));
+        const changes = re.parseListingText(text);
+        if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
+        const l = re.update(ctx.state, id, changes);
+        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}`);
+      }
+      if (sub === "status") {
+        const status = statusFrom(String(ctx.args[2] || "").toLowerCase());
+        if (!status) throw new UserError("Status: available, reserved, sold or rented (متاح، محجوز، مباع، مؤجر).");
+        re.update(ctx.state, id, { status });
+        return ctx.reply(`🔖 #${id}: ${re.STATUS_AR[status]}`);
+      }
+      if (sub === "del" || sub === "delete" || sub === "remove") {
+        const l = re.remove(ctx.state, ctx.config, id);
+        return ctx.reply(`🗑️ Deleted #${l.id} (${l.type || "listing"}${l.location ? `, ${l.location}` : ""}) and its photos.`);
+      }
+      return ctx.reply(HELP(ctx.prefix));
+    },
+  },
+  {
+    name: "listings",
+    aliases: ["properties", "aqarat"],
+    category: "realestate",
+    description:
+      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold.',
+    usage: "[filters]",
+    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all"],
+    cooldown: 3,
+    async run(ctx) {
+      const { list, filters } = re.search(ctx.state, ctx.text);
+      const cur = re.agent(ctx.state).currency;
+      if (!list.length) return ctx.reply(re.all(ctx.state).length ? "No listing matches. Try fewer filters, or .listings all" : `The catalogue is empty. Add one: ${ctx.prefix}listing add`);
+      const shown = list.slice(0, 20);
+      const head = `🏠 *${list.length} ${filters.all ? "listing(s)" : "available"}*${list.length > shown.length ? ` (first ${shown.length})` : ""}`;
+      return ctx.reply(`${head}\n\n${shown.map((l) => re.line(l, cur)).join("\n")}\n\n${ctx.prefix}listing <number> for details and photos`);
+    },
+  },
+];

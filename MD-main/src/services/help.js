@@ -2,10 +2,11 @@
 
 /** Builds the .help menu from command metadata, so it can never drift from the real commands. */
 
-const CATEGORY_ORDER = ["general", "tools", "info", "islamic", "admin", "owner", "sticker", "image", "audio", "textmaker", "download", "ai", "fun", "misc", "anime", "games"];
+const CATEGORY_ORDER = ["general", "tools", "realestate", "info", "islamic", "admin", "owner", "sticker", "image", "audio", "textmaker", "download", "ai", "fun", "misc", "anime", "games"];
 const CATEGORY_TITLES = {
   general: "🌐 General",
   tools: "🛠️ Tools",
+  realestate: "🏠 Real estate · عقارات",
   info: "📚 Info & search",
   islamic: "🕌 Islamic · إسلاميات",
   admin: "👮 Group admin",
@@ -43,6 +44,7 @@ const visibleFor = (commands, level) => commands.filter((c) => !VISIBLE_TO[c.per
 const FEATURED = {
   general: ["help", "ping", "translate", "tts", "owner"],
   tools: ["calc", "remind", "poll", "qr", "currency", "save", "autos"],
+  realestate: ["listing", "listings", "flyer", "installments", "adcopy", "agent"],
   info: ["weather", "wiki", "news", "time", "define", "crypto"],
   islamic: ["azkar", "dua", "quran", "tafsir", "prayer", "autoazkar", "autowird", "hadith"],
   admin: ["kick", "promote", "antilink", "welcome", "captcha", "tagall", "mute"],
