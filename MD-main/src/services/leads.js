@@ -204,6 +204,27 @@ function note(state, id, by, text, now = Date.now()) {
   });
 }
 
+/**
+ * A listing (or an offer for it) was sent to the client: noted in their history, remembered so
+ * campaigns don't send it again, counted on the listing, and a new client becomes "contacted".
+ */
+function markSent(state, id, listingId, by, text, now = Date.now()) {
+  note(state, id, by, text, now);
+  re.count(state, listingId, "sent");
+  return store(state).update((d) => {
+    const l = d.items[id];
+    l.sentListings = [...new Set([...(l.sentListings || []), listingId])].slice(-200);
+    if (l.status === "new") l.status = "contacted";
+    return l;
+  });
+}
+
+/** The client asked to stop (or restart) offers: "وقف" / "اشتراك". */
+function setOptOut(state, id, optedOut, now = Date.now()) {
+  update(state, id, { optedOut: optedOut || null, optedOutAt: optedOut ? now : null }, now);
+  return note(state, id, "client", optedOut ? "طلب إيقاف رسائل العروض (وقف)" : "طلب استقبال العروض مرة أخرى", now);
+}
+
 const remove = (state, id) =>
   store(state).update((d) => {
     const l = d.items[id];
@@ -265,6 +286,7 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     lead.source && `📣 المصدر: ${lead.source}`,
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
     lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
+    lead.optedOut && "🚫 أوقف رسائل العروض (أرسل وقف)",
     lead.followUp && `⏰ متابعة: ${when(lead.followUp.at, timeZone)}${lead.followUp.note ? ` — ${lead.followUp.note}` : ""}`,
   ];
   if (lead.history?.length) lines.push("", "*السجل:*", ...lead.history.slice(-5).map((h) => `▫️ ${when(h.at, timeZone)}: ${h.text}`));
@@ -341,7 +363,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, remove, get, all, search,
+  add, update, note, markSent, setOptOut, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };

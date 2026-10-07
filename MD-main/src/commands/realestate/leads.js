@@ -96,6 +96,7 @@ module.exports = [
         const listing = re.get(ctx.state, idOf(ctx.args[2]));
         if (!listing) throw new UserError(`Which listing? ${ctx.prefix}lead send ${id} <listing number>`);
         if (!lead.phone) throw new UserError(`Client #${id} has no phone number. Add one: ${ctx.prefix}lead edit ${id} الموبايل: 01001234567`);
+        if (lead.optedOut) throw new UserError(`Client #${id} asked not to receive offers (وقف). If they ask for them again, they can send اشتراك.`);
         const jid = `${lead.phone}@s.whatsapp.net`;
         const [found] = (await ctx.sock.onWhatsApp?.(jid).catch(() => null)) || [];
         if (found && !found.exists) throw new UserError(`+${lead.phone} is not on WhatsApp.`);
@@ -104,9 +105,7 @@ module.exports = [
         const greeting = lead.name ? `أهلاً ${lead.name} 👋\n\n` : "";
         if (photo) await ctx.sock.sendMessage(jid, { image: fs.readFileSync(photo), caption: greeting + re.card(listing, a) });
         else await ctx.sock.sendMessage(jid, { text: greeting + re.card(listing, a) });
-        leads.note(ctx.state, id, ctx.sender, `أُرسل له العقار #${listing.id}`);
-        re.count(ctx.state, listing.id, "sent");
-        if (lead.status === "new") leads.update(ctx.state, id, { status: "contacted" });
+        leads.markSent(ctx.state, id, listing.id, ctx.sender, `أُرسل له العقار #${listing.id}`);
         return ctx.reply(`📤 Listing #${listing.id} sent to #${id} ${lead.name || ""} (+${lead.phone}).`);
       }
       if (sub === "edit") {

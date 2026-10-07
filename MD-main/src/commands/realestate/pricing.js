@@ -173,6 +173,7 @@ module.exports = [
       }
       if (send && !lead) throw new UserError(`Send it to which client? ${ctx.prefix}offer ${listing.id} #<client> … send`);
       if (send && !lead.phone) throw new UserError(`Client #${lead.id} has no phone number. Add one: ${ctx.prefix}lead edit ${lead.id} الموبايل: 01001234567`);
+      if (send && lead.optedOut) throw new UserError(`Client #${lead.id} asked not to receive offers (وقف). If they ask for them again, they can send اشتراك.`);
 
       await ctx.react("📄");
       const agent = re.agent(ctx.state);
@@ -190,9 +191,7 @@ module.exports = [
       if (found && !found.exists) throw new UserError(`+${lead.phone} is not on WhatsApp.`);
       const greeting = `${lead.name ? `أهلاً ${lead.name} 👋\n` : ""}مرفق عرض السعر للعقار #${listing.id} (${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""}).`;
       await ctx.sock.sendMessage(jid, { document, mimetype: "application/pdf", fileName, caption: greeting });
-      leads.note(ctx.state, lead.id, ctx.sender, `أُرسل له عرض سعر للعقار #${listing.id} (${what})`);
-      re.count(ctx.state, listing.id, "sent");
-      if (lead.status === "new") leads.update(ctx.state, lead.id, { status: "contacted" });
+      leads.markSent(ctx.state, lead.id, listing.id, ctx.sender, `أُرسل له عرض سعر للعقار #${listing.id} (${what})`);
       return ctx.reply(`📤 Offer for #${listing.id} (${what}) sent to #${lead.id} ${lead.name || ""} (+${lead.phone}).`);
     },
   },
