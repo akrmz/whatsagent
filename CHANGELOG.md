@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.3.0 — 2026-10-08
+
+### Added — pricing and offers
+- **`.offer 12 #5 10% 8 quarterly [send]`**: a price offer as a PDF:
+  - the client's name, the property, and the price and plan summary;
+  - every payment with its date, with amounts that add up exactly to the price;
+  - the listing's flyer as the last page;
+  - valid for 7 days.
+
+  `send` sends it to the client on WhatsApp, notes it in their history, and counts it on the listing.
+- **`.market 12`**: a listing's price per m² against similar listings (same type, deal and area): above or below their median by how much, and the price range that puts it mid-market.
+- **`.compare 3 7 [9 10]`**: 2 to 4 listings side by side, with the best values marked and the distance between two located listings.
+- `.rehelp` lists the pricing tools.
+
+### Changed
+- **`.market`** groups by area and type and shows the median with the usual range (25–75%) instead of the average, which one odd listing can skew. It now:
+  - includes reserved and sold listings and rent (monthly rent per m²);
+  - takes the `.listings` filters.
+- **`.market` is now for the owner and sudo users only.** It used to be open to everyone. `.market 12` can say a listing is overpriced, and clients shouldn't see that.
+- The `.market` aliases are kept (`.prices`, `.areastats`), and `.souq` and `.pricing` are added.
+
+### Checked
+- 5 tests (268 in total). Offer pages were checked visually: right-to-left order, the table across pages, and the phone number order.
+
 ## 3.2.0 — 2026-10-08
 
 ### Added — locations
