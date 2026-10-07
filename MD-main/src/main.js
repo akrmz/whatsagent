@@ -30,6 +30,7 @@ const hadith = require("./services/hadith");
 const { startWirdLoop } = require("./services/wird");
 const { startJumuahLoop } = require("./services/jumuah");
 const { startSiyamLoop } = require("./services/siyam");
+const { startFollowUpLoop } = require("./services/leads");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -182,6 +183,7 @@ async function start() {
   const stopWird = startWirdLoop(app);
   const stopJumuah = startJumuahLoop(app);
   const stopSiyam = startSiyamLoop(app);
+  const stopFollowUps = startFollowUpLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -200,6 +202,7 @@ async function start() {
     stopWird();
     stopJumuah();
     stopSiyam();
+    stopFollowUps();
     connection.stop();
     app.state.flush();
     health?.close();

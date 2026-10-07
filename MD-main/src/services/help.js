@@ -44,7 +44,7 @@ const visibleFor = (commands, level) => commands.filter((c) => !VISIBLE_TO[c.per
 const FEATURED = {
   general: ["help", "ping", "translate", "tts", "owner"],
   tools: ["calc", "remind", "poll", "qr", "currency", "save", "autos"],
-  realestate: ["listing", "listings", "flyer", "installments", "adcopy", "agent"],
+  realestate: ["listing", "listings", "lead", "leads", "flyer", "installments"],
   info: ["weather", "wiki", "news", "time", "define", "crypto"],
   islamic: ["azkar", "dua", "quran", "tafsir", "prayer", "autoazkar", "autowird", "hadith"],
   admin: ["kick", "promote", "antilink", "welcome", "captcha", "tagall", "mute"],

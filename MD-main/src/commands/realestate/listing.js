@@ -5,6 +5,15 @@ const re = require("../../services/realestate");
 const img = require("../../services/reimages");
 const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
+const leads = require("../../services/leads");
+
+/** "🎯 Fits 2 of your clients: #3 Ahmed, #7 Mona" (management replies only: client names are private). */
+function clientsLine(ctx, listing) {
+  const m = leads.matchingLeads(ctx.state, listing);
+  if (!m.length) return "";
+  const names = m.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ");
+  return `\n\n🎯 يناسب ${m.length} من عملائك: ${names}${m.length > 5 ? " …" : ""}\n${ctx.prefix}listing match ${listing.id}`;
+}
 
 const STATUS_WORDS = {
   available: ["available", "متاح", "متاحة"],
@@ -42,7 +51,7 @@ const HELP = (p) =>
     `${p}listing 12 — show · ${p}listing 12 photos — all photos`,
     `${p}listing edit 12 السعر: 3.4 مليون — change fields`,
     `${p}listing status 12 reserved|sold|rented|available`,
-    `${p}listing del 12 — delete`,
+    `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits`,
     `${p}listings [filters] — search · ${p}flyer 12 — image for posting`,
   ].join("\n");
 
@@ -70,7 +79,7 @@ module.exports = [
       if (sub === "add" || sub === "new") {
         const text = textOrQuoted(ctx, ctx.text.slice(ctx.args[0].length));
         const l = re.add(ctx.state, re.parseListingText(text), ctx.sender);
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}`);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}`);
       }
       const id = idOf(arg);
       if (!id) return ctx.reply(HELP(ctx.prefix));
@@ -89,6 +98,13 @@ module.exports = [
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
         const l = re.update(ctx.state, id, changes);
         return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}`);
+      }
+      if (sub === "match" || sub === "clients") {
+        const m = leads.matchingLeads(ctx.state, re.get(ctx.state, id));
+        if (!m.length) return ctx.reply(`No saved client matches #${id} yet (${ctx.prefix}leads).`);
+        const cur = re.agent(ctx.state).currency;
+        const lines = m.map(({ lead, fit }) => `${leads.line(lead, cur)}${fit.over ? " ⚠️ فوق الميزانية" : ""}`);
+        return ctx.reply(`🎯 *Clients for #${id}* (${m.length})\n\n${lines.join("\n")}\n\nSend it: ${ctx.prefix}lead send <client> ${id}`);
       }
       if (sub === "status") {
         const status = statusFrom(String(ctx.args[2] || "").toLowerCase());
