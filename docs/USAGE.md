@@ -197,6 +197,8 @@ A catalogue of your properties, images ready to post, and the calculations clien
 ```
 Or forward a broker's post to the bot and reply to it with `.listing add`. **Posts written as sentences work too**, e.g. "شقة للبيع في التجمع الخامس 150 متر 3 غرف 2 حمام الدور الرابع سوبر لوكس بسعر 3.5 مليون". The bot reads the area (after في / بكمبوند), size (متر، م، sqm), rooms (غرف، أوض، غرفتين), baths, floor, finishing and price. Amounts next to مقدم or قسط are never taken as the price. Lines without a label also stay in the notes.
 
+**Maps links in posts** are picked up: a Google Maps link anywhere in the post (`اللوكيشن: https://maps.app.goo.gl/…`) becomes the listing's location. Its numbers are never read as the price or size. `.listing edit 12 <Maps link>` adds one later.
+
 For a messy post, `.listing add ai` (or reply with it) lets the configured AI read it. Its answer is checked before saving (known types only, numbers in sensible ranges), and anything the normal reader finds fills the gaps. It counts as one AI request. The bot answers with the listing number (#12) and how it read it.
 
 **3. Photos**: send a photo with `.listing photo 12` as the caption, or reply to a photo with it (up to 10 per listing).
@@ -208,6 +210,9 @@ For a messy post, `.listing add ai` (or reply with it) lets the configured AI re
 | `.listing edit 12 السعر: 3.4 مليون` | Changes fields (several lines at once are fine). |
 | `.listing status 12 محجوز` | available / reserved / sold / rented (متاح، محجوز، مباع، مؤجر). |
 | `.listing del 12` | Deletes the listing and its photos. |
+| `.listing loc 12` | **Saves where the property is.** Reply with it to a WhatsApp location pin (📎 → Location) or to a Google Maps link, or write the link or the coordinates after it (`.listing loc 12 30.0444, 31.2357`). The card then shows "🗺️ الموقع على الخريطة" with a map link. `.listing loc 12 del` removes it. |
+| `.listing 12 map` | Sends the listing's location as a WhatsApp pin that opens in the client's maps app. Anyone can ask for it. |
+| `.listings near` | **The closest listings to a client.** When a client sends their location (or a Maps link), reply to it with `.listings near`. You get the available listings nearest first, with the distance to each ("📍 2.5 كم"). The usual search filters work (`.listings near شقة 2m-4m`), and `5 كم` limits the distance. Listings without a saved location are skipped; you are told how many. Clients can use it too. |
 | `.flyer 12` | A ready-to-post image (1080×1350, the size for WhatsApp status and Instagram): the first photo, type, location, price, specs, status and your contact. |
 | `.watermark` | Reply to a photo: puts your name and phone (from `.agent`), or the text you write, on it. |
 | `.adcopy 12` | The AI writes a marketing post for the listing: `short` for a status, `en` for English, `formal` for a formal tone. It's told to use only the listing's facts and your contact. Reply to any property description with `.adcopy` to write one for it. Needs an AI key; counts as one AI request. |
@@ -415,14 +420,14 @@ This list is generated from the command files themselves.
 النوع: شقة
 المنطقة: التجمع` |
 | `.leads` | `.clients` `.customers` `.pipeline` | قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), "mine" (assigned to you), or search by name, number, area or notes. Owner and sudo users. | owner, sudo | `.leads` |
-| `.listing` | `.property` `.aqar` | عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage. | everyone | `.listing add
+| `.listing` | `.property` `.aqar` | عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold. Anyone can view; the owner and sudo users manage. | everyone | `.listing add
 النوع: شقة
 للبيع
 المنطقة: التجمع الخامس
 السعر: 3.5 مليون
 المساحة: 150
 الغرف: 3` |
-| `.listings` | `.properties` `.aqarat` | البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. | everyone | `.listings` |
+| `.listings` | `.properties` `.aqarat` | البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم"). | everyone | `.listings` |
 | `.market` | `.prices` `.areastats` | متوسط الأسعار — price statistics from your own listings (sale): average and median price per m², range, and by property type; optionally for an area (words from the location). Only as good as your catalogue. | everyone | `.market` |
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |

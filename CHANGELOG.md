@@ -2,6 +2,27 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.2.0 — 2026-10-08
+
+### Added — locations
+- **`.listing loc 12`** saves a listing's location from a WhatsApp location pin, a Google Maps link (full or short) or written coordinates. The listing card shows a "🗺️ الموقع على الخريطة" link, and `.listing 12 map` sends the location as a WhatsApp pin.
+- **`.listings near`**: reply to a client's location to list the available listings nearest first, with distances. Search filters and a radius (`5 كم`) work.
+- **Maps links in posts**: `.listing add` and `.listing edit` read a Maps link anywhere in the text as the location. The link's numbers are no longer mistaken for the price or size.
+- `.export listings` has a `map` column, and `.import` reads it back.
+- `.rehelp` mentions the location tools.
+
+### Security
+- Short Maps links (`maps.app.goo.gl`, `goo.gl/maps`) are opened through the SSRF-safe HTTP client:
+  - redirects are read, not followed blindly;
+  - at most 4 hops, https only;
+  - Google hosts only;
+  - no page bodies are kept.
+- Short links sent by clients are opened at most 30 times an hour in all. The owner and sudo users are not limited.
+- `.adcopy` does not pass the map link to the AI.
+
+### Checked
+- 7 tests (263 in total). Redirect handling is tested offline with a fake HTTP client: Google's consent page, a redirect off Google, plain http, a redirect loop and a network error. A live request confirmed the bot's HTTP client can reach the short-link host.
+
 ## 3.1.0 — 2026-10-08
 
 ### Added — marketing insight
