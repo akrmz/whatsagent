@@ -169,6 +169,47 @@ Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other 
 - **Limits:** one download at a time per group, 15 seconds between them, at most 30 an hour per group, plus the usual `MAX_DOWNLOAD_MB` / `MAX_VIDEO_SECONDS`.
 - `.autodl off` turns it off, and `.autos` shows whether it is on. Downloaded videos are converted to H.264 when WhatsApp couldn't play them (needs ffmpeg).
 
+## Real-estate marketing (التسويق العقاري)
+
+A catalogue of your properties, images ready to post, and the calculations clients ask about. The owner and sudo users (you and your team) manage listings. Anyone can view, search, make a flyer or use the calculators, so clients in your groups can use them too.
+
+**1. Your details** (once): `.agent name أحمد العقاري`, `.agent phone +20 100 123 4567`, `.agent company …`, `.agent currency جنيه` (or EGP, AED, SAR …). They appear on listings, flyers, watermarks and ads.
+
+**2. Add a property** by writing it the way you usually post, one detail per line (Arabic or English labels, Arabic digits, "3.5 مليون", "750 ألف" or "85k" all work):
+```
+.listing add
+النوع: شقة
+للبيع
+المنطقة: التجمع الخامس - كمبوند ميفيدا
+السعر: 3.5 مليون
+المساحة: 150
+الغرف: 3
+الحمامات: 2
+الدور: الرابع
+التشطيب: سوبر لوكس
+قريبة من الجامعة الأمريكية
+```
+Or forward a broker's post to the bot and reply to it with `.listing add`. Lines without a label become the notes. The bot answers with the listing number (#12) and how it read it.
+
+**3. Photos**: send a photo with `.listing photo 12` as the caption, or reply to a photo with it (up to 10 per listing).
+
+| Command | What it does |
+|---|---|
+| `.listing 12` | The listing with its first photo, price (and per m²), specs, status and your contact. `.listing 12 photos` sends all photos. |
+| `.listings شقة التجمع 2m-4m` | Searches the available listings. Filters in any order: type (شقة، فيلا، دوبلكس، شاليه، محل، مكتب، أرض …), بيع/إيجار, a price range (`2m-4m`, `<3m`, `حتى 3 مليون`), rooms (`3 غرف`), and words from the location. `.listings all` also shows reserved and sold ones. |
+| `.listing edit 12 السعر: 3.4 مليون` | Changes fields (several lines at once are fine). |
+| `.listing status 12 محجوز` | available / reserved / sold / rented (متاح، محجوز، مباع، مؤجر). |
+| `.listing del 12` | Deletes the listing and its photos. |
+| `.flyer 12` | A ready-to-post image (1080×1350, the size for WhatsApp status and Instagram): the first photo, type, location, price, specs, status and your contact. |
+| `.watermark` | Reply to a photo: puts your name and phone (from `.agent`), or the text you write, on it. |
+| `.adcopy 12` | The AI writes a marketing post for the listing: `short` for a status, `en` for English, `formal` for a formal tone. It's told to use only the listing's facts and your contact. Reply to any property description with `.adcopy` to write one for it. Needs an AI key; counts as one AI request. |
+| `.installments 3.5m 10% 8 quarterly maint 8%` | A developer payment plan without interest: down payment (% or amount), the instalment (monthly, quarterly, semiannual or yearly, in English or Arabic: شهري، ربع سنوي، نصف سنوي، سنوي), the monthly equivalent, and the maintenance deposit. |
+| `.mortgage 3.5m 20% 25% 15` | A bank loan: price, down payment %, yearly interest %, years → monthly payment, total paid, total interest. |
+| `.ppm 3.5m 150` | Price per square metre. |
+| `.roi 3.5m 25k` | Rental yield: yearly rent as % of the price, and years to recover it from rent. |
+
+The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text but not the photos, so copy that folder too if you move servers.
+
 ## Everyday tools
 
 | Command | What it does |
@@ -270,6 +311,27 @@ This list is generated from the command files themselves.
 | `.tovn` | `.toptt` `.tovoice` | Turns a video, song or audio file into a WhatsApp voice note. _Needs: ffmpeg._ | everyone | `.tovn` _(reply to a video or audio)_ |
 | `.tz` | `.timezone` `.convert-time` `.timeconv` | Converts a time from one city to another (daylight saving included), or compares the current time in two cities. | everyone | `.tz 15:00 Cairo to London` |
 | `.unit` | `.units` `.conv` | Converts units: length, weight, volume, area (incl. feddan), speed, temperature, data, time, energy. | everyone | `.unit 10 km to mi` |
+
+### Real estate · عقارات
+
+| Command | Aliases | What it does | Who | Example |
+|---|---|---|---|---|
+| `.adcopy` | `.ad` `.elan` `.marketingpost` | يكتب إعلاناً تسويقياً للعقار بالذكاء الاصطناعي — writes a marketing post for a listing (or for the property text you reply to): a catchy WhatsApp post with emojis, features and your contact. Options: en (English), short (for status), formal. _Needs: ai._ | owner, sudo | `.adcopy 12` |
+| `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
+| `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
+| `.installments` | `.aqsat` `.plan` `.paymentplan` | حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. | everyone | `.installments 3.5m 10% 8 quarterly maint 8%` |
+| `.listing` | `.property` `.aqar` | عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage. | everyone | `.listing add
+النوع: شقة
+للبيع
+المنطقة: التجمع الخامس
+السعر: 3.5 مليون
+المساحة: 150
+الغرف: 3` |
+| `.listings` | `.properties` `.aqarat` | البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. | everyone | `.listings` |
+| `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
+| `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
+| `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
+| `.watermark` | `.wm` `.brand` | يضع اسمك ورقمك على صورة العقار — puts your name and phone (from .agent) or any text on a photo, so it carries your contact when shared. Send or reply to a picture. | everyone | `.watermark` _(reply to a photo)_ |
 
 ### Info & search
 
@@ -687,5 +749,6 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
+- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

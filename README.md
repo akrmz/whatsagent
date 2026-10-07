@@ -18,6 +18,7 @@ A self-hosted, multi-device WhatsApp bot with about 260 commands: group moderati
 - **Stickers and images:** image/GIF/video → sticker, square crop, sticker → image, re-label packs, animated text stickers, emoji mixing, Telegram packs, blur, background removal, upscaling, about 20 image effects.
 - **Downloads** (via [yt-dlp](https://github.com/yt-dlp/yt-dlp)): YouTube audio and video, TikTok, Facebook, Instagram videos, with size and length limits.
 - **AI:** `.ai` (also `.gpt`/`.gemini`) and an optional group chatbot, powered by Claude (your own API key).
+- **Real-estate marketing:** a property catalogue with photos and search, ready-to-post flyers, photo watermarks, instalment/mortgage/price-per-metre/rental-yield calculators, and AI-written ads (Arabic or English).
 - **Fun and games:** tic-tac-toe, hangman, trivia, truth/dare, jokes, quotes, text effects, anime reactions.
 - **Owner tools:** `.update` (check / install the latest version from your GitHub repository, plus yt-dlp nightly), public/private mode, sudo users, auto-read, auto-typing, auto-status, anticall, PM blocker, antidelete, view-once reveal.
 - **Built to be safe and maintainable:** strict owner/admin checks in one place, per-command cooldowns, size limits on every download, SSRF-safe HTTP client, no remote-code features, atomic settings storage, automatic reconnection with backoff, health endpoint, structured logs with secrets redacted.

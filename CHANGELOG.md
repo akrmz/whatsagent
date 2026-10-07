@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.24.0 — 2026-10-07
+
+### Added — real-estate marketing (new help section "🏠 Real estate · عقارات")
+- **`.listing` / `.listings`**: a property catalogue.
+  - Add from a description written as labelled lines (Arabic or English labels, Arabic digits, "3.5 مليون", "750 ألف", emoji bullets), or by replying to a forwarded broker post.
+  - Up to 10 photos per listing (stored as JPEG in `DATA_DIR/listings/`); edit, status (available/reserved/sold/rented), delete.
+  - Search by type, sale/rent, price range, rooms and location words.
+  - Anyone can view and search; the owner and sudo users manage.
+- **`.agent`**: your name, phone, company and currency, shown on everything.
+- **`.flyer`**: a 1080×1350 image for status/Instagram, drawn with sharp. Arabic lines are laid out right-to-left and phone numbers are isolated, so "+20 100 123 4567" keeps its order. That was checked visually; the first draft showed it reversed.
+- **`.watermark`**: your name and phone on a property photo.
+- **Calculators**: `.installments` (developer plans without interest, maintenance deposit), `.mortgage` (annuity; 800,000 at 12% over 20 years = 8,808.69/month, matching standard tables), `.ppm`, `.roi`.
+- **`.adcopy`**: an AI-written marketing post for a listing or a replied-to description (Arabic or English, short or formal). It is told to use only the given facts.
+
+### Checked
+- 5 tests (210 in total): parsing real-style posts, every calculator, the whole catalogue flow from chat including permissions and photo deletion, and the AI prompt's contents.
+
 ## 2.23.0 — 2026-10-07
 
 ### Added
