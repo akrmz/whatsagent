@@ -176,6 +176,17 @@ function add(state, fields, by, now = Date.now()) {
   });
 }
 
+/** A saved listing that looks like the same property (same type, deal, price, size and location). */
+function findDuplicate(state, f) {
+  if (!f.price || !f.location) return null;
+  const norm = (s) => latinDigits(String(s || "")).toLowerCase().replace(/[ً-ٰٟ]/g, "").replace(/[\s\-–,،]+/g, " ").trim();
+  return (
+    Object.values(store(state).data.items).find(
+      (l) => l.price === f.price && (l.type || null) === (f.type || null) && (l.deal || "بيع") === (f.deal || "بيع") && (l.size || null) === (f.size || null) && norm(l.location) === norm(f.location),
+    ) || null
+  );
+}
+
 function update(state, id, changes, now = Date.now()) {
   return store(state).update((d) => {
     const l = d.items[id];
@@ -279,6 +290,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, typeIn, dealIn,
-  add, update, get, all, remove, addPhoto, photos, card, search, line,
+  add, update, get, all, remove, addPhoto, photos, card, search, line, findDuplicate,
   STATUS_AR, MAX_PHOTOS,
 };

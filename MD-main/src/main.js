@@ -33,6 +33,7 @@ const { startSiyamLoop } = require("./services/siyam");
 const { startFollowUpLoop } = require("./services/leads");
 const { startAutoListingsLoop } = require("./services/autolistings");
 const { startViewingsLoop } = require("./services/viewings");
+const { startDigestLoop } = require("./services/digest");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -188,6 +189,7 @@ async function start() {
   const stopFollowUps = startFollowUpLoop(app);
   const stopAutoListings = startAutoListingsLoop(app);
   const stopViewings = startViewingsLoop(app);
+  const stopDigest = startDigestLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -209,6 +211,7 @@ async function start() {
     stopFollowUps();
     stopAutoListings();
     stopViewings();
+    stopDigest();
     connection.stop();
     app.state.flush();
     health?.close();

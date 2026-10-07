@@ -80,8 +80,11 @@ module.exports = [
 
       if (sub === "add" || sub === "new") {
         const text = textOrQuoted(ctx, ctx.text.slice(ctx.args[0].length));
-        const l = re.add(ctx.state, re.parseListingText(text), ctx.sender);
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}`);
+        const fields = re.parseListingText(text);
+        const dup = re.findDuplicate(ctx.state, fields);
+        const l = re.add(ctx.state, fields, ctx.sender);
+        const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${dupLine}`);
       }
       const id = idOf(arg);
       if (!id) return ctx.reply(HELP(ctx.prefix));

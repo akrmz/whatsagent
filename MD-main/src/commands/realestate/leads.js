@@ -24,6 +24,7 @@ const HELP = (p) =>
     `${p}lead follow 5 tomorrow at 10am <note> — follow-up reminder`,
     `${p}lead send 5 12 — send listing #12 to the client on WhatsApp`,
     `${p}lead edit 5 الميزانية: 3-4 مليون · ${p}lead del 5`,
+    `${p}lead assign 5 @colleague | me | none — for teams · ${p}leads mine`,
     `${p}leads [status | words] — the list`,
     "",
     `Statuses: ${Object.entries(leads.STATUS).map(([k, s]) => `${k} (${s.ar})`).join(", ")}`,
@@ -36,7 +37,7 @@ module.exports = [
     aliases: ["client", "customer", "ameel"],
     description:
       "متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users.",
-    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | follow <id> <when> [note] | send <id> <listing> | edit <id> <details> | del <id>",
+    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | del <id>",
     examples: [".lead add\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع", ".lead 5", ".lead follow 5 tomorrow at 10am يرد على العرض", ".lead send 5 12"],
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
@@ -115,6 +116,20 @@ module.exports = [
         if (notes) leads.note(ctx.state, id, ctx.sender, notes);
         return ctx.reply(`✏️ Updated #${id}.\n\n${leads.card(leads.get(ctx.state, id), { ...opts(ctx), matches: leads.matchingListings(ctx.state, leads.get(ctx.state, id)) })}`);
       }
+      if (sub === "assign") {
+        const who = (ctx.args[2] || "").toLowerCase();
+        if (["none", "off", "-"].includes(who)) {
+          leads.update(ctx.state, id, { assignee: null });
+          return ctx.reply(`🧑‍💼 #${id} is no longer assigned.`);
+        }
+        const target = who === "me" || who === "أنا" ? ctx.sender : ctx.mentions[0];
+        if (!target) throw new UserError(`Mention the team member (${ctx.prefix}lead assign ${id} @name), or "me", or "none".`);
+        if (!ctx.app.permissions.isSudo(target) && !ctx.app.permissions.isOwner(target)) throw new UserError("Assign clients to the owner or a sudo user (.sudo add).");
+        const jid = ctx.app.identity.toPn(target) || target;
+        leads.update(ctx.state, id, { assignee: jid });
+        leads.note(ctx.state, id, ctx.sender, `أُسند إلى @${jid.split("@")[0]}`);
+        return ctx.reply({ text: `🧑‍💼 Client #${id} ${lead.name || ""} assigned to @${jid.split("@")[0]}.`, mentions: [jid] });
+      }
       if (sub === "del" || sub === "delete" || sub === "remove") {
         const l = leads.remove(ctx.state, id);
         return ctx.reply(`🗑️ Client #${l.id} ${l.name || ""} deleted.`);
@@ -126,11 +141,11 @@ module.exports = [
     ...base,
     name: "leads",
     aliases: ["clients", "customers", "pipeline"],
-    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …) or search by name, number, area or notes. Owner and sudo users.",
+    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. Owner and sudo users.",
     usage: "[status | words]",
-    examples: [".leads", ".leads viewing", ".leads التجمع", ".leads 0100"],
+    examples: [".leads", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
     async run(ctx) {
-      const list = leads.search(ctx.state, ctx.text);
+      const list = leads.search(ctx.state, ctx.text, { me: ctx.app.identity.aliases(ctx.sender) });
       const everyone = leads.all(ctx.state);
       if (!everyone.length) return ctx.reply(`No clients yet. Add one: ${ctx.prefix}lead add`);
       const counts = Object.entries(leads.STATUS)

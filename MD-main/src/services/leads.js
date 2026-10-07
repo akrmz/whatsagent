@@ -237,6 +237,7 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     budgetText(lead, currency) && `💰 الميزانية: ${budgetText(lead, currency)}`,
     lead.source && `📣 المصدر: ${lead.source}`,
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
+    lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
     lead.followUp && `⏰ متابعة: ${when(lead.followUp.at, timeZone)}${lead.followUp.note ? ` — ${lead.followUp.note}` : ""}`,
   ];
   if (lead.history?.length) lines.push("", "*السجل:*", ...lead.history.slice(-5).map((h) => `▫️ ${when(h.at, timeZone)}: ${h.text}`));
@@ -266,7 +267,7 @@ async function runDue(app, now = Date.now()) {
     try {
       await app.sock.sendMessage(f.chat, {
         text: `⏰ *متابعة العميل #${lead.id}* — ${lead.name || ""}${lead.phone ? ` ${phoneText(lead.phone)}` : ""}${f.note ? `\n📝 ${f.note}` : ""}\n${app.config.bot.prefix}lead ${lead.id}`,
-        mentions: f.by ? [f.by] : [],
+        mentions: [...new Set([f.by, lead.assignee].filter(Boolean))],
       });
       sent++;
     } catch (err) {
@@ -293,9 +294,13 @@ function startFollowUpLoop(app) {
   return () => clearInterval(timer);
 }
 
-/** Text search over name, phone, location, source and notes; or a status word. */
-function search(state, query) {
+/**
+ * Text search over name, phone, location, source and notes; or a status word; or "mine"
+ * (the clients assigned to `me`, a list of the asker's JID forms).
+ */
+function search(state, query, { me = [] } = {}) {
   const q = re.latinDigits(String(query || "")).trim().toLowerCase();
+  if (["mine", "my", "لي", "عملائي"].includes(q)) return all(state).filter((l) => l.assignee && me.includes(l.assignee));
   const status = statusFrom(q);
   if (status) return all(state).filter((l) => l.status === status);
   if (!q) return all(state);

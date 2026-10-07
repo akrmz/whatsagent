@@ -15,6 +15,7 @@ const siyam = require("../../services/siyam");
 const hamla = require("../../services/hamla");
 const autodl = require("../../services/autodl");
 const autolistings = require("../../services/autolistings");
+const digest = require("../../services/digest");
 
 /** Every automatic thing that runs in this chat, in one list. */
 function overview(ctx) {
@@ -42,6 +43,8 @@ function overview(ctx) {
   if (autodl.isOn(state, chat)) lines.push(`⏬ تنزيل الفيديو تلقائياً من الروابط (auto-download) — ${p}autodl`);
   const al = autolistings.get(state, chat);
   if (al) lines.push(`🏡 عقار اليوم الساعة ${al.time}${al.query ? ` (${al.query})` : ""} — ${p}autolistings`);
+  const dg = digest.get(state, chat);
+  if (dg) lines.push(`📋 ملخص اليوم الساعة ${dg.time} — ${p}digest`);
   const g = schedule.get(state, chat);
   if (g && (g.close || g.open)) lines.push(`🔒 إغلاق/فتح المجموعة: ${g.close || "—"} / ${g.open || "—"} — ${p}gcschedule`);
   const ann = reminders.announcementsIn(state, chat);
