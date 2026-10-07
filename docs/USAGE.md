@@ -248,6 +248,11 @@ Local numbers (0100…) are saved in international form using your own country c
 | `.leads` | The pipeline (how many in each stage), upcoming follow-ups and the latest clients. `.leads viewing` filters by status; `.leads التجمع` or `.leads 0100` searches names, numbers, areas and notes. |
 | `.listing match 12` | The clients a listing suits. `.listing add` also says right away which saved clients a new property suits. |
 
+| `.viewing add 5 12 tomorrow at 4pm` | Books a viewing of listing #12 with client #5. You get a reminder here an hour before. Add `send` (or ابعت) to send the client a confirmation with the date, time and your contact. The client moves to "viewing" and the booking is noted in their history. `.viewings` lists the upcoming ones; `.viewing del 3` cancels. |
+| `.commission 3.5m 2.5% vat 14% share 50%` | Brokerage commission: price × rate, optional VAT on the commission and your share when it is split. |
+
+When you lower a listing's price with `.listing edit`, the reply shows the cut in % and the clients whose budget the listing now fits (it didn't before, or it was over their budget).
+
 **About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
 
 The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text but not the photos, so copy that folder too if you move servers.
@@ -362,6 +367,7 @@ This list is generated from the command files themselves.
 | `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. "autoleads on" saves people who ask about a listing (#12) in a private chat as clients and tells you. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
 | `.autolistings` | `.listingofday` `.dailylisting` | عقار اليوم — posts one available listing a day in this chat at the time you choose, as a flyer with its details, going round your catalogue. Add a search to post only some (e.g. شقة التجمع). Owner and sudo users. | owner, sudo | `.autolistings on 10:00` |
 | `.brochure` | `.catalog` `.catalogue` `.katalog` | كتالوج PDF — a PDF with one flyer page per available listing (up to 20), optionally only those matching a search, ready to send to a client. | everyone | `.brochure` |
+| `.commission` | `.omola` `.brokerage` | حساب العمولة — the brokerage commission on a deal: price × rate, optionally with VAT on the commission and your share when it is split with another broker or the office. | everyone | `.commission 3.5m 2.5%` |
 | `.export` | `.csv` `.excel` | تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users. | owner, sudo | `.export listings` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
 | `.installments` | `.aqsat` `.plan` `.paymentplan` | حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. | everyone | `.installments 3.5m 10% 8 quarterly maint 8%` |
@@ -384,6 +390,8 @@ This list is generated from the command files themselves.
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
 | `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
+| `.viewing` | `.moaayna` `.visit` `.showing` | مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add "send" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Owner and sudo users. | owner, sudo | `.viewing add 5 12 tomorrow at 4pm` |
+| `.viewings` | `.appointments` `.mawaeed` | المعاينات القادمة — upcoming viewings, soonest first (today's past ones too). Owner and sudo users. | owner, sudo | `.viewings` |
 | `.watermark` | `.wm` `.brand` | يضع اسمك ورقمك على صورة العقار — puts your name and phone (from .agent) or any text on a photo, so it carries your contact when shared. Send or reply to a picture. | everyone | `.watermark` _(reply to a photo)_ |
 
 ### Info & search

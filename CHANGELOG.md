@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.27.0 — 2026-10-07
+
+### Fixed
+- **Arabic property words matched inside other words.** As a result:
+  - "حي الربيع" (a district) contains "بيع", so a rental there was read as for sale;
+  - "المحلة" contains "محل", so it was read as a shop;
+  - "الدور الأرضي" (ground floor) contains "أرض", so it was read as land;
+  - a search for "الكلية" turned on "all", because "كلية" contains "كل".
+
+  Type, sale/rent and search words now match whole words only, with the usual Arabic prefixes (و ف ب ك، ال لل ل), so "للبيع", "الشقة", "وفيلا" and "بالإيجار" still work.
+
+### Added
+- **`.viewing` / `.viewings`**: viewing appointments (client, listing, time) with a reminder to the agent an hour before, an optional confirmation to the client, the client moved to "viewing", and a history note.
+- **`.commission`**: brokerage commission with optional VAT and split.
+- **Price cuts**: `.listing edit` with a lower price names the clients whose budget the listing now fits.
+
+### Checked
+- 5 tests (221 in total).
+
 ## 2.26.0 — 2026-10-07
 
 ### Added — getting listings to clients
