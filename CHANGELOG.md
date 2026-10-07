@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.0.0 — 2026-10-08
+
+### Changed — Baileys 7 (your decision)
+- **Both services moved from Baileys 6.7.24 to 7.0.0-rc14**, which Baileys now tags "latest" (6.7.24 is tagged "legacy"). The previous version is tagged `baileys-6.7.24-last` for an easy way back (docs/TROUBLESHOOTING.md).
+- Reviewed before upgrading:
+  - every function and socket method both services use exists in 7.0 (19 methods, 6 functions), and the disconnect codes and browser identity are unchanged;
+  - 6.7.24 sessions load in 7.0 (same format plus one optional field), so there's no need to pair again; tested with a 6.7-format session;
+  - install-time code: only a Node version check;
+  - the new dependencies (`libsignal` 6.0.0 from npm by the Baileys maintainers; `whatsapp-rust-bridge` 0.5.4, WebAssembly by a Baileys contributor) have no install scripts, and their JavaScript makes no network, shell or eval calls;
+  - `npm audit`: 0 vulnerabilities in both services.
+- **Nothing is installed from git any more.** The lock files had kept 6.7's GitHub address for libsignal; it now comes from the npm registry with an integrity hash. This ends "npm ci fails with Permission denied (publickey)".
+
+### Adapted to 7.0
+- **Owner/sudo identity lookup**: 7.0's `onWhatsApp` no longer returns a number's LID, so the lookup added in 2.18.2 would have learned nothing. It now uses 7.0's LID mapping store (`signalRepository.lidMapping`), which is saved with the session and asks WhatsApp only for unknown numbers. On 6.x it falls back to `onWhatsApp`.
+- **Join/leave/promote events**: 7.0 sends members as `{ id, phoneNumber, lid }` and the actor's number as `authorPn`. Every listener already handled both shapes; the connection now also learns these PN↔LID links.
+- Already compatible: message keys (`participantAlt`/`remoteJidAlt` instead of `participantPn`/`senderPn`) and group member lists (`phoneNumber` instead of `jid`) were handled since 2.18.2.
+
+### Checked without connecting to WhatsApp
+- Both services start under 7.0. The bot reaches "No WhatsApp session yet… Waiting" with its health endpoint up and no errors. The pairing service answers /healthz (200) and still refuses requests without the token (401).
+- 6 new tests with 7.0-shaped data: senders as LIDs, member objects, the mapping store, `onWhatsApp` without LIDs, loading a 6.7-format session (253 bot tests, 18 pairing tests).
+- Not testable here: the live connection to WhatsApp (the project's rule is not to connect during development). The first real check is your server after `.update now`.
+
 ## 2.33.0 — 2026-10-08
 
 ### Security — limits on what strangers can trigger

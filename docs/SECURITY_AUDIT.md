@@ -18,7 +18,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | B-12, B-15 chatbot | Fixed: only the triggering message is sent, neutral persona |
 | B-13 `.vv` | Owner only (your decision) |
 | B-14 hot reload, B-16 promo | Removed |
-| D-01, D-02 dependencies | Fixed: 0 known vulnerabilities, everything pinned, lockfiles committed, Baileys 6.7.24 in both services |
+| D-01, D-02 dependencies | Fixed: 0 known vulnerabilities, everything pinned, lockfiles committed. Baileys 6.7.24 in both services until 2.33.0; 7.0.0-rc14 from 3.0.0 (owner's decision), reviewed: no install-time scripts besides a Node version check, its new dependencies (`libsignal` 6.0.0 from npm, `whatsapp-rust-bridge` WebAssembly) make no network or shell calls in their JavaScript, and nothing is installed from git any more |
 | R-01 .gitignore | Fixed (root `.gitignore`) |
 | R-02 reconnect/logout/shutdown | Fixed: `src/core/connection.js`, graceful shutdown |
 | R-04 correctness bugs | Fixed or removed with the old router |

@@ -21,8 +21,19 @@ To check the configuration without connecting to WhatsApp, run `npm run check` i
 ### `Node.js 22.12 or newer is required`
 Install Node 22 ([DEPLOYMENT.md §5.1](DEPLOYMENT.md#51-install-nodejs-22-ffmpeg-fonts-git-and-yt-dlp)) and check with `node --version`.
 
+### After the update to 3.0.0 (Baileys 7)
+3.0.0 moved both services from Baileys 6.7.24 to 7.0.0-rc14, the version Baileys now calls "latest" (6.7.24 is "legacy").
+- **Your existing session keeps working**: 7.0 reads sessions saved by 6.7.24, so there's no need to pair again. It adds a few files to the session folder (LID mappings, device lists).
+- `.update now` installs the new libraries itself, checks the bot, and rolls back automatically if that fails.
+- 7.0 is still a release candidate. If after the update the bot doesn't connect, disconnects again and again, or stops answering in groups, go back to 6.7.24 on the server:
+```bash
+cd ~/whatsapp-bot && git fetch --tags && git checkout baileys-6.7.24-last -- MD-main/package.json MD-main/package-lock.json Bot_Pair_Code-main/package.json Bot_Pair_Code-main/package-lock.json
+cd MD-main && npm ci --omit=dev && pm2 restart whatsapp-bot
+```
+  (Use your own folder and PM2 name.) A session used by 7.0 still works with 6.7.24. Then tell the developer, so the next version can be pinned back. Otherwise a later `.update` would install 7.0 again.
+
 ### `npm ci` fails with `git` / `Permission denied (publickey)` / `libsignal`
-The WhatsApp encryption library is installed from GitHub. Install git and use HTTPS for GitHub:
+Only before 3.0.0: from 3.0.0 every library comes from the npm registry. With older versions, the WhatsApp encryption library is installed from GitHub. Install git and use HTTPS for GitHub:
 ```bash
 sudo apt-get install -y git
 git config --global url."https://github.com/".insteadOf ssh://git@github.com/

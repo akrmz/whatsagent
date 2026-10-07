@@ -19,7 +19,7 @@ This describes the current (2.0) design. The original code is described in [arch
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-Both services use **Baileys 6.7.24**, pinned, with the standard Baileys *multi-file auth state*: one folder containing `creds.json` plus key files. That folder is the only thing the two services share.
+Both services use **Baileys 7.0.0-rc14**, pinned (6.7.24 until 2.33.0; the git tag `baileys-6.7.24-last` marks that version), with the standard Baileys *multi-file auth state*: one folder containing `creds.json` plus key files. That folder is the only thing the two services share.
 
 ## Pairing service (`Bot_Pair_Code-main/`)
 
@@ -39,7 +39,7 @@ Flow: the page sends the token and number. The server validates them, starts a j
 
 ## Bot (`MD-main/`)
 
-CommonJS, Node ≥ 22.12 (Baileys 6.7.24 is ESM; Node's `require(esm)` loads it).
+CommonJS, Node ≥ 22.12 (Baileys 7 is ESM; Node's `require(esm)` loads it).
 
 ### Startup (`src/main.js`)
 
@@ -140,7 +140,7 @@ WhatsApp (via Baileys); GitHub (`fetchLatestBaileysVersion`; also `api.github.co
 
 | Package | Purpose |
 |---|---|
-| `@whiskeysockets/baileys` 6.7.24 | WhatsApp Web protocol |
+| `@whiskeysockets/baileys` 7.0.0-rc14 | WhatsApp Web protocol. Its Signal library (`libsignal` 6.0.0) now comes from the npm registry, not from GitHub; it also brings `whatsapp-rust-bridge` (WebAssembly, no install scripts) |
 | `@anthropic-ai/sdk` | Claude for `.ai` and the chatbot |
 | `sharp` | Image processing (blur, sticker → PNG) |
 | `node-webpmux` | Sticker metadata (EXIF) |
