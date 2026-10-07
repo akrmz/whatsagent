@@ -14,6 +14,7 @@ const siyam = require("./siyam");
 const hamla = require("./hamla");
 const autodl = require("./autodl");
 const todo = require("./todo");
+const quranquiz = require("./quranquiz");
 
 /**
  * Stops the automatic posts of a chat.
@@ -44,6 +45,7 @@ function stopAll(state, chat, { all = false } = {}) {
     autodl.set(state, chat, false);
     if (todo.list(state, chat).length) stopped.push("todo");
     todo.removeChat(state, chat);
+    quranquiz.removeChat(state, chat);
     if (gcschedule.get(state, chat)) stopped.push("gcschedule");
     gcschedule.clear(state, chat);
     for (const a of reminders.announcementsIn(state, chat)) {

@@ -43,6 +43,8 @@ module.exports = [
         return ctx.reply({ text: `🏆 *Math quiz*\n\n${top.map(([u, n], i) => `${i + 1}. ${at(u)} — ${n}`).join("\n")}`, mentions: top.map(([u]) => u) });
       }
       if (!quiz.LEVELS[arg]) return ctx.reply(`Usage: ${ctx.prefix}mathquiz [easy|medium|hard|top]`);
+      // Both quizzes take plain numbers as answers: one at a time per chat.
+      if (require("../../services/quranquiz").active(ctx.chatId)) return ctx.reply("A Quran quiz question is running here; wait for it to finish.");
       const round = quiz.start(ctx.chatId, arg);
       if (!round) return ctx.reply(`A question is already running: *${quiz.active(ctx.chatId).q} = ?*`);
       setTimeout(() => {
