@@ -105,6 +105,7 @@ module.exports = [
         if (photo) await ctx.sock.sendMessage(jid, { image: fs.readFileSync(photo), caption: greeting + re.card(listing, a) });
         else await ctx.sock.sendMessage(jid, { text: greeting + re.card(listing, a) });
         leads.note(ctx.state, id, ctx.sender, `أُرسل له العقار #${listing.id}`);
+        re.count(ctx.state, listing.id, "sent");
         if (lead.status === "new") leads.update(ctx.state, id, { status: "contacted" });
         return ctx.reply(`📤 Listing #${listing.id} sent to #${id} ${lead.name || ""} (+${lead.phone}).`);
       }

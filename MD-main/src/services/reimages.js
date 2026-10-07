@@ -37,15 +37,24 @@ async function flyer(listing, agent, photoPath) {
   const contact = [agent.name, agent.phone].filter(Boolean).join("   ") || "";
   const rtlContact = /[\u0600-\u06FF]/.test(contact);
   const status = listing.status && listing.status !== "available" ? re.STATUS_AR[listing.status].replace(/^\S+\s/, "") : "";
+  const cut = !status && re.discount(listing); // a recent price cut, shown as a badge and the old price struck through
+  const badge = status
+    ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 170}" y="84" font-size="32" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(status)}</text>`
+    : cut
+      ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#e0b25b"/><text x="${W - 170}" y="84" font-size="34" font-weight="bold" fill="#0f2233" text-anchor="middle" direction="rtl" font-family="${FONT}">خصم \u2066${cut.pct}%\u2069</text>`
+      : "";
+  // Right-to-left like the price (so it reads "3,600,000 جنيه"), anchored at its left end.
+  const was = cut ? `<text x="60" y="${PHOTO_H + 262}" font-size="40" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(`${re.group(cut.was)} ${cur}`)}</text>` : "";
   const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <rect y="${PHOTO_H}" width="${W}" height="${H - PHOTO_H}" fill="#0f2233"/>
   <rect y="${PHOTO_H}" width="${W}" height="8" fill="#e0b25b"/>
   <rect x="40" y="40" rx="18" width="190" height="64" fill="#0f2233" fill-opacity="0.82"/>
   <text x="135" y="84" font-size="34" font-weight="bold" fill="#e0b25b" text-anchor="middle" font-family="${FONT}">#${listing.id}</text>
-  ${status ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 170}" y="84" font-size="32" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(status)}</text>` : ""}
+  ${badge}
   <text x="${W - 60}" y="${PHOTO_H + 95}" font-size="62" font-weight="bold" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(title)}</text>
   ${listing.location ? `<text x="${W - 60}" y="${PHOTO_H + 160}" font-size="38" fill="#b9c7d3" ${RTL} font-family="${FONT}">📍 ${esc(clip(listing.location, 40))}</text>` : ""}
   <text x="${W - 60}" y="${PHOTO_H + 265}" font-size="76" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(price)}</text>
+  ${was}
   ${specs ? `<text x="${W - 60}" y="${PHOTO_H + 345}" font-size="38" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(specs)}</text>` : ""}
   ${contact ? `<rect y="${H - 110}" width="${W}" height="110" fill="#e0b25b"/><text x="${W / 2}" y="${H - 42}" font-size="44" font-weight="bold" fill="#0f2233" text-anchor="middle"${rtlContact ? ` direction="rtl"` : ""} font-family="${FONT}">📞 ${esc(isolateNumbers(clip(contact, 44)))}</text>` : ""}
 </svg>`;

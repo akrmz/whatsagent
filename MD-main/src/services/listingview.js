@@ -14,6 +14,7 @@ const newClients = (state) => limiterFor(state, "inquiry-new", { max: 30, window
 
 async function show(ctx, l, { allPhotos = false } = {}) {
   const a = re.agent(ctx.state);
+  if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views"); // client interest only, not the team's own views
   const pics = re.photos(ctx.config, l);
   if (!pics.length) return ctx.reply(re.card(l, a));
   const shown = allPhotos ? pics : pics.slice(0, 1);
@@ -41,6 +42,7 @@ async function captureInquiry(ctx, listing) {
     // The same question again within a day adds nothing (and doesn't notify again).
     if (!sameQuestion(ctx.state, `${existing.id}|${listing.id}`)) return { lead: existing, isNew: false };
     lead = leads.note(ctx.state, existing.id, ctx.sender, text);
+    re.count(ctx.state, listing.id, "inquiries");
   } else {
     // Many new numbers in a short time (a flood) don't fill the client list.
     if (!newClients(ctx.state)) {
@@ -65,6 +67,7 @@ async function captureInquiry(ctx, listing) {
       return null;
     }
     sameQuestion(ctx.state, `${lead.id}|${listing.id}`);
+    re.count(ctx.state, listing.id, "inquiries");
   }
   const owner = ctx.config.owners.numbers[0];
   if (owner && notifyOwner(ctx.state, String(lead.id))) {

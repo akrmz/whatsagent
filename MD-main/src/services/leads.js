@@ -184,6 +184,7 @@ function update(state, id, changes, now = Date.now()) {
   return store(state).update((d) => {
     const l = d.items[id];
     if (!l) throw new UserError(`There is no client #${id}.`);
+    if (changes.status === "won" && l.status !== "won") l.wonAt = now; // for "days to a deal" in .restats
     Object.assign(l, changes, { updated: now });
     for (const k of Object.keys(l)) if (l[k] === null) delete l[k];
     return l;

@@ -50,6 +50,7 @@ async function post(app, chat, listing) {
   const [photo] = re.photos(app.config, listing);
   const caption = `🏡 *عقار اليوم*\n\n${re.card(listing, agent)}\n\nللاستفسار أرسل: #${listing.id}`;
   await app.sock.sendMessage(chat, { image: await img.flyer(listing, agent, photo), caption });
+  re.count(app.state, listing.id, "posted");
 }
 
 async function runDue(app, now = Date.now()) {

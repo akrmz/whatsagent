@@ -48,6 +48,8 @@ function build(state, timeZone, now = Date.now()) {
     lines.push(...stale.slice(0, 8).map((l) => `${leads.line(l, cur)} — منذ ${Math.floor((now - l.updated) / 86400000)} يوم`));
   }
   lines.push("", `🏠 الكتالوج: ✅ ${count("available")} متاح · ⏳ ${count("reserved")} محجوز · 🔴 ${count("sold") + count("rented")} مباع/مؤجر`);
+  const old = re.stale(state, 30, now);
+  if (old.length) lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);
   return lines.join("\n");
 }
 

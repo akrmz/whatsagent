@@ -262,10 +262,37 @@ function update(state, id, changes, now = Date.now()) {
   return store(state).update((d) => {
     const l = d.items[id];
     if (!l) throw new UserError(`There is no listing #${id}.`);
+    // Price history (the last 10 earlier prices), for "📉 was … — x% off".
+    if (changes.price && l.price && changes.price !== l.price) l.priceHistory = [...(l.priceHistory || []), { price: l.price, at: now }].slice(-10);
     Object.assign(l, changes, { updated: now });
     return l;
   });
 }
+
+const DISCOUNT_DAYS = 30;
+
+/** A price cut within the last 30 days: { was, pct }, or null. */
+function discount(l, now = Date.now()) {
+  const last = l.priceHistory?.at(-1);
+  if (!last || !l.price || last.price <= l.price || now - last.at > DISCOUNT_DAYS * 86400000) return null;
+  return { was: last.price, pct: Math.round((1 - l.price / last.price) * 100) };
+}
+
+/** Interest counters (views, inquiries, sent, posted); they don't change "updated". */
+function count(state, id, field) {
+  store(state).update((d) => {
+    const l = d.items[id];
+    if (!l) return;
+    l.stats ||= {};
+    l.stats[field] = (l.stats[field] || 0) + 1;
+  });
+}
+
+/** Available listings not updated for `days` days, oldest first. */
+const stale = (state, days = 30, now = Date.now()) =>
+  all(state)
+    .filter((l) => l.status === "available" && now - (l.updated || l.created) > days * 86400000)
+    .sort((a, b) => (a.updated || a.created) - (b.updated || b.created));
 
 const photosDir = (config, id) => path.join(config.paths.data, "listings", String(id));
 const photoPath = (config, id, n) => path.join(photosDir(config, id), `${n}.jpg`);
@@ -298,10 +325,12 @@ function card(l, a) {
   const cur = a.currency || "جنيه";
   const specs = [l.size && `📐 ${group(l.size)} م²`, l.rooms && `🛏 ${l.rooms} غرف`, l.baths && `🛁 ${l.baths} حمام`, l.floor && `🏢 الدور ${l.floor}`].filter(Boolean).join(" · ");
   const ppm = l.price && l.size && l.deal !== "إيجار" ? `💵 سعر المتر: ${money(l.price / l.size, cur)}` : null;
+  const cut = discount(l);
   return [
     `🏠 *${l.type || "عقار"} لل${l.deal || "بيع"}* — #${l.id}`,
     l.location && `📍 ${l.location}`,
     l.price && `💰 *${money(l.price, cur)}*${l.price >= 1e5 ? ` (${shortAr(l.price)})` : ""}${l.deal === "إيجار" ? " شهرياً" : ""}`,
+    cut && `📉 كان ${money(cut.was, cur)} — خصم ${cut.pct}%`,
     specs || null,
     l.finishing && `✨ التشطيب: ${l.finishing}`,
     ppm,
@@ -361,6 +390,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, extractFree, cleanFields, typeIn, dealIn,
-  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, line, findDuplicate,
+  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, line, findDuplicate, discount, count, stale,
   STATUS_AR, MAX_PHOTOS,
 };
