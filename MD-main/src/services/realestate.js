@@ -119,6 +119,48 @@ const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.ma
 const typeIn = (text) => TYPE_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
 const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
 
+const FINISHING = ["ألترا سوبر لوكس", "الترا سوبر لوكس", "سوبر لوكس", "نص تشطيب", "نصف تشطيب", "على المحارة", "علي المحارة", "تشطيب كامل", "متشطب", "بدون تشطيب", "لوكس", "fully finished", "semi finished", "core and shell"];
+const ARABIC_COUNTS = { غرفتين: ["rooms", 2], غرفتان: ["rooms", 2], أوضتين: ["rooms", 2], اوضتين: ["rooms", 2], حمامين: ["baths", 2], حمامان: ["baths", 2] };
+// Words that end a location written in a sentence ("في التجمع الخامس 150 متر …").
+const LOCATION_STOP = /\s(?:\d|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
+
+/**
+ * Details written as a sentence, the way most broker posts are:
+ * "شقة للبيع في التجمع الخامس 150 متر 3 غرف 2 حمام الدور الرابع سوبر لوكس بسعر 3.5 مليون".
+ * Amounts next to مقدم/قسط (down payment, instalment) are not taken as the price.
+ * @returns {object} the fields found
+ */
+function extractFree(text) {
+  const t = latinDigits(String(text || "")).replace(/\s+/g, " ");
+  const out = {};
+  let m;
+  if ((m = t.match(/(\d{2,5}(?:\.\d+)?)\s*(?:م²|م2|متر(?:\s*مربع)?|م(?![\p{L}])|sqm|m2|m²|sq\s?m)/iu))) out.size = Number(m[1]);
+  if ((m = t.match(/(\d{1,2})\s*(?:غرف|غرفة|غرفه|غرفات|أوض|اوض|أوضة|اوضة|اوضه|bed(?:room)?s?|br\b|rooms?\b)/iu))) out.rooms = Number(m[1]);
+  if ((m = t.match(/(\d{1,2})\s*(?:حمام|حمامات|bath(?:room)?s?\b)/iu))) out.baths = Number(m[1]);
+  // "غرفتين" / "وحمامين" (with "and" attached) are counts too.
+  for (const [word, [field, n]] of Object.entries(ARABIC_COUNTS)) if (out[field] === undefined && new RegExp(`(?<![\\p{L}])[وب]?${word}(?![\\p{L}])`, "u").test(t)) out[field] = n;
+  if ((m = t.match(/(?:الدور|دور|الطابق|طابق)\s+(ال[\p{L}]+|\d{1,2}|أرضي|ارضي|أخير|اخير)/u))) out.floor = m[1];
+  const fin = FINISHING.find((f) => new RegExp(`(?<![\\p{L}])${f}(?![\\p{L}])`, "iu").test(t));
+  if (fin) out.finishing = fin;
+  // The price: after a price word, else the first amount in millions/thousands that isn't a down payment or instalment.
+  const amount = String.raw`(\d[\d,]*(?:\.\d+)?\s*(?:مليون|ملايين|million|m\b|ألف|الف|k\b)?)`;
+  if ((m = t.match(new RegExp(`(?:بسعر|السعر|سعر|المطلوب|price|بـ)\\s*:?\\s*${amount}`, "iu")))) out.price = parseAmount(m[1]) || undefined;
+  if (!out.price) {
+    const re = /(\d[\d,]*(?:\.\d+)?)\s*(مليون|ملايين|million|ألف|الف)/gu;
+    while ((m = re.exec(t))) {
+      if (/(مقدم|قسط|اقساط|أقساط|down|installment|وديعة|صيانة)\s*$/u.test(t.slice(Math.max(0, m.index - 15), m.index))) continue;
+      out.price = parseAmount(m[0]);
+      break;
+    }
+  }
+  if ((m = t.match(/(?:^|\s)(?:في|بـ?منطقة|منطقة|بكمبوند|كمبوند|بمدينة|in)\s+(.{3,60})/u))) {
+    const loc = m[1].split(LOCATION_STOP)[0].trim();
+    if (loc.length >= 3 && !/^\d/.test(loc)) out.location = loc;
+  }
+  for (const k of Object.keys(out)) if (out[k] === undefined || Number.isNaN(out[k])) delete out[k];
+  return out;
+}
+
 /**
  * Reads a description written as "label: value" lines (Arabic or English labels), the way
  * listings are usually posted; unlabeled lines go to the notes, and the type and sale/rent
@@ -150,12 +192,41 @@ function parseListingText(text) {
   const all = String(text || "");
   out.type ||= typeIn(all.split("\n")[0]) || typeIn(all) || undefined;
   out.deal ||= dealIn(all) || undefined;
+  // Details written as sentences in the unlabeled lines fill what the labels didn't give.
+  for (const [k, v] of Object.entries(extractFree(notes.join("\n")))) if (out[k] === undefined) out[k] = v;
   if (notes.length) {
     // Lines that only repeated the type or deal ("شقة للبيع") aren't notes.
     const rest = notes.filter((l) => !(l.length < 40 && (typeIn(l) || dealIn(l)) && !/\d/.test(l)));
     if (rest.length) out.notes = rest.join("\n").slice(0, 600);
   }
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k];
+  return out;
+}
+
+/**
+ * Fields from an outside source (the AI's JSON answer), checked before they are saved: known
+ * types and deals only, numbers in sensible ranges, strings shortened. Anything else is dropped.
+ */
+function cleanFields(raw) {
+  const r = raw && typeof raw === "object" ? raw : {};
+  const num = (v, min, max) => {
+    const n = typeof v === "number" ? v : parseAmount(String(v ?? ""));
+    return Number.isFinite(n) && n >= min && n <= max ? Math.round(n * 100) / 100 : undefined;
+  };
+  const str = (v, n) => (typeof v === "string" && v.trim() ? v.trim().slice(0, n) : undefined);
+  const out = {
+    type: typeIn(String(r.type || "")) || undefined,
+    deal: dealIn(String(r.deal || "")) || ({ sale: "بيع", rent: "إيجار" }[String(r.deal || "").toLowerCase()] ?? undefined),
+    location: str(r.location, 120),
+    price: num(r.price, 1000, 1e10),
+    size: num(r.size, 10, 100000),
+    rooms: num(r.rooms, 0, 50),
+    baths: num(r.baths, 0, 50),
+    floor: str(typeof r.floor === "number" ? String(r.floor) : r.floor, 20),
+    finishing: str(r.finishing, 40),
+    notes: str(r.notes, 600),
+  };
+  for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
 }
 
@@ -289,7 +360,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, typeIn, dealIn,
+  parseListingText, extractFree, cleanFields, typeIn, dealIn,
   add, update, get, all, remove, addPhoto, photos, card, search, line, findDuplicate,
   STATUS_AR, MAX_PHOTOS,
 };

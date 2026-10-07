@@ -80,7 +80,12 @@ const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.ma
 
 /** "2-3 مليون", "من 2 إلى 3 مليون", "2m-3m", "حتى 3 مليون", "<3m", "3 مليون" → { min, max } */
 function parseBudget(text) {
-  const s = re.latinDigits(String(text || "")).toLowerCase().replace(/من\s+/, "").replace(/\s*(إلى|الى|لـ|to)\s*/, "-");
+  const s = re
+    .latinDigits(String(text || ""))
+    .toLowerCase()
+    .replace(/من\s+/, "")
+    .replace(/\s*(إلى|الى|لـ|to)\s*/, "-")
+    .replace(/\s+ل\s*(?=\d)/, "-"); // "2 ل 3 مليون"
   const unit = String.raw`(مليون|ملايين|million|m|ألف|الف|k)?`;
   let m = s.match(new RegExp(String.raw`(\d+(?:\.\d+)?)\s*${unit}\s*-\s*(\d+(?:\.\d+)?)\s*${unit}`));
   if (m) {
@@ -90,6 +95,19 @@ function parseBudget(text) {
   }
   const max = re.parseAmount(s);
   return max ? { max } : {};
+}
+
+/**
+ * A budget written in a sentence: after "ميزانية" / "في حدود" / "لحد" / "حتى" / "budget", or a
+ * range "من 2 ل 3 مليون". A number on its own isn't taken as a budget.
+ */
+function budgetIn(text) {
+  const t = re.latinDigits(String(text || ""));
+  const amount = String.raw`\d[\d.,]*\s*(?:مليون|ملايين|ألف|الف|m|k)?`;
+  const m =
+    t.match(/(?:ميزانية|ميزانيه|ميزانيته|ميزانيتها|بميزانية|في حدود|حدود|لحد|حتى|budget)\s*:?\s*([^،,\n]{1,40})/iu) ||
+    t.match(new RegExp(`(من\\s*${amount}\\s*(?:ل|لـ|إلى|الى|-|to)\\s*${amount})`, "iu"));
+  return m ? parseBudget(m[1]) : {};
 }
 
 /** Labelled lines ("الاسم: …", "الموبايل: …", "الميزانية: 2-3 مليون" …); unlabeled lines become notes. */
@@ -127,6 +145,14 @@ function parseLeadText(text, ownerNumber) {
         if (i >= 0 && re.latinDigits(notes[i]).replace(m[0], "").trim().length < 3) notes.splice(i, 1);
       }
     }
+  }
+  // Wishes written as a sentence: "عايز شقة في التجمع 3 غرف ميزانية من 2 ل 3 مليون".
+  const free = notes.join("\n");
+  if (free) {
+    const f = re.extractFree(free);
+    if (out.rooms === undefined && f.rooms) out.rooms = f.rooms;
+    if (!out.location && f.location) out.location = f.location.slice(0, 80);
+    if (out.min === undefined && out.max === undefined) Object.assign(out, budgetIn(free));
   }
   if (notes.length) out.notes = notes.join("\n").slice(0, 500);
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
