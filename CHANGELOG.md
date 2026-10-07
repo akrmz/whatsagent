@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.4.0 — 2026-10-08
+
+### Added — campaigns
+- **`.blast 12`** previews and **`.blast 12 go`** starts a campaign that sends a listing to every saved client it suits. Each message has the photo, a greeting by name, how to ask (#12) and how to stop (وقف). A summary is sent when it finishes.
+- **Pacing**, to protect the number:
+  - one message at a time, a random 45–90 s apart;
+  - only during the sending hours (default 10:00–21:00, `.blast hours`);
+  - a daily cap across all campaigns (default 40, `.blast limit`);
+  - at most 5 campaigns running at once.
+
+  A campaign stops by itself when the listing is no longer available. `.campaigns` lists campaigns and `.blast stop` stops one.
+- **Opt-out:** a saved client who sends "وقف" or "stop" in a private chat is never sent offers again until they send "اشتراك". This holds for campaigns, `.lead send` and `.offer … send`, and works in private mode. Unknown numbers and repeats get no reply. The client card shows 🚫.
+- **No duplicates:** each client remembers which listings were sent to them, by campaigns, `.lead send` and `.offer … send`, and campaigns skip them.
+
+The command is `.blast`, because `.campaign` is already an alias of the Islamic `.hamla`.
+
+### Checked
+- 4 tests (272 in total), with simulated clocks: hours, the gap, the daily cap, the day rollover, opt-out mid-campaign, a sold listing, stopping, and private mode.
+
 ## 3.3.0 — 2026-10-08
 
 ### Added — pricing and offers

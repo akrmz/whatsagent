@@ -298,6 +298,32 @@ For a number you use for business (owner only):
 
 **About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
 
+**Campaigns (`.blast`): a new listing to every client it suits.**
+
+| Command | What it does |
+|---|---|
+| `.blast 12` | Shows who listing #12 would go to (the saved clients it suits by type, sale/rent, area, budget and rooms) and how long sending would take. Nothing is sent yet. |
+| `.blast 12 go` | Starts sending. Each client gets the listing with its photo, greeted by name. The message ends with "للاستفسار رد على الرسالة أو أرسل: #12" and "لإيقاف رسائل العروض أرسل: وقف". You get a summary in the same chat when it's done. |
+| `.campaigns` | Running and finished campaigns, with how many were sent, failed and skipped. |
+| `.blast stop 3` | Stops campaign #3. |
+| `.blast limit 30` / `.blast hours 11:00-20:00` | The daily cap (1–100, default 40) and sending hours (default 10:00–21:00, in the bot's time zone). |
+
+To keep your number safe, campaigns:
+- send one message at a time, with a random 45–90 second gap;
+- send only during the sending hours;
+- stop for the day at the daily cap, which counts all campaigns together.
+
+A client is skipped if:
+- they already got that listing (from a campaign, `.lead send` or `.offer … send`);
+- they have no phone number;
+- they asked to stop.
+
+A campaign also stops by itself if the listing is reserved, sold or deleted.
+
+**Opt-out:** a saved client who sends **وقف** (or "stop") in a private chat gets "✅ تم إيقاف رسائل العروض". From then on, no campaign, `.lead send` or `.offer … send` reaches them, and their card shows 🚫. Sending **اشتراك** turns offers back on. This works even when the bot is in private mode. Messages from numbers that aren't saved clients, and repeats, get no reply.
+
+Send campaigns only to people who asked you about property. WhatsApp can still restrict a number whose messages many people report or block.
+
 The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text, and `.backup photos` the photos (see [Backup and restore](#backup-and-restore)).
 
 ## Everyday tools
@@ -409,7 +435,9 @@ This list is generated from the command files themselves.
 | `.adcopy` | `.ad` `.elan` `.marketingpost` | يكتب إعلاناً تسويقياً للعقار بالذكاء الاصطناعي — writes a marketing post for a listing (or for the property text you reply to): a catchy WhatsApp post with emojis, features and your contact. Options: en (English), short (for status), formal. _Needs: ai._ | owner, sudo | `.adcopy 12` |
 | `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. "autoleads on" saves people who ask about a listing (#12) in a private chat as clients and tells you. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
 | `.autolistings` | `.listingofday` `.dailylisting` | عقار اليوم — posts one available listing a day in this chat at the time you choose, as a flyer with its details, going round your catalogue. Add a search to post only some (e.g. شقة التجمع). Owner and sudo users. | owner, sudo | `.autolistings on 10:00` |
+| `.blast` | `.tarweej` `.sendmatch` `.hamla3qar` | حملة إرسال عقار — sends a listing to every saved client it suits (type, sale/rent, area, budget, rooms), one at a time: a random 45–90 s gap, only 10:00–21:00, at most 40 a day across all campaigns, so your number isn't flagged as spam. Clients who already got the listing or sent "وقف" are skipped; every message tells them how to stop. Shows the list first; "go" starts it. Owner and sudo users. | owner, sudo | `.blast 12` |
 | `.brochure` | `.catalog` `.catalogue` `.katalog` | كتالوج PDF — a PDF with one flyer page per available listing (up to 20), optionally only those matching a search, ready to send to a client. | everyone | `.brochure` |
+| `.campaigns` | `.blasts` `.hamalat` | قائمة الحملات — your listing campaigns: running, finished and stopped, with how many were sent, failed and skipped. | owner, sudo | `.campaigns` |
 | `.commission` | `.omola` `.brokerage` | حساب العمولة — the brokerage commission on a deal: price × rate, optionally with VAT on the commission and your share when it is split with another broker or the office. | everyone | `.commission 3.5m 2.5%` |
 | `.compare` | `.qarn` `.moqarna` `.vs` | مقارنة العقارات — 2 to 4 listings side by side: price, size, price per m², rooms, baths, floor, finishing and status, with the best value marked, and the distance between two listings when both have a location. | everyone | `.compare 3 7` |
 | `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, clients without contact for a week, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |

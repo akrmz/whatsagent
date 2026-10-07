@@ -180,6 +180,12 @@ Set the default with `.setvar NEWS_REGION EG:ar` (COUNTRY:language), or ask once
 ### `.attp` missing
 It needs ffmpeg and a bold font. Install `fonts-dejavu-core`, or set `FONT_FILE` to a TTF that exists.
 
+### Campaigns (`.blast`)
+
+- **Nothing is being sent:** `.campaigns` shows the campaign as running, but sending only happens during the sending hours (`.blast hours`, in the bot's `TIMEZONE`) and below the daily cap (`.blast limit`). The bot must also be connected. Messages go out about one a minute, not all at once.
+- **"No client to send #12 to":** no saved client matches the listing (check with `.listing match 12`), or every match already got it or sent وقف.
+- **A client wants offers again:** they send اشتراك from their own WhatsApp. It can't be switched back on for them, so that "stop" stays their choice.
+
 ## Updating with `.update`
 
 ### `This installation is not a git clone`
