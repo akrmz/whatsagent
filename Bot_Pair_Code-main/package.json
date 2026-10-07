@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-bot-pairing",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "private": true,
   "description": "Self-hosted page that links a WhatsApp account to the bot (pairing code or QR) and saves the session locally.",
   "main": "index.js",
@@ -16,7 +16,7 @@
   },
   "license": "ISC",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.24",
+    "@whiskeysockets/baileys": "7.0.0-rc14",
     "awesome-phonenumber": "7.8.0",
     "express": "5.2.1",
     "helmet": "8.3.0",

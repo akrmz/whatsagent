@@ -152,6 +152,10 @@ function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
     current.ev.on("messages.upsert", (u) => dispatcher.handleUpsert(current, u));
     current.ev.on("group-participants.update", (u) => {
       app.groups.invalidate(u.id);
+      // Baileys 7 sends members as { id, phoneNumber, lid } and the actor's number as authorPn:
+      // learn those PN↔LID links (6.7 sent plain ids, which this skips).
+      app.identity.learnFromParticipants((u.participants || []).filter((p) => p && typeof p === "object"));
+      app.identity.link(u.author, u.authorPn);
       dispatcher.handleEvent("group-participants.update", current, u);
     });
     current.ev.on("groups.update", (updates) => updates.forEach((g) => app.groups.invalidate(g.id)));

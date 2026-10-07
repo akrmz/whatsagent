@@ -18,10 +18,27 @@ const { sudoList } = require("./settings");
 
 const MAX_LOOKUP = 100;
 
-/** Links each phone number to its LID. @returns {Promise<number>} links learned */
+/**
+ * Links each phone number to its LID. @returns {Promise<number>} links learned
+ * Baileys 7: its LID mapping store (saved with the session, asks WhatsApp only for unknown
+ * numbers). Baileys 6.7: onWhatsApp, which returned the LID (7.0's no longer does).
+ */
 async function linkPhones(sock, identity, pnJids) {
   const list = [...new Set(pnJids.map(normalizeJid).filter(isPn))].slice(0, MAX_LOOKUP);
-  if (!list.length || typeof sock.onWhatsApp !== "function") return 0;
+  if (!list.length) return 0;
+  const store = sock.signalRepository?.lidMapping;
+  if (typeof store?.getLIDsForPNs === "function") {
+    const pairs = (await store.getLIDsForPNs(list)) || [];
+    let n = 0;
+    for (const p of pairs) {
+      if (p?.pn && p?.lid && isLid(normalizeJid(p.lid))) {
+        identity.link(p.pn, p.lid);
+        n++;
+      }
+    }
+    return n;
+  }
+  if (typeof sock.onWhatsApp !== "function") return 0;
   const results = (await sock.onWhatsApp(...list)) || [];
   let n = 0;
   for (const r of results) {
