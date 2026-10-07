@@ -1,0 +1,91 @@
+"use strict";
+
+const re = require("./realestate");
+const leads = require("./leads");
+const { limiterFor } = require("../core/ratelimit");
+
+/**
+ * Clients' requests written as a message (".agent requests on"): "عايز شقة في التجمع 3 غرف
+ * ميزانية 3 مليون" in a private chat is saved on the client (new or existing), answered with
+ * the closest available listings, and the agent is told. Strangers trigger it, so it is limited.
+ */
+
+const MAX_SHOWN = 3;
+// Asking, not offering: a broker's post ("يوجد شقة للبيع … بسعر") must not read as a request.
+const INTENT = /(?<![\p{L}])(?:عايز|عاوز|عايزه|عاوزه|عايزة|عاوزة|عايزين|عاوزين|محتاج|محتاجه|محتاجة|محتاجين|بدور|بدوّر|ابحث|أبحث|بابحث|مطلوب|اريد|أريد|نريد|حد عنده|عندك|عندكم|عندكو|فيه|في حاجة|looking for|i want|i need|we need)(?![\p{L}])|[؟?]/iu;
+const WISH_FIELDS = ["type", "deal", "location", "rooms", "min", "max"];
+
+const perClient = (state, key) => limiterFor(state, "request-client", { max: 1, windowMs: 10 * 60 * 1000 })(key); // one answer per client per 10 min
+const newClients = (state) => limiterFor(state, "inquiry-new", { max: 30, windowMs: 3600 * 1000, size: 1 })("all"); // shared with #12 inquiries
+const notifyOwner = (state, key) => limiterFor(state, "request-notify", { max: 1, windowMs: 3600 * 1000 })(key);
+
+/**
+ * What a message asks for, or null if it isn't a property request: it needs a property type
+ * and a word of asking ("عايز", "عندك", "?" …), and isn't a long post.
+ * @returns {{ type, deal?, location?, rooms?, min?, max? } | null}
+ */
+function detect(text) {
+  const t = String(text || "").trim();
+  if (t.length < 6 || t.length > 300 || t.split("\n").length > 4) return null;
+  if (!INTENT.test(t)) return null;
+  const f = leads.parseLeadText(t);
+  if (!f.type) return null;
+  const wish = {};
+  for (const k of WISH_FIELDS) if (f[k] !== undefined) wish[k] = f[k];
+  return wish;
+}
+
+/** "شقة للبيع في التجمع، 3 غرف، حتى 3 مليون" */
+const describe = (w, cur) =>
+  [`${w.type}${w.deal ? ` لل${w.deal}` : ""}`, w.location && `في ${w.location}`, w.rooms && `${w.rooms} غرف`, leads.budgetText(w, cur)].filter(Boolean).join("، ");
+
+/**
+ * Saves the request and answers it. @returns {Promise<{ lead, matches, isNew } | { limited: true } | null>}
+ * null when the message isn't a request; { limited } when it is but a limit was reached (nothing is sent).
+ */
+async function handle(ctx) {
+  const wish = detect(ctx.body);
+  if (!wish) return null;
+  const pn = ctx.app.identity.toPn(ctx.sender);
+  const phone = pn ? pn.split("@")[0] : null;
+  if (!perClient(ctx.state, phone || ctx.sender)) return { limited: true };
+  const cur = re.agent(ctx.state).currency;
+  const what = describe(wish, cur);
+
+  let lead = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;
+  const isNew = !lead;
+  if (lead) {
+    leads.update(ctx.state, lead.id, wish);
+    lead = leads.note(ctx.state, lead.id, ctx.sender, `طلب: ${what}`);
+  } else {
+    if (!newClients(ctx.state)) {
+      ctx.log.warn("requests: more than 30 new clients in an hour; not saving more for now");
+      return { limited: true };
+    }
+    try {
+      lead = leads.add(ctx.state, { name: (ctx.senderName || "").slice(0, 60) || undefined, phone: phone || undefined, ...wish, source: "واتساب", notes: `طلب: ${String(ctx.body).trim().slice(0, 300)}` }, ctx.sender);
+    } catch (err) {
+      ctx.log.warn({ err: err.message }, "requests: client not saved");
+      return null;
+    }
+  }
+
+  // The answer follows what they just asked (the saved client may have older wishes too).
+  const matches = leads.matchingListings(ctx.state, wish).slice(0, MAX_SHOWN);
+  const hi = lead.name ? `أهلاً ${lead.name} 👋` : "أهلاً 👋";
+  await ctx.reply(
+    matches.length
+      ? `${hi}\nدي أقرب العقارات المتاحة لطلبك (${what}):\n\n${matches.map(({ listing }) => re.line(listing, cur)).join("\n")}\n\nأرسل رقم العقار (مثلاً #${matches[0].listing.id}) للتفاصيل والصور.`
+      : `${hi}\nوصلني طلبك (${what}) 👍\nحالياً مفيش عقار مطابق، وهتواصل معاك أول ما يتوفر.`,
+  );
+
+  const owner = ctx.config.owners.numbers[0];
+  if (owner && notifyOwner(ctx.state, String(lead.id))) {
+    const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
+    const found = matches.length ? `أرسلت له ${matches.length}: ${matches.map(({ listing }) => `#${listing.id}`).join("، ")}` : "لا يوجد عقار مطابق";
+    await ctx.sock.sendMessage(`${owner}@s.whatsapp.net`, { text: `🔔 ${isNew ? "طلب من عميل جديد" : "طلب جديد"}: ${who}\n🔎 ${what}\n${found}\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
+  }
+  return { lead, matches, isNew };
+}
+
+module.exports = { detect, describe, handle };
