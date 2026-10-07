@@ -251,6 +251,12 @@ Local numbers (0100…) are saved in international form using your own country c
 | `.viewing add 5 12 tomorrow at 4pm` | Books a viewing of listing #12 with client #5. You get a reminder here an hour before. Add `send` (or ابعت) to send the client a confirmation with the date, time and your contact. The client moves to "viewing" and the booking is noted in their history. `.viewings` lists the upcoming ones; `.viewing del 3` cancels. |
 | `.commission 3.5m 2.5% vat 14% share 50%` | Brokerage commission: price × rate, optional VAT on the commission and your share when it is split. |
 
+| `.lead assign 5 @colleague` | For an office: gives client #5 to a team member (the owner or a sudo user), or `me`, or `none`. Follow-up reminders mention them too. `.leads mine` lists the clients assigned to you. |
+| `.digest on 08:30` | **Morning summary** in this chat (e.g. your private chat with the bot): today's viewings and follow-ups (overdue ones too), new clients from the last 24 hours, active clients nobody has contacted for 7+ days, and the catalogue counts. `.digest now` shows it now; `.digest off` stops it. |
+| `.import listings` / `.import leads` | Reply to a **CSV file** to add many listings or clients at once, e.g. your existing Excel sheet saved as "CSV UTF-8", or a file made with `.export`. Headers can be English (`type, deal, location, price, size, rooms, baths, floor, finishing, status, notes`; for clients `name, phone, type, location, rooms, budget_min, budget_max, source, status`) or Arabic (النوع، الغرض، المنطقة، السعر، المساحة، الغرف، الحالة، الاسم، الموبايل، الميزانية …). Duplicates are skipped (listings: same type, deal, price, size and location; clients: same number), and the reply lists the skipped rows by their spreadsheet row number. Up to 1,000 rows; .xlsx files must be saved as CSV first. |
+
+`.listing add` also warns when the property looks already saved ("⚠️ This looks like #7").
+
 When you lower a listing's price with `.listing edit`, the reply shows the cut in % and the clients whose budget the listing now fits (it didn't before, or it was over their budget).
 
 **About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
@@ -368,8 +374,10 @@ This list is generated from the command files themselves.
 | `.autolistings` | `.listingofday` `.dailylisting` | عقار اليوم — posts one available listing a day in this chat at the time you choose, as a flyer with its details, going round your catalogue. Add a search to post only some (e.g. شقة التجمع). Owner and sudo users. | owner, sudo | `.autolistings on 10:00` |
 | `.brochure` | `.catalog` `.catalogue` `.katalog` | كتالوج PDF — a PDF with one flyer page per available listing (up to 20), optionally only those matching a search, ready to send to a client. | everyone | `.brochure` |
 | `.commission` | `.omola` `.brokerage` | حساب العمولة — the brokerage commission on a deal: price × rate, optionally with VAT on the commission and your share when it is split with another broker or the office. | everyone | `.commission 3.5m 2.5%` |
+| `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, clients without contact for a week, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |
 | `.export` | `.csv` `.excel` | تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users. | owner, sudo | `.export listings` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
+| `.import` | `.importcsv` | استيراد من Excel — reply to a CSV file (an Excel sheet saved as CSV, or a file from .export) to add listings or clients in one go. Column headers in English (type, location, price …) or Arabic (النوع، المنطقة، السعر …). Duplicates are skipped. Owner and sudo users. | owner, sudo | `.import listings` _(reply to listings.csv)_ |
 | `.installments` | `.aqsat` `.plan` `.paymentplan` | حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. | everyone | `.installments 3.5m 10% 8 quarterly maint 8%` |
 | `.lead` | `.client` `.customer` `.ameel` | متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users. | owner, sudo | `.lead add
 الاسم: أحمد
@@ -377,7 +385,7 @@ This list is generated from the command files themselves.
 الميزانية: 2-3 مليون
 النوع: شقة
 المنطقة: التجمع` |
-| `.leads` | `.clients` `.customers` `.pipeline` | قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …) or search by name, number, area or notes. Owner and sudo users. | owner, sudo | `.leads` |
+| `.leads` | `.clients` `.customers` `.pipeline` | قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), "mine" (assigned to you), or search by name, number, area or notes. Owner and sudo users. | owner, sudo | `.leads` |
 | `.listing` | `.property` `.aqar` | عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage. | everyone | `.listing add
 النوع: شقة
 للبيع

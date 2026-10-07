@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.28.0 — 2026-10-07
+
+### Added
+- **`.import listings | leads`**: reply to a CSV file.
+  - English (`.export`'s columns) or Arabic headers.
+  - Comma or semicolon files; Excel's UTF-8 marker; quoted cells with commas, quotes and line breaks.
+  - Statuses and budgets are kept; duplicates are skipped. Problems are reported by spreadsheet row number, which stays right after empty rows and multi-line cells.
+  - Checked as an export → import round trip.
+- **`.digest`**: a morning summary with today's viewings and follow-ups (and overdue ones), new clients, clients untouched for 7+ days, and catalogue counts. Once a day, listed in `.autos`.
+- **Teams**: `.lead assign 5 @member|me|none` (owner or sudo users), `.leads mine`, and follow-up reminders mention the assignee.
+- **`.listing add` warns about a likely duplicate** (same type, deal, price, size and location, ignoring diacritics and spacing).
+
+### Checked
+- 6 tests (227 in total).
+
 ## 2.27.0 — 2026-10-07
 
 ### Fixed
