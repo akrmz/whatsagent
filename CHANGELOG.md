@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.31.0 — 2026-10-08
+
+### Added
+- **`.greet`**: a welcome on a person's first private message. Who was greeted is stored as salted SHA-256 fingerprints, never phone numbers.
+- **`.awaymsg`** (`.offhours`): an automatic reply outside working hours (or always), once per person per 12 h. Neither replies in groups, to staff, to commands or to messages already answered. Both run after the PM blocker.
+- **`.rehelp`**: an Arabic, step-by-step guide to the real-estate tools that marks the steps already done and points to the next one.
+- **Arabic times** in `.remind`, `.lead follow` and `.viewing add`:
+  - tomorrow/today: بكرة، غداً، النهارده;
+  - weekdays (with or without يوم);
+  - الساعة with ص/م/صباحاً/مساءً/الضهر/العصر;
+  - بعد ساعتين / بعد 3 أيام / بعد نص ساعة;
+  - كل يوم / كل خميس;
+  - Arabic digits.
+
+  Only the leading time phrase is converted; the rest of the text is never changed.
+
+### Fixed (before release)
+- The guide first showed "بكرة 4م" as an example, which the time parser didn't understand. This is why Arabic time support was added.
+
+### Checked
+- 4 tests (239 in total).
+
 ## 2.30.0 — 2026-10-08
 
 ### Added

@@ -174,6 +174,8 @@ Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other 
 
 ## Real-estate marketing (التسويق العقاري)
 
+**Arabic step-by-step guide:** send `.rehelp` (owner and sudo users). It shows the next step you haven't done yet.
+
 A catalogue of your properties, images ready to post, and the calculations clients ask about. The owner and sudo users (you and your team) manage listings. Anyone can view, search, make a flyer or use the calculators, so clients in your groups can use them too.
 
 **1. Your details** (once): `.agent name أحمد العقاري`, `.agent phone +20 100 123 4567`, `.agent company …`, `.agent currency جنيه` (or EGP, AED, SAR …). They appear on listings, flyers, watermarks and ads.
@@ -263,6 +265,15 @@ A sentence works too: "أحمد 01001234567 عايز شقة في التجمع 3 
 `.listing add` also warns when the property looks already saved ("⚠️ This looks like #7").
 
 When you lower a listing's price with `.listing edit`, the reply shows the cut in % and the clients whose budget the listing now fits (it didn't before, or it was over their budget).
+
+### Automatic replies in private chats
+
+For a number you use for business (owner only):
+- **`.greet on <message>`**: a welcome the first time someone ever writes to you, e.g. "أهلاً بك في دار للتسويق العقاري 🏡 أرسل #رقم العقار لتفاصيله". People who wrote before it was turned on aren't greeted. The bot remembers who was greeted as one-way fingerprints, not phone numbers.
+- **`.awaymsg on <message>`** (also `.offhours`): a reply outside your working hours, set with `.awaymsg hours 10:00-22:00` (or always, without hours). Each person gets it at most once every 12 hours.
+- Neither answers in groups, to you or sudo users, to commands, or to a message already answered (e.g. `#12`). If both apply to someone's first message, they get one message.
+
+**Times in Arabic:** `.lead follow`, `.viewing add` and `.remind` understand "بكرة الساعة 4 م", "غداً 16:00", "يوم الجمعة 6 مساءً", "الخميس 10ص", "بعد ساعتين", "بعد 3 أيام", "بعد نص ساعة", "النهارده 9 مساءً" and "كل يوم 8 ص" (for `.remind`). The text after the time is kept as written.
 
 **About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
 
@@ -402,6 +413,7 @@ This list is generated from the command files themselves.
 | `.market` | `.prices` `.areastats` | متوسط الأسعار — price statistics from your own listings (sale): average and median price per m², range, and by property type; optionally for an area (words from the location). Only as good as your catalogue. | everyone | `.market` |
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
+| `.rehelp` | `.dalil` `.reguide` `.aqarguide` | دليل أدوات العقارات بالعربي — a short Arabic guide to the real-estate tools, step by step, showing which steps you have already done. | owner, sudo | `.rehelp` |
 | `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
 | `.viewing` | `.moaayna` `.visit` `.showing` | مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add "send" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Owner and sudo users. | owner, sudo | `.viewing add 5 12 tomorrow at 4pm` |
 | `.viewings` | `.appointments` `.mawaeed` | المعاينات القادمة — upcoming viewings, soonest first (today's past ones too). Owner and sudo users. | owner, sudo | `.viewings` |
@@ -516,6 +528,7 @@ This list is generated from the command files themselves.
 | `.autoread` | – | Marks every incoming message as read (except ones that mention the bot). | owner | `.autoread on` |
 | `.autostatus` | – | Automatically views contacts' statuses, and optionally reacts to them with 💚. | owner | `.autostatus react on` |
 | `.autotyping` | – | Shows a 'typing…' indicator when the bot receives messages. | owner | `.autotyping on` |
+| `.awaymsg` | `.offhours` `.outofoffice` | رد تلقائي خارج مواعيد العمل — an automatic reply to private messages from others, outside your working hours (or always), at most once per person every 12 hours. Groups, you and sudo users are never answered. | owner | `.awaymsg on شكراً لتواصلك 🙏 مواعيد العمل من 10 ص إلى 10 م وسنرد عليك أول ما نتاح.` |
 | `.backup` | – | Sends you a backup file of all bot settings and lists (mode, sudo, bans, group settings, notes, reminders, levels, listings, clients …) to restore later with .restore. ".backup full" also includes API keys set from chat and saved cookies; ".backup photos" sends the listing photos as a .tar.gz. The WhatsApp session is never included. | owner (private chat) | `.backup` |
 | `.block` | – | Blocks someone on the bot's WhatsApp account (they can't message or call it). Mention them, reply to them, or give the number. | owner | `.block` |
 | `.clearsession` | `.clearsesi` | Deletes cached encryption key files from the session folder (keeps creds.json). Only for fixing persistent 'waiting for this message' errors; restart the bot afterwards. | owner | `.clearsession confirm` |
@@ -524,6 +537,7 @@ This list is generated from the command files themselves.
 | `.delcookie` | `.delcookies` `.rmcookie` | Deletes the saved cookies of a site (or all). | owner | `.delcookie youtube` |
 | `.delvar` | `.unset` `.resetvar` | Removes a setting made with .setvar, so the value from .env (or the default) is used again. | owner | `.delvar PREFIX` |
 | `.doctor` | `.diag` `.diagnose` `.status` | Health report: connection, memory, tools (yt-dlp, ffmpeg …) checked live, and which commands are disabled and why. | owner | `.doctor` |
+| `.greet` | `.welcomepm` `.firstmsg` | رسالة ترحيب لأول تواصل — a welcome sent the first time someone ever writes to you privately (e.g. who you are and how to ask about a listing). Who was greeted is kept as fingerprints, not phone numbers. | owner | `.greet on أهلاً بك في دار للتسويق العقاري 🏡 أرسل #رقم العقار لتفاصيله، أو اكتب طلبك وسنرد عليك.` |
 | `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with member counts and whether the bot is an admin there. | owner | `.groups` |
 | `.join` | `.joingroup` | Makes the bot join a group from an invite link. | owner | `.join https://chat.whatsapp.com/AbCdEf123456` |
 | `.leave` | `.leavegc` `.exit` | Makes the bot leave this group. | owner (groups) | `.leave` |
@@ -823,6 +837,6 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
-- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them. With `.agent autoleads on`, people who send `#<number>` to the bot in a private chat are saved there with their WhatsApp name and number.
+- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them. With `.greet on`, the bot keeps salted SHA-256 fingerprints (not numbers) of everyone who wrote to it privately, to greet each person once. With `.agent autoleads on`, people who send `#<number>` to the bot in a private chat are saved there with their WhatsApp name and number.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.
