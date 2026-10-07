@@ -52,7 +52,16 @@ const agent = (state) => ({ currency: "جنيه", ...agentStore(state).data });
 
 const AGENT_FIELDS = { name: 60, phone: 30, company: 60, currency: 12 };
 function setAgent(state, field, value) {
-  if (!(field in AGENT_FIELDS)) throw new UserError(`Fields: ${Object.keys(AGENT_FIELDS).join(", ")}`);
+  if (field === "autoleads") {
+    const v = String(value || "").trim().toLowerCase();
+    if (!["on", "off"].includes(v)) throw new UserError("autoleads on | off");
+    return agentStore(state).update((d) => {
+      if (v === "on") d.autoleads = true;
+      else delete d.autoleads;
+      return { ...d };
+    });
+  }
+  if (!(field in AGENT_FIELDS)) throw new UserError(`Fields: ${Object.keys(AGENT_FIELDS).join(", ")}, autoleads`);
   const v = String(value || "").trim().slice(0, AGENT_FIELDS[field]);
   return agentStore(state).update((d) => {
     if (v) d[field] = v;

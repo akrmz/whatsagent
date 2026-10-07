@@ -1,6 +1,5 @@
 "use strict";
 
-const fs = require("node:fs");
 const re = require("../../services/realestate");
 const img = require("../../services/reimages");
 const { getText } = require("../../core/context");
@@ -31,17 +30,7 @@ const idOf = (s) => {
 /** Text of the command, or of the message it replies to (a broker's post forwarded to the bot). */
 const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
-async function show(ctx, l, { allPhotos = false } = {}) {
-  const a = re.agent(ctx.state);
-  const pics = re.photos(ctx.config, l);
-  if (!pics.length) return ctx.reply(re.card(l, a));
-  const shown = allPhotos ? pics : pics.slice(0, 1);
-  for (const [i, p] of shown.entries()) {
-    await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? re.card(l, a) : undefined });
-  }
-  if (!allPhotos && pics.length > 1) await ctx.send(`📷 ${pics.length} صور — ${ctx.prefix}listing ${l.id} photos`);
-  return undefined;
-}
+const { show } = require("../../services/listingview");
 
 const HELP = (p) =>
   [
