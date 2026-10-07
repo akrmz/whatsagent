@@ -38,6 +38,7 @@ module.exports = {
         ...steps.map(([ok, text], i) => `${done(ok)} ${text}${i === next ? "\n👈 *الخطوة التالية*" : ""}`),
         "",
         `📋 كل الأوامر: ${p}help realestate · تفاصيل أي أمر: ${p}help <الأمر>`,
+        `📍 المواقع: رد على اللوكيشن أو لينك جوجل ماب بـ ${p}listing loc <رقم> · ولو العميل بعت موقعه رد عليه بـ ${p}listings near تظهر له أقرب العقارات`,
         `📊 الحاسبات: ${p}installments · ${p}mortgage · ${p}commission · ${p}ppm · ${p}roi`,
         `💾 النسخ الاحتياطي: ${p}backup · ${p}backup photos · ${p}export listings`,
       ].join("\n\n"),

@@ -5,6 +5,8 @@ const img = require("../../services/reimages");
 const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
 const leads = require("../../services/leads");
+const places = require("../../services/places");
+const { limiterFor } = require("../../core/ratelimit");
 
 /**
  * ".listing add ai": the configured AI reads a messy post into fields (as JSON), which are
@@ -56,6 +58,47 @@ const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.q
 
 const { show } = require("../../services/listingview");
 
+// Short Maps links are opened (a few requests to Google); clients can trigger that, so it is limited.
+const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
+
+/**
+ * A place from a replied-to location pin, or coordinates/a Maps link in the text or in the
+ * replied-to message. @returns {Promise<{ lat, lng, label? } | null>}
+ */
+async function pointFrom(ctx, text) {
+  const pin = places.fromMessage(ctx.quoted?.message);
+  if (pin) return pin;
+  const sources = [text, ctx.quoted ? getText(ctx.quoted.message) : ""].filter(Boolean);
+  for (const s of sources) {
+    const p = places.fromText(s);
+    if (p) return p;
+  }
+  for (const s of sources) {
+    const short = s.match(places.SHORT);
+    if (short && (ctx.isSudoOrOwner || expandBudget(ctx.state))) return places.expandShort(short[0]);
+  }
+  return null;
+}
+
+/** A short Maps link in a post can't be read without opening it (full links are read by the parser). */
+async function shortLinkGeo(ctx, fields, text) {
+  if (fields.geo) return fields;
+  const short = String(text || "").match(places.SHORT);
+  const geo = short ? await places.expandShort(short[0]) : null;
+  return geo ? { ...fields, geo } : fields;
+}
+
+// ".listing 12 map" / ".listing map 12" show the pin; ".listing loc 12 …" saves it.
+const SHOW_MAP = /^(map|خريطة|الخريطة)$/;
+const SET_LOC = /^(loc|location|geo|موقع|الموقع|لوكيشن|اللوكيشن)$/;
+
+/** The listing as a WhatsApp location pin (opens in the client's maps app). */
+function sendPin(ctx, l) {
+  if (!l.geo) return ctx.reply(`#${l.id} has no location saved yet.${ctx.isSudoOrOwner ? ` Add it: reply to a location pin or a Maps link with ${ctx.prefix}listing loc ${l.id}` : ""}`);
+  const name = `#${l.id} ${l.type || "عقار"}${l.location ? ` — ${l.location}` : ""}`.slice(0, 100);
+  return ctx.reply({ location: { degreesLatitude: l.geo.lat, degreesLongitude: l.geo.lng, name } });
+}
+
 /** After a price cut: the clients whose budget the listing fits now but didn't before. */
 function priceDropLine(ctx, before, after) {
   if (!before.price || !after.price || after.price >= before.price) return "";
@@ -69,6 +112,33 @@ function priceDropLine(ctx, before, after) {
   return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك: ${names}${fitsNow.length > 5 ? " …" : ""}\n${ctx.prefix}lead send <client> ${after.id}` : ""}`;
 }
 
+/**
+ * ".listings near [filters] [5 كم]": the available listings closest to a place — usually a
+ * client's location pin that the command replies to — with the distance to each.
+ */
+async function nearby(ctx, text) {
+  const from = await pointFrom(ctx, text);
+  if (!from) return ctx.reply(`Reply to a location pin (📎 → Location) or a Google Maps link with ${ctx.prefix}listings near, or write the coordinates after it.`);
+  let rest = re.latinDigits(text).replace(places.MAP_LINKS, " ").replace(places.COORDS, " ");
+  let radiusKm;
+  const r = rest.match(/(\d+(?:\.\d+)?)\s*(?:km|كم|كيلو(?:متر)?)(?![\p{L}])/iu);
+  if (r) {
+    radiusKm = Number(r[1]);
+    rest = rest.replace(r[0], " ");
+  }
+  const { list, missing } = re.near(ctx.state, from, rest, { radiusKm });
+  const staffNote = ctx.isSudoOrOwner && missing ? `\n\n(${missing} matching listing(s) have no saved location: ${ctx.prefix}listing loc <number>)` : "";
+  if (!list.length) {
+    const why = radiusKm ? `No available listing within ${radiusKm} km matches.` : "No listing with a saved location matches.";
+    return ctx.reply(`${why}${staffNote}`);
+  }
+  const cur = re.agent(ctx.state).currency;
+  const shown = list.slice(0, 10);
+  const lines = shown.map(({ listing, km }) => `📍 ${places.km(km)} — ${re.line(listing, cur)}`);
+  const head = `🗺️ *الأقرب${from.label ? ` إلى ${from.label}` : ""}* (${list.length}${radiusKm ? ` ضمن ${radiusKm} كم` : ""})`;
+  return ctx.reply(`${head}\n\n${lines.join("\n")}\n\n${ctx.prefix}listing <number> for details · ${ctx.prefix}listing <number> map for the pin${staffNote}`);
+}
+
 const HELP = (p) =>
   [
     "🏠 *Listings · العقارات*",
@@ -78,6 +148,8 @@ const HELP = (p) =>
     `${p}listing edit 12 السعر: 3.4 مليون — change fields`,
     `${p}listing status 12 reserved|sold|rented|available`,
     `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits`,
+    `${p}listing loc 12 (reply to a location pin or Maps link) — save where it is · ${p}listing 12 map — send the pin`,
+    `${p}listings near (reply to a client's location) — nearest listings`,
     `${p}listings [filters] — search · ${p}flyer 12 — image for posting`,
   ].join("\n");
 
@@ -87,9 +159,9 @@ module.exports = [
     aliases: ["property", "aqar"],
     category: "realestate",
     description:
-      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos] | edit <id> <details> | status <id> <status> | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", ".listing status 12 sold"],
+      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold. Anyone can view; the owner and sudo users manage.",
+    usage: "add <details> | photo <id> | <id> [photos|map] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing status 12 sold"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -97,16 +169,21 @@ module.exports = [
       if (direct) {
         const l = re.get(ctx.state, direct);
         if (!l) return ctx.reply(`There is no listing #${direct}.`);
+        if (SHOW_MAP.test(arg) || SET_LOC.test(arg)) return sendPin(ctx, l);
         return show(ctx, l, { allPhotos: /^(photos|all|صور)$/.test(arg) });
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));
+      if (SHOW_MAP.test(sub) && idOf(arg)) {
+        const l = re.get(ctx.state, idOf(arg));
+        return l ? sendPin(ctx, l) : ctx.reply(`There is no listing #${idOf(arg)}.`);
+      }
       if (!ctx.isSudoOrOwner) return ctx.reply("Only the owner and sudo users manage listings. Anyone can view them: .listing <number> · .listings");
 
       if (sub === "add" || sub === "new") {
         const useAi = arg === "ai";
         const body = ctx.text.slice(ctx.args[0].length);
         const text = textOrQuoted(ctx, useAi ? body.replace(/^\s*ai\b/i, "") : body);
-        const fields = useAi ? await aiFields(ctx, text) : re.parseListingText(text);
+        const fields = await shortLinkGeo(ctx, useAi ? await aiFields(ctx, text) : re.parseListingText(text), text);
         const dup = re.findDuplicate(ctx.state, fields);
         const l = re.add(ctx.state, fields, ctx.sender);
         const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
@@ -125,11 +202,24 @@ module.exports = [
       if (sub === "edit") {
         // Everything after "edit 12", line breaks kept (several fields can be changed at once).
         const text = textOrQuoted(ctx, ctx.text.replace(/^\S+\s+\S+\s*/, ""));
-        const changes = re.parseListingText(text);
+        const changes = await shortLinkGeo(ctx, re.parseListingText(text), text);
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
         const before = { ...re.get(ctx.state, id) };
         const l = re.update(ctx.state, id, changes);
         return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${priceDropLine(ctx, before, l)}`);
+      }
+      if (SET_LOC.test(sub)) {
+        if (/^(del|delete|remove|off|حذف)$/.test(String(ctx.args[2] || "").toLowerCase())) {
+          re.update(ctx.state, id, { geo: null });
+          return ctx.reply(`🗺️ Location removed from #${id}.`);
+        }
+        const geo = await pointFrom(ctx, ctx.args.slice(2).join(" "));
+        if (!geo) {
+          const p = `${ctx.prefix}listing loc ${id}`;
+          return ctx.reply(`Reply to a location pin (📎 → Location) or a Google Maps link with ${p}, or write it after the command:\n${p} https://maps.app.goo.gl/…\n${p} 30.0444, 31.2357`);
+        }
+        re.update(ctx.state, id, { geo });
+        return ctx.reply(`📍 Location saved for #${id}${geo.label ? ` (${geo.label})` : ""}.\n🗺️ ${places.mapsUrl(geo)}\n\nClients near it: reply to their location with ${ctx.prefix}listings near · the pin: ${ctx.prefix}listing ${id} map`);
       }
       if (sub === "match" || sub === "clients") {
         const m = leads.matchingLeads(ctx.state, re.get(ctx.state, id));
@@ -156,11 +246,13 @@ module.exports = [
     aliases: ["properties", "aqarat"],
     category: "realestate",
     description:
-      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold.',
-    usage: "[filters]",
-    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all"],
+      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم").',
+    usage: "[filters] | near [filters] [radius km]",
+    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all", "(reply to a client's location) .listings near", ".listings near شقة 5 كم https://maps.app.goo.gl/…"],
     cooldown: 3,
     async run(ctx) {
+      const nearWord = /^(near|nearby|nearest|قريب|القريب|الأقرب|الاقرب|جنبي)$/i.test(ctx.args[0] || "");
+      if (nearWord || places.fromMessage(ctx.quoted?.message)) return nearby(ctx, nearWord ? ctx.text.replace(/^\s*\S+/, "") : ctx.text);
       const { list, filters } = re.search(ctx.state, ctx.text);
       const cur = re.agent(ctx.state).currency;
       if (!list.length) return ctx.reply(re.all(ctx.state).length ? "No listing matches. Try fewer filters, or .listings all" : `The catalogue is empty. Add one: ${ctx.prefix}listing add`);

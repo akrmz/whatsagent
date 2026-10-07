@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { UserError } = require("../core/errors");
+const places = require("./places");
 
 /**
  * Real-estate tools: the agent's profile, a catalogue of listings with photos, and the
@@ -171,9 +172,16 @@ function parseListingText(text) {
   const out = {};
   const notes = [];
   for (const raw of String(text || "").split(/\n+/)) {
+    // A Google Maps link gives the exact location; its numbers must not be read as the price or size.
+    let linked = false;
+    const unlinked = raw.replace(places.MAP_LINKS, (link) => {
+      linked = true;
+      out.geo ||= places.fromText(link) || undefined;
+      return " ";
+    });
     // Bullets and emoji people start lines with ("📍 المنطقة: …"), including the U+FE0F variant selector.
-    const line = raw.replace(/^(?:[\s•▪◾🔹🔸*\-–—✅📍💰📐🛏🛁🏢✨📝]|️)+/u, "").trim();
-    if (!line) continue;
+    const line = unlinked.replace(/^(?:[\s•▪◾🔹🔸*\-–—✅📍💰📐🛏🛁🏢✨📝🗺]|️)+/u, "").trim();
+    if (!line || (linked && /^[^:：\n]{0,25}[:：]$/.test(line))) continue; // "اللوكيشن: <link>" leaves nothing to note
     const m = line.match(/^([^:：]{1,25})\s*[:：]\s*(.+)$/);
     const key = m && LABEL_OF.get(m[1].trim().toLowerCase().replace(/\s+/g, " "));
     if (!key) {
@@ -189,7 +197,7 @@ function parseListingText(text) {
     else if (key === "notes") notes.push(value);
     else out[key] = value.slice(0, key === "location" ? 120 : 60);
   }
-  const all = String(text || "");
+  const all = String(text || "").replace(places.MAP_LINKS, " ");
   out.type ||= typeIn(all.split("\n")[0]) || typeIn(all) || undefined;
   out.deal ||= dealIn(all) || undefined;
   // Details written as sentences in the unlabeled lines fill what the labels didn't give.
@@ -335,6 +343,7 @@ function card(l, a) {
     l.finishing && `✨ التشطيب: ${l.finishing}`,
     ppm,
     l.notes && `📝 ${l.notes}`,
+    l.geo && `🗺️ الموقع على الخريطة: ${places.mapsUrl(l.geo)}`,
     `🔖 ${STATUS_AR[l.status] || l.status}`,
     contactLine(a) && `\n${contactLine(a)}`,
   ]
@@ -383,6 +392,20 @@ function search(state, query) {
   return { filters: f, words, list };
 }
 
+/**
+ * The listings matching a search, nearest first from a point (a client's location). Listings
+ * without a saved location can't be placed; how many were skipped is returned as `missing`.
+ */
+function near(state, from, query, { radiusKm } = {}) {
+  const { list, filters } = search(state, query);
+  const placed = list.filter((l) => l.geo);
+  const found = placed
+    .map((l) => ({ listing: l, km: places.distanceKm(from, l.geo) }))
+    .filter((x) => !radiusKm || x.km <= radiusKm)
+    .sort((a, b) => a.km - b.km);
+  return { list: found, filters, missing: list.length - placed.length };
+}
+
 const line = (l, cur) =>
   `*#${l.id}* ${l.type || "عقار"} لل${l.deal || "بيع"}${l.location ? ` — ${l.location.slice(0, 40)}` : ""}${l.price ? ` — ${shortAr(l.price)}${cur ? ` ${cur}` : ""}` : ""}${l.size ? ` · ${l.size}م²` : ""}${l.rooms ? ` · ${l.rooms} غرف` : ""}${l.status !== "available" ? ` (${STATUS_AR[l.status]})` : ""}${l.photos ? " 📷" : ""}`;
 
@@ -390,6 +413,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, extractFree, cleanFields, typeIn, dealIn,
-  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, line, findDuplicate, discount, count, stale,
+  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, stale,
   STATUS_AR, MAX_PHOTOS,
 };

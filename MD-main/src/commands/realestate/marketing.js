@@ -1,6 +1,7 @@
 "use strict";
 
 const re = require("../../services/realestate");
+const places = require("../../services/places");
 const leads = require("../../services/leads");
 const img = require("../../services/reimages");
 const pdf = require("../../services/pdf");
@@ -106,9 +107,9 @@ module.exports = [
       const what = (ctx.args[0] || "").toLowerCase();
       const today = date(Date.now());
       if (["listings", "listing", "units", "عقارات"].includes(what)) {
-        const rows = [["id", "type", "deal", "location", "price", "size_m2", "price_per_m2", "rooms", "baths", "floor", "finishing", "status", "photos", "notes", "created", "updated"]];
+        const rows = [["id", "type", "deal", "location", "price", "size_m2", "price_per_m2", "rooms", "baths", "floor", "finishing", "status", "photos", "notes", "map", "created", "updated"]];
         for (const l of re.all(ctx.state).sort((a, b) => a.id - b.id)) {
-          rows.push([l.id, l.type, l.deal, l.location, l.price, l.size, l.price && l.size ? Math.round(l.price / l.size) : "", l.rooms, l.baths, l.floor, l.finishing, l.status, l.photos, l.notes, date(l.created), date(l.updated)]);
+          rows.push([l.id, l.type, l.deal, l.location, l.price, l.size, l.price && l.size ? Math.round(l.price / l.size) : "", l.rooms, l.baths, l.floor, l.finishing, l.status, l.photos, l.notes, l.geo ? places.mapsUrl(l.geo) : "", date(l.created), date(l.updated)]);
         }
         return ctx.reply({ document: csv(rows), mimetype: "text/csv", fileName: `listings-${today}.csv`, caption: `📊 ${rows.length - 1} listings` });
       }

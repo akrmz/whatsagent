@@ -163,7 +163,7 @@ module.exports = [
       if (id) {
         const l = re.get(ctx.state, id);
         if (!l) return ctx.reply(`There is no listing #${id}.`);
-        details = re.card(l, {}).replace(/\n?🔖.*$/m, "");
+        details = re.card(l, {}).replace(/\n?(?:🔖|🗺️).*$/gmu, "");
       } else if (ctx.quoted) details = getText(ctx.quoted.message);
       if (!details) return ctx.reply(`Usage: ${ctx.prefix}adcopy <listing number>, or reply to a property description with ${ctx.prefix}adcopy`);
       usage.takeQuota(ctx);
