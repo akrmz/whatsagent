@@ -2,6 +2,7 @@
 
 const re = require("../services/realestate");
 const { show, captureInquiry } = require("../services/listingview");
+const { allowLookup } = require("../services/lookuplimits");
 
 /**
  * "#12" (the number on a listing's flyer) shows that listing in any chat. Runs after the
@@ -19,6 +20,7 @@ module.exports = {
     if (!m) return undefined;
     const listing = re.get(ctx.state, Number(m[1]));
     if (!listing) return undefined;
+    if (!allowLookup(ctx, `listing:${listing.id}`)) return "stop"; // flood: silent
     await show(ctx, listing);
     await captureInquiry(ctx, listing);
     return "stop";

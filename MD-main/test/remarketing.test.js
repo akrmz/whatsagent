@@ -55,7 +55,7 @@ test('"#12" shows the listing in any chat; a note saved as "12" still wins', asy
 test("autoleads: a private question about a listing becomes a client, once, and the owner is told", async () => {
   const b = bot();
   await withListings(b);
-  await b.send("#1", { from: CLIENT });
+  await b.send("#4", { from: CLIENT }); // (not #1: the same listing again within 30 s would be skipped as a repeat)
   assert.equal(leads.all(b.app.state).length, 0, "off by default");
 
   await b.send(".agent autoleads on");

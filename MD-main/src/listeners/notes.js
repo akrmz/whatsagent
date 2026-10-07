@@ -1,6 +1,7 @@
 "use strict";
 
 const notes = require("../services/notes");
+const { allowLookup } = require("../services/lookuplimits");
 
 /** "#rules" shows the note called "rules" saved in this chat with .save. */
 module.exports = {
@@ -14,7 +15,8 @@ module.exports = {
     if (!m) return undefined;
     const note = notes.get(ctx.state, ctx.chatId, m[1]);
     if (!note) return undefined;
-    await ctx.reply(note.text);
+    // Over the limit: silent, but still handled (nothing else answers it either).
+    if (allowLookup(ctx, `note:${notes.normalize(m[1])}`)) await ctx.reply(note.text);
     return "stop";
   },
 };
