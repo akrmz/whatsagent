@@ -208,6 +208,37 @@ Or forward a broker's post to the bot and reply to it with `.listing add`. Lines
 | `.ppm 3.5m 150` | Price per square metre. |
 | `.roi 3.5m 25k` | Rental yield: yearly rent as % of the price, and years to recover it from rent. |
 
+### Clients (العملاء)
+
+A small client tracker for the owner and sudo users. Clients' details are never shown to anyone else.
+
+**Save a client** with labelled lines (or forward the client's **contact card** to the bot and reply to it with `.lead add`: the name and number are filled in):
+```
+.lead add
+الاسم: أحمد محمد
+الموبايل: 0100 123 4567
+الميزانية: 2-3 مليون
+النوع: شقة
+المنطقة: التجمع
+الغرف: 3
+المصدر: فيسبوك
+عايز تسليم قريب
+```
+Local numbers (0100…) are saved in international form using your own country code, and the same number can't be saved twice. Budgets can be written as "2-3 مليون", "من 2 إلى 3 مليون", "حتى 3 مليون" or "800 ألف - 1.2 مليون".
+
+| Command | What it does |
+|---|---|
+| `.lead 5` | The client's card: what they want, budget, source, status, follow-up, the last notes, and **the listings that match** (within budget first; up to 10% over is shown with ⚠️). |
+| `.lead note 5 <text>` | Adds a dated note to the history. |
+| `.lead status 5 viewing` | new 🆕 · contacted 📞 · viewing 👀 · negotiating 🤝 · won ✅ · lost ❌ (Arabic works too: معاينة، تفاوض …). |
+| `.lead follow 5 tomorrow at 10am <note>` | Reminds you in this chat to follow up (`2h`, `friday at 18:00` … like `.remind`). `.lead follow 5 off` cancels it. There is no limit on the number of clients with follow-ups. |
+| `.lead send 5 12` | Sends listing #12 (photo and details, with a greeting by name) to the client's WhatsApp, notes it in the history, and moves a new client to "contacted". |
+| `.lead edit 5 الميزانية: 3-4 مليون` / `.lead del 5` | Change or delete. |
+| `.leads` | The pipeline (how many in each stage), upcoming follow-ups and the latest clients. `.leads viewing` filters by status; `.leads التجمع` or `.leads 0100` searches names, numbers, areas and notes. |
+| `.listing match 12` | The clients a listing suits. `.listing add` also says right away which saved clients a new property suits. |
+
+**About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
+
 The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text but not the photos, so copy that folder too if you move servers.
 
 ## Everyday tools
@@ -320,6 +351,13 @@ This list is generated from the command files themselves.
 | `.agent` | `.broker` `.mybrand` | بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. Owner and sudo users. | owner, sudo | `.agent name أحمد العقاري` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
 | `.installments` | `.aqsat` `.plan` `.paymentplan` | حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. | everyone | `.installments 3.5m 10% 8 quarterly maint 8%` |
+| `.lead` | `.client` `.customer` `.ameel` | متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users. | owner, sudo | `.lead add
+الاسم: أحمد
+الموبايل: 01001234567
+الميزانية: 2-3 مليون
+النوع: شقة
+المنطقة: التجمع` |
+| `.leads` | `.clients` `.customers` `.pipeline` | قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …) or search by name, number, area or notes. Owner and sudo users. | owner, sudo | `.leads` |
 | `.listing` | `.property` `.aqar` | عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, mark it reserved/sold. Anyone can view; the owner and sudo users manage. | everyone | `.listing add
 النوع: شقة
 للبيع
@@ -749,6 +787,6 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
-- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider.
+- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

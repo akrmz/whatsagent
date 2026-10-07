@@ -2,6 +2,20 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.25.0 — 2026-10-07
+
+### Added — clients for real-estate agents
+- **`.lead` / `.leads`**: a client tracker (owner and sudo users only).
+  - Clients are saved from labelled lines or from a shared contact card (vCard).
+  - Phone numbers are normalised to international form using the owner's country code (0100… → 20100…, 05… → 9665… for a Saudi owner), and duplicates are refused.
+  - Budgets are read as ranges ("2-3 مليون", "800 ألف - 1.2 مليون").
+  - Notes history, a pipeline status, follow-up reminders (their own loop, so the 10-reminder limit of `.remind` doesn't apply), and search by name, number, area or notes.
+- **Matching both ways**: `.lead 5` lists the listings that fit (type, sale/rent, rooms, area words, budget with up to 10% over flagged), with within-budget ones first. `.listing add` names the saved clients a new property suits, and `.listing match 12` lists them. A client without any wishes yet matches nothing rather than everything.
+- **`.lead send 5 12`**: sends a listing to the client's WhatsApp, after checking the number is on WhatsApp. It's recorded in the history.
+
+### Checked
+- 2 tests (212 in total): parsing (numbers, budgets, vCards) and the whole flow from chat, including matching, follow-up timing, sending, and that other users can't see clients.
+
 ## 2.24.0 — 2026-10-07
 
 ### Added — real-estate marketing (new help section "🏠 Real estate · عقارات")
