@@ -2,20 +2,7 @@
 
 const { getJson, HttpError } = require("../../core/http");
 const { UserError } = require("../../core/errors");
-
-/** "https://www.Example.com/x" or "user@example.com" or "مثال.مصر" → "www.example.com" (punycode). */
-function domainOf(text) {
-  let s = String(text || "").trim().toLowerCase();
-  s = s.replace(/^[a-z]+:\/\//, "").replace(/^[^@\s]+@/, "").split(/[/?#:\s]/)[0];
-  let host;
-  try {
-    host = new URL(`http://${s}`).hostname;
-  } catch {
-    return null;
-  }
-  if (!/^(?=.{4,253}$)([a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9-]{2,63}$/.test(host) || /^\d+(\.\d+){3}$/.test(host)) return null;
-  return host;
-}
+const { domainOf } = require("../../services/nettools");
 
 const date = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "—");
 

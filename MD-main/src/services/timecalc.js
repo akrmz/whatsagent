@@ -142,4 +142,45 @@ function daysAnswer(text, today) {
   return `📅 ${what}:\n*${plural(Math.abs(diff), "day")}* (${parts}${weeks ? `; ${plural(weeks, "week")}${Math.abs(diff) % 7 ? ` and ${plural(Math.abs(diff) % 7, "day")}` : ""}` : ""})`;
 }
 
-module.exports = { offsetMinutes, localDate, zonedInstant, parseTime, parseTz, parseDate, daysAnswer, ymd };
+// ---- month calendar (.cal) ----
+
+const WEEK_STARTS = { mon: 1, sun: 0, sat: 6 };
+const DAY_NAMES = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+
+/** "2026-12", "12/2026", "12 2026", "dec 2026" (+ optional "sun"/"sat"/"mon") → { y, m, start } */
+function parseMonth(text, today) {
+  const words = String(text || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+  const startWord = words.find((w) => w in WEEK_STARTS);
+  const rest = words.filter((w) => w !== startWord).join(" ");
+  const months = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+  let y = today.y;
+  let m = today.m;
+  let r;
+  if (!rest) {
+    /* this month */
+  } else if ((r = rest.match(/^(\d{4})[-/.](\d{1,2})$/))) [y, m] = [Number(r[1]), Number(r[2])];
+  else if ((r = rest.match(/^(\d{1,2})[-/. ](\d{4})$/))) [m, y] = [Number(r[1]), Number(r[2])];
+  else if ((r = rest.match(/^([a-z]{3})[a-z]*\s*(\d{4})?$/)) && months.includes(r[1])) [m, y] = [months.indexOf(r[1]) + 1, r[2] ? Number(r[2]) : today.y];
+  else if ((r = rest.match(/^(\d{1,2})$/))) m = Number(r[1]);
+  else throw new UserError("Usage: .cal · .cal 2026-12 · .cal dec 2026 · add sun or sat to start the week on that day");
+  if (m < 1 || m > 12 || y < 1900 || y > 2200) throw new UserError("Give a month 1–12 and a year 1900–2200.");
+  return { y, m, start: WEEK_STARTS[startWord || "mon"] };
+}
+
+/** The month as a monospace grid; today in [brackets]. */
+function monthGrid({ y, m, start }, today) {
+  const first = new Date(Date.UTC(y, m - 1, 1)).getUTCDay();
+  const days = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const order = Array.from({ length: 7 }, (_, i) => (start + i) % 7);
+  const cells = Array((first - start + 7) % 7).fill("    ");
+  for (let d = 1; d <= days; d++) {
+    const isToday = today && today.y === y && today.m === m && today.d === d;
+    cells.push(isToday ? `[${d}]`.padStart(4, " ") : ` ${String(d).padStart(2, " ")} `);
+  }
+  const rows = [];
+  for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7).join("").trimEnd());
+  const title = new Intl.DateTimeFormat("en-GB", { timeZone: "UTC", month: "long", year: "numeric" }).format(new Date(Date.UTC(y, m - 1, 1)));
+  return { title, text: [order.map((d) => ` ${DAY_NAMES[d]} `).join("").trimEnd(), ...rows].join("\n") };
+}
+
+module.exports = { offsetMinutes, localDate, zonedInstant, parseTime, parseTz, parseDate, daysAnswer, ymd, parseMonth, monthGrid };

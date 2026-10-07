@@ -2,6 +2,7 @@
 
 const geo = require("../../services/geo");
 const tc = require("../../services/timecalc");
+const hijri = require("../../services/hijri");
 
 const clock = (instant, timeZone) =>
   new Intl.DateTimeFormat("en-GB", { timeZone, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(instant));
@@ -47,6 +48,24 @@ module.exports = [
     async run(ctx) {
       if (!ctx.text) return ctx.reply(`Usage: ${ctx.prefix}days 2026-12-31 · ${ctx.prefix}days 01/01/2026 31/12/2026 · ${ctx.prefix}days +90`);
       return ctx.reply(tc.daysAnswer(ctx.text, tc.localDate(ctx.config.bot.timezone, Date.now())));
+    },
+  },
+  {
+    name: "cal",
+    aliases: ["calendar", "month"],
+    category: "tools",
+    description: 'A month calendar with today marked. Weeks start on Monday; add "sun" or "sat" to start on Sunday or Saturday. Also shows the Hijri months it spans.',
+    usage: "[month] [year] [sun|sat]",
+    examples: [".cal", ".cal 2026-12", ".cal dec 2026 sat"],
+    cooldown: 2,
+    async run(ctx) {
+      const today = tc.localDate(ctx.config.bot.timezone, Date.now());
+      const month = tc.parseMonth(ctx.text, today);
+      const grid = tc.monthGrid(month, today);
+      const lastDay = new Date(Date.UTC(month.y, month.m, 0));
+      const [h1, h2] = [new Date(Date.UTC(month.y, month.m - 1, 1, 12)), new Date(lastDay.getTime() + 12 * 3600000)].map((d) => hijri.toHijri(d, "UTC"));
+      const hijriLine = h1.month === h2.month ? `${h1.monthName} ${h1.year}` : `${h1.monthName}${h1.year !== h2.year ? ` ${h1.year}` : ""} – ${h2.monthName} ${h2.year}`;
+      return ctx.reply(`📅 *${grid.title}*\n\`\`\`\n${grid.text}\n\`\`\`\n_${hijriLine} هـ (Umm al-Qura)_`);
     },
   },
 ];
