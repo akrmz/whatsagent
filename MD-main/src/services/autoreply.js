@@ -46,16 +46,27 @@ function withinHours(hours, minutes) {
 
 const fingerprint = (salt, jid) => crypto.createHash("sha256").update(`${salt}|${jid}`).digest("hex").slice(0, 32);
 
-/** Records the person; true the first time they are seen. */
+// The size of each store's "seen" list, kept in step so it isn't recounted per message.
+const seenCounts = new WeakMap();
+
+/**
+ * Records the person; true the first time they are seen. A known person costs one hash and
+ * one lookup (no write); the list is trimmed in batches, oldest first, past MAX_SEEN.
+ */
 function firstContact(state, jid, now = Date.now()) {
-  return store(state).update((d) => {
+  const s = store(state);
+  if (s.data.salt && s.data.seen?.[fingerprint(s.data.salt, jid)]) return false;
+  return s.update((d) => {
     d.salt ||= crypto.randomBytes(16).toString("hex");
     d.seen ||= {};
-    const key = fingerprint(d.salt, jid);
-    if (d.seen[key]) return false;
-    d.seen[key] = now;
-    const keys = Object.keys(d.seen);
-    if (keys.length > MAX_SEEN) for (const k of keys.sort((a, b) => d.seen[a] - d.seen[b]).slice(0, keys.length - MAX_SEEN)) delete d.seen[k];
+    d.seen[fingerprint(d.salt, jid)] = now;
+    let count = (seenCounts.get(s) ?? Object.keys(d.seen).length - 1) + 1;
+    if (count > MAX_SEEN + 1000) {
+      const keys = Object.keys(d.seen).sort((a, b) => d.seen[a] - d.seen[b]);
+      for (const k of keys.slice(0, keys.length - MAX_SEEN)) delete d.seen[k];
+      count = MAX_SEEN;
+    }
+    seenCounts.set(s, count);
     return true;
   });
 }

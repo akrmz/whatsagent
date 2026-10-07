@@ -66,7 +66,7 @@ function renderOverview({ commands, prefix, botName, version, level = "user" }) 
     const shown = [...featured, ...list.map((c) => c.name).filter((n) => !featured.includes(n))].slice(0, 6);
     lines.push(`*${CATEGORY_TITLES[category] || category}* (${list.length})`, `   ${shown.map((n) => prefix + n).join("  ")}`);
   }
-  lines.push("", `📋 ${prefix}help <section> — e.g. ${prefix}help islamic`, `🔎 ${prefix}help <command> — details`, `📚 ${prefix}menu — every command`);
+  lines.push("", `📋 ${prefix}help <section> — e.g. ${prefix}help islamic · ${prefix}help عقارات`, `🔎 ${prefix}help <command> — details`, `📚 ${prefix}menu — every command`);
   return lines.join("\n");
 }
 
@@ -85,12 +85,37 @@ function renderMenu({ commands, prefix, botName, version, level = "owner" }) {
 }
 
 /** Matches "download", "downloads", "Stickers", "info" … to a category key. */
+// Arabic names of the sections, for ".help عقارات" (with or without "ال").
+const CATEGORY_AR = {
+  general: ["عام", "عامة"],
+  tools: ["أدوات", "ادوات", "اداة", "أداة"],
+  realestate: ["عقارات", "عقار", "تسويق عقاري"],
+  info: ["معلومات", "بحث"],
+  islamic: ["إسلاميات", "اسلاميات", "إسلامي", "اسلامي", "دين", "دينية"],
+  admin: ["إدارة", "ادارة", "مشرفين", "مشرف", "جروب", "مجموعة"],
+  owner: ["مالك", "المطور"],
+  sticker: ["ملصقات", "ستيكر", "استيكر", "ملصق"],
+  image: ["صور", "صورة"],
+  audio: ["صوت", "صوتيات", "مؤثرات صوتية"],
+  textmaker: ["نصوص", "كتابة", "زخرفة"],
+  download: ["تحميل", "تنزيل", "تحميلات"],
+  ai: ["ذكاء", "ذكاء اصطناعي", "الذكاء الاصطناعي"],
+  fun: ["تسلية", "ترفيه", "ضحك"],
+  misc: ["تأثيرات", "تاثيرات", "فلاتر"],
+  anime: ["انمي", "أنمي"],
+  games: ["ألعاب", "العاب", "لعبة"],
+};
+const arabicKey = (s) => s.trim().replace(/^ال/, "").replace(/\s+/g, " ");
+
 function findCategory(input, commands) {
-  const q = String(input || "").toLowerCase().replace(/s$/, "");
+  const raw = String(input || "").trim();
+  const q = raw.toLowerCase().replace(/s$/, "");
   if (!q) return null;
   const keys = byCategory(commands).map(([k]) => k);
+  const ar = arabicKey(raw);
   return (
-    keys.find((k) => k === q || k.replace(/s$/, "") === q) ||
+    keys.find((k) => k === q || k.replace(/s$/, "") === q || k === q.replace(/\s+/g, "")) ||
+    keys.find((k) => (CATEGORY_AR[k] || []).some((w) => arabicKey(w) === ar)) ||
     keys.find((k) => (CATEGORY_TITLES[k] || "").toLowerCase().replace(/[^a-z& ]/g, "").trim().split(/\s+/).some((w) => w.replace(/s$/, "") === q)) ||
     null
   );

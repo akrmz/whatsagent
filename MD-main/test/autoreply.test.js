@@ -97,6 +97,20 @@ test("greeted people are stored as fingerprints, not phone numbers", () => {
   assert.equal(autoreply.withinHours("20:00-04:00", 1 * 60), true, "working hours across midnight");
 });
 
+test("the greeted list stays bounded: the oldest are dropped in batches, recent ones kept", () => {
+  const b = bot();
+  const s = b.app.state;
+  // The 51,001st person takes the list over 50,000 + 1,000: it is trimmed back to 50,000.
+  for (let i = 0; i < 51001; i++) autoreply.firstContact(s, `${2010000000000 + i}@s.whatsapp.net`, i);
+  const seen = s.store("autoreply", {}).data.seen;
+  assert.equal(Object.keys(seen).length, 50000, "trimmed back to 50,000 once over by 1,000");
+  assert.equal(autoreply.firstContact(s, `${2010000000000 + 51000}@s.whatsapp.net`), false, "the newest is still known");
+  assert.equal(autoreply.firstContact(s, `${2010000000000 + 0}@s.whatsapp.net`), true, "the oldest was dropped");
+  const other = bot(); // another bot in the same process keeps its own count
+  assert.equal(autoreply.firstContact(other.app.state, "201099998888@s.whatsapp.net"), true);
+  assert.equal(Object.keys(other.app.state.store("autoreply", {}).data.seen).length, 1);
+});
+
 test("the Arabic guide shows which steps are done and what's next", async () => {
   const b = bot();
   await b.send(".rehelp");
