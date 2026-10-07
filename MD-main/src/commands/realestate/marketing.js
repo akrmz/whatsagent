@@ -21,12 +21,6 @@ const BOM = String.fromCharCode(0xfeff);
 const csv = (rows) => Buffer.from(`${BOM}${rows.map((r) => r.map(cell).join(",")).join("\r\n")}\r\n`, "utf8");
 const date = (t) => (t ? new Date(t).toISOString().slice(0, 10) : "");
 
-const median = (xs) => {
-  const s = [...xs].sort((a, b) => a - b);
-  const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
-};
-
 module.exports = [
   {
     name: "autolistings",
@@ -121,39 +115,6 @@ module.exports = [
         return ctx.reply({ document: csv(rows), mimetype: "text/csv", fileName: `clients-${today}.csv`, caption: `📊 ${rows.length - 1} clients` });
       }
       return ctx.reply(`Usage: ${ctx.prefix}export listings | ${ctx.prefix}export leads`);
-    },
-  },
-  {
-    name: "market",
-    aliases: ["prices", "areastats"],
-    category: "realestate",
-    description: "متوسط الأسعار — price statistics from your own listings (sale): average and median price per m², range, and by property type; optionally for an area (words from the location). Only as good as your catalogue.",
-    usage: "[area]",
-    examples: [".market", ".market التجمع"],
-    cooldown: 3,
-    async run(ctx) {
-      const words = re.latinDigits(ctx.text).toLowerCase().split(/\s+/).filter((w) => w.length > 1);
-      const cur = re.agent(ctx.state).currency;
-      const pool = re.all(ctx.state).filter((l) => l.deal !== "إيجار" && l.price && l.size && words.every((w) => `${l.location || ""}`.toLowerCase().includes(w)));
-      if (pool.length < 2) return ctx.reply(`Not enough listings with a price and an area${words.length ? ` in "${ctx.text}"` : ""} (at least 2 needed).`);
-      const ppm = pool.map((l) => l.price / l.size);
-      const avg = ppm.reduce((a, b) => a + b, 0) / ppm.length;
-      const byType = {};
-      for (const l of pool) (byType[l.type || "عقار"] ||= []).push(l.price / l.size);
-      const types = Object.entries(byType)
-        .sort((a, b) => b[1].length - a[1].length)
-        .map(([t, xs]) => `▫️ ${t}: ${re.money(xs.reduce((a, b) => a + b, 0) / xs.length, cur)}/م² (${xs.length})`);
-      return ctx.reply(
-        [
-          `📊 *أسعار المتر${words.length ? ` — ${ctx.text}` : ""}* (${pool.length} عقار للبيع من الكتالوج)`,
-          `متوسط: *${re.money(avg, cur)}*/م² · الوسيط: ${re.money(median(ppm), cur)}/م²`,
-          `من ${re.money(Math.min(...ppm), cur)} إلى ${re.money(Math.max(...ppm), cur)}/م²`,
-          "",
-          ...types,
-          "",
-          "_من عقاراتك المسجلة فقط، وليس سعر السوق الرسمي._",
-        ].join("\n"),
-      );
     },
   },
 ];

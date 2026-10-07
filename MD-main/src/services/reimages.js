@@ -83,4 +83,4 @@ async function watermark(buffer, text) {
   return sharp(data).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).jpeg({ quality: 90 }).toBuffer();
 }
 
-module.exports = { flyer, watermark, toListingJpeg };
+module.exports = { flyer, watermark, toListingJpeg, esc, isolateNumbers, clip, FONT, RTL };

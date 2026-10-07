@@ -117,9 +117,8 @@ test("brochure PDF, CSV export for Excel, and price statistics", async () => {
   assert.ok(!b.last().document, "clients' data only for owner and sudo");
 
   await b.send(".market التجمع");
-  assert.match(b.last().text, /\(2 عقار للبيع من الكتالوج\)[\s\S]*متوسط: \*20,000 جنيه\*\/م² · الوسيط: 20,000 جنيه/);
+  assert.match(b.last().text, /▫️ \*شقة للبيع\*: 2 · المتر 20,000 جنيه/);
   await b.send(".market");
-  assert.match(b.last().text, /3 عقار للبيع/, "rent listings are left out");
-  assert.match(b.last().text, /▫️ شقة: 20,000 جنيه\/م² \(2\)/);
+  assert.match(b.last().text, /\n4 عقار، منها \d بسعر ومساحة/);
   assert.equal(re.all(b.app.state).length, 4);
 });

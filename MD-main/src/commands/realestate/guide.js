@@ -39,6 +39,7 @@ module.exports = {
         "",
         `📋 كل الأوامر: ${p}help realestate · تفاصيل أي أمر: ${p}help <الأمر>`,
         `📍 المواقع: رد على اللوكيشن أو لينك جوجل ماب بـ ${p}listing loc <رقم> · ولو العميل بعت موقعه رد عليه بـ ${p}listings near تظهر له أقرب العقارات`,
+        `💰 التسعير: ${p}market أسعار المتر من عقاراتك · ${p}market <رقم> هل السعر مناسب؟ · ${p}compare 3 7 مقارنة · ${p}offer <رقم> #<عميل> 10% 8 ربع سنوي عرض سعر PDF بجدول الأقساط`,
         `📊 الحاسبات: ${p}installments · ${p}mortgage · ${p}commission · ${p}ppm · ${p}roi`,
         `💾 النسخ الاحتياطي: ${p}backup · ${p}backup photos · ${p}export listings`,
       ].join("\n\n"),
