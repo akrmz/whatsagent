@@ -78,6 +78,11 @@ async function handle(ctx) {
       ? `${hi}\nدي أقرب العقارات المتاحة لطلبك (${what}):\n\n${matches.map(({ listing }) => re.line(listing, cur)).join("\n")}\n\nأرسل رقم العقار (مثلاً #${matches[0].listing.id}) للتفاصيل والصور.`
       : `${hi}\nوصلني طلبك (${what}) 👍\nحالياً مفيش عقار مطابق، وهتواصل معاك أول ما يتوفر.`,
   );
+  // Remembered as sent: campaigns won't send them again, and the summary shows if the client answers.
+  if (matches.length) {
+    const ids = matches.map(({ listing }) => listing.id);
+    leads.markSent(ctx.state, lead.id, ids, "bot", `أُرسل له تلقائياً: ${ids.map((i) => `#${i}`).join("، ")}`);
+  }
 
   const owner = ctx.config.owners.numbers[0];
   if (owner && notifyOwner(ctx.state, String(lead.id))) {

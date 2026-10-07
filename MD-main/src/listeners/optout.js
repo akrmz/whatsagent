@@ -7,8 +7,6 @@ const leads = require("../services/leads");
  * or sent listings; "اشتراك" (or "start") turns them back on. Only saved clients are answered,
  * and only when their choice changes. Works in private mode too: a stop request is always honoured.
  */
-const STOP = /^(وقف|توقف|ايقاف|إيقاف|الغاء|إلغاء|stop|unsubscribe)$/i;
-const START = /^(اشتراك|اشترك|start|subscribe)$/i;
 
 module.exports = {
   name: "offers-opt-out",
@@ -19,8 +17,8 @@ module.exports = {
   async run(ctx) {
     if (ctx.fromMe) return undefined;
     const word = ctx.body.trim().replace(/[.!؟?]+$/, "");
-    const stop = STOP.test(word);
-    if (!stop && !START.test(word)) return undefined;
+    const stop = leads.STOP_WORDS.test(word);
+    if (!stop && !leads.START_WORDS.test(word)) return undefined;
     const pn = ctx.app.identity.toPn(ctx.sender);
     const phone = pn ? pn.split("@")[0] : null;
     const lead = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;

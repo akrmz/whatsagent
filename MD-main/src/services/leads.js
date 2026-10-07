@@ -208,16 +208,48 @@ function note(state, id, by, text, now = Date.now()) {
  * A listing (or an offer for it) was sent to the client: noted in their history, remembered so
  * campaigns don't send it again, counted on the listing, and a new client becomes "contacted".
  */
-function markSent(state, id, listingId, by, text, now = Date.now()) {
+function markSent(state, id, listingIds, by, text, now = Date.now()) {
+  const ids = [].concat(listingIds); // one listing or several (one history note either way)
   note(state, id, by, text, now);
-  re.count(state, listingId, "sent");
+  for (const listingId of ids) re.count(state, listingId, "sent");
   return store(state).update((d) => {
     const l = d.items[id];
-    l.sentListings = [...new Set([...(l.sentListings || []), listingId])].slice(-200);
+    l.sentListings = [...new Set([...(l.sentListings || []), ...ids])].slice(-200);
+    Object.assign(l, { lastSentAt: now, lastSentListing: ids[0] });
     if (l.status === "new") l.status = "contacted";
     return l;
   });
 }
+
+const SEEN_GAP = 10 * 60 * 1000;
+/** Did the client write since we last sent them something? */
+const awaitingReply = (l) => Boolean(l.lastSentAt) && !(l.lastMsgAt > l.lastSentAt);
+
+/**
+ * The client wrote to us (a private message). Remembered at most every 10 minutes, except the
+ * first message after something was sent to them, which is noted as a reply.
+ * @returns {{ replied: number | null } | null} replied: the listing they answered, if any
+ */
+function seen(state, id, now = Date.now()) {
+  const l = get(state, id);
+  if (!l) return null;
+  const reply = awaitingReply(l);
+  if (!reply && now - (l.lastMsgAt || 0) < SEEN_GAP) return { replied: null };
+  store(state).update((d) => {
+    const x = d.items[id];
+    Object.assign(x, { lastMsgAt: now, updated: now });
+    if (reply) {
+      x.replied = true;
+      x.history.push({ at: now, by: "client", text: `ردّ بعد إرسال العقار #${x.lastSentListing}` });
+      if (x.history.length > MAX_NOTES) x.history.splice(0, x.history.length - MAX_NOTES);
+    }
+  });
+  return { replied: reply ? l.lastSentListing : null };
+}
+
+/** What a client sends to stop or restart offers (see listeners/optout.js). */
+const STOP_WORDS = /^(وقف|توقف|ايقاف|إيقاف|الغاء|إلغاء|stop|unsubscribe)$/i;
+const START_WORDS = /^(اشتراك|اشترك|start|subscribe)$/i;
 
 /** The client asked to stop (or restart) offers: "وقف" / "اشتراك". */
 function setOptOut(state, id, optedOut, now = Date.now()) {
@@ -287,6 +319,8 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
     lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
     lead.optedOut && "🚫 أوقف رسائل العروض (أرسل وقف)",
+    lead.lastSentAt && `📤 آخر إرسال: #${lead.lastSentListing} — ${when(lead.lastSentAt, timeZone)}${awaitingReply(lead) ? " (لم يرد بعد)" : ""}`,
+    lead.lastMsgAt && `💬 آخر رسالة منه: ${when(lead.lastMsgAt, timeZone)}`,
     lead.followUp && `⏰ متابعة: ${when(lead.followUp.at, timeZone)}${lead.followUp.note ? ` — ${lead.followUp.note}` : ""}`,
   ];
   if (lead.history?.length) lines.push("", "*السجل:*", ...lead.history.slice(-5).map((h) => `▫️ ${when(h.at, timeZone)}: ${h.text}`));
@@ -363,7 +397,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, markSent, setOptOut, remove, get, all, search,
+  add, update, note, markSent, seen, awaitingReply, setOptOut, STOP_WORDS, START_WORDS, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };

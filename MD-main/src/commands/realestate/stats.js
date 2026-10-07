@@ -54,6 +54,8 @@ module.exports = {
     if (clients.length) {
       lines.push("", `👥 *العملاء حسب المصدر* (${clients.length})`);
       lines.push(...bySource(clients).slice(0, 8).map((e) => `▫️ ${e.name}: ${e.total} عميل · ✅ ${e.won} صفقة (${pct(e.won, e.total)})`));
+      const sentTo = clients.filter((l) => l.lastSentAt);
+      if (sentTo.length) lines.push("", `📬 نسبة الرد: ${sentTo.filter((l) => l.replied).length} من ${sentTo.length} عميل أرسلت لهم عقاراً ردّوا (${pct(sentTo.filter((l) => l.replied).length, sentTo.length)})`);
       lines.push("", `✅ الصفقات: ${won.length} من ${clients.length} (${pct(won.length, clients.length)})${days.length ? ` · متوسط المدة حتى الصفقة: ${Math.round(days.reduce((a, b) => a + b, 0) / days.length)} يوم` : ""}`);
     }
     return ctx.reply(lines.join("\n"));
