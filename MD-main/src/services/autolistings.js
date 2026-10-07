@@ -27,6 +27,7 @@ function set(state, chat, { time, query = "" }) {
   });
 }
 const remove = (state, chat) => store(state).update((d) => delete d[chat]);
+const anyOn = (state) => Object.keys(store(state).data).length > 0;
 const markPosted = (state, chat, id) => store(state).update((d) => d[chat] && (d[chat].lastId = id));
 
 /** The next available listing after `lastId` that matches the query, going round. */
@@ -97,4 +98,4 @@ function startAutoListingsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { get, set, remove, markPosted, next, isDue, post, runDue, startAutoListingsLoop };
+module.exports = { get, set, remove, anyOn, markPosted, next, isDue, post, runDue, startAutoListingsLoop };

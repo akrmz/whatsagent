@@ -71,14 +71,69 @@ function parseClock(text) {
   return h <= 23 && min <= 59 ? h * 60 + min : null;
 }
 
+const AR_WEEKDAYS = [
+  [/^(?:يوم\s+)?(?:ال)?سبت(?![\p{L}])/u, "saturday"],
+  [/^(?:يوم\s+)?(?:ال)?(?:أحد|احد|حد)(?![\p{L}])/u, "sunday"],
+  [/^(?:يوم\s+)?(?:ال)?(?:اثنين|إثنين|اتنين|إتنين)(?![\p{L}])/u, "monday"],
+  [/^(?:يوم\s+)?(?:ال)?(?:ثلاثاء|تلات|تلاتاء)(?![\p{L}])/u, "tuesday"],
+  [/^(?:يوم\s+)?(?:ال)?(?:أربعاء|اربعاء|أربع|اربع)(?![\p{L}])/u, "wednesday"],
+  [/^(?:يوم\s+)?(?:ال)?خميس(?![\p{L}])/u, "thursday"],
+  [/^(?:يوم\s+)?(?:ال)?(?:جمعة|جمعه)(?![\p{L}])/u, "friday"],
+];
+const AR_COUNTS = { ساعة: "1h", ساعه: "1h", ساعتين: "2h", ساعتان: "2h", "نص ساعة": "30m", "نص ساعه": "30m", "نصف ساعة": "30m", "ربع ساعة": "15m", "ربع ساعه": "15m", يوم: "1d", يومين: "2d", يومان: "2d", أسبوع: "1w", اسبوع: "1w", أسبوعين: "2w", اسبوعين: "2w" };
+const AR_UNITS = [
+  [/^(?:ساعة|ساعه|ساعات)/u, "h"],
+  [/^(?:دقيقة|دقيقه|دقايق|دقائق)/u, "m"],
+  [/^(?:يوم|أيام|ايام)/u, "d"],
+  [/^(?:أسبوع|اسبوع|أسابيع|اسابيع)/u, "w"],
+];
+
 /**
- * Understands what .remind accepts in front of the text:
+ * Turns a leading Arabic time phrase into the English that parseWhen reads, leaving the rest
+ * (the reminder's text) untouched: "بكرة الساعة 4 م اتصل بأحمد" → "tomorrow at 4:00pm اتصل بأحمد",
+ * "الخميس 10ص", "بعد ساعتين", "بعد 3 أيام", "كل يوم 8 ص", "النهارده 9 مساءً".
+ */
+function arabicTime(text) {
+  let rest = String(text || "")
+    .replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d))
+    .trim();
+  const out = [];
+  for (let guard = 0; guard < 5 && rest; guard++) {
+    let m;
+    const take = (len, english) => {
+      if (english) out.push(english);
+      rest = rest.slice(len).trim();
+    };
+    if ((m = rest.match(/^كل\s+(?:يوم|يومياً|يوميا)(?![\p{L}])/u)) || (m = rest.match(/^(?:يومياً|يوميا)(?![\p{L}])/u))) take(m[0].length, "every day");
+    else if ((m = rest.match(/^كل\s+(?:أسبوع|اسبوع)(?![\p{L}])/u))) take(m[0].length, "every week");
+    else if ((m = rest.match(/^كل(?=\s)/u))) take(m[0].length, "every");
+    else if ((m = rest.match(/^(?:بكرة|بكره|غدا|غداً|غدًا)(?![\p{L}])/u))) take(m[0].length, "tomorrow");
+    else if ((m = rest.match(/^(?:النهارده|النهاردة|النهاردا|اليوم)(?![\p{L}])/u))) take(m[0].length, "");
+    else if (AR_WEEKDAYS.some(([re]) => (m = rest.match(re)))) take(m[0].length, AR_WEEKDAYS.find(([re]) => re.test(rest))[1]);
+    else if ((m = rest.match(/^بعد\s+(نص ساعة|نص ساعه|نصف ساعة|ربع ساعة|ربع ساعه|ساعتين|ساعتان|ساعة|ساعه|يومين|يومان|يوم|أسبوعين|اسبوعين|أسبوع|اسبوع)(?![\p{L}])/u))) take(m[0].length, AR_COUNTS[m[1]]);
+    else if ((m = rest.match(/^بعد\s+(\d{1,4})\s*/u))) {
+      const unit = AR_UNITS.find(([re]) => re.test(rest.slice(m[0].length)));
+      if (!unit) break;
+      take(m[0].length + rest.slice(m[0].length).match(unit[0])[0].length, `${m[1]}${unit[1]}`);
+    } else if ((m = rest.match(/^(?:الساعة|الساعه|الساعة\s+|ع\s+)\s*/u)) && /^\d/.test(rest.slice(m[0].length))) take(m[0].length, "");
+    // Longer words first, and marks (tanween in "مساءً") count as part of the word.
+    else if ((m = rest.match(/^(\d{1,2})(?::(\d{2}))?\s*(صباحاً|صباحا|الصبح|مساءً|مساءا|مساء|بالليل|الضهر|الظهر|العصر|ص|م)?(?![\p{L}\p{M}\d])/u)) && (m[2] || m[3] || out.length)) {
+      const pm = /^(م|مساء|مساءً|مساءا|بالليل|العصر)$/u.test(m[3] || "") || (/^(الضهر|الظهر)$/u.test(m[3] || "") && Number(m[1]) < 12);
+      const am = /^(ص|صباحا|صباحاً|الصبح)$/u.test(m[3] || "");
+      take(m[0].length, `at ${m[1]}:${m[2] || "00"}${pm ? "pm" : am ? "am" : ""}`);
+    } else break;
+  }
+  return out.length ? `${out.filter(Boolean).join(" ")} ${rest}`.trim() : String(text || "").trim();
+}
+
+/**
+ * Understands what .remind accepts in front of the text (Arabic too, see arabicTime):
  *   10m … · 1h30m … · at 18:30 … · tomorrow at 9am … · friday at 20:00 … · every 1d … ·
  *   every day at 08:00 … · every monday at 9am …
  * @returns {{ ms: number, every: number, rest: string } | null}  ms = time until the first reminder
  */
 function parseWhen(text, timeZone, now = Date.now()) {
-  let rest = String(text || "").trim();
+  let rest = arabicTime(text);
   let every = 0;
   let weekday = -1;
   const ev = rest.match(/^every\s+/i);
@@ -251,6 +306,7 @@ function startReminderLoop(app) {
 module.exports = {
   parseDuration,
   parseWhen,
+  arabicTime,
   parseClock,
   formatDuration,
   add,
