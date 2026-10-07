@@ -2,6 +2,17 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.32.0 — 2026-10-08
+
+### Fixed
+- **Private messages became 8× slower with `.greet` on.** Every message listed the whole greeted list (up to 50,000 fingerprints) and went through a save. A known person now costs one hash and one lookup with no write, and the list is trimmed in batches of 1,000. Measured: 0.858 → 0.110 ms per private message with 50,000 fingerprints.
+- **`.help` didn't understand Arabic section names**: `.help عقارات`, `.help إسلاميات` and `.help أدوات` found nothing, because only Latin letters were compared, and "real estate" with a space didn't work either. Every section now has Arabic names, with or without "ال", and the `.help` overview shows an Arabic example.
+
+### Checked (health check)
+- With every feature on: 0.067 ms per group message, 0.110 ms per private message, 108 ms to load 329 commands and 32 listeners, 23 ms to save all data, 68 MB memory.
+- `.help` is 1,300–1,400 characters and `.menu` 8,600–10,700 characters, well under WhatsApp's limit; a test now guards this.
+- 4 tests (243 in total).
+
 ## 2.31.0 — 2026-10-08
 
 ### Added

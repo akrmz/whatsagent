@@ -3,6 +3,7 @@
 How to use the bot from WhatsApp, and every configuration option.
 
 - The command prefix is `.` by default (change it with `PREFIX` in `.env`). Every example below uses `.`.
+- Sections can be opened by English or Arabic name: `.help realestate` or `.help عقارات`, `.help islamic` or `.help إسلاميات`, `.help tools` or `.help أدوات`, `.help download` or `.help تحميل` …
 - Send `.help` for a short overview: every section with its most useful commands. `.menu` (or `.help all`) lists every command you can use; owner-only commands are shown only to the owner. Send `.help` to see the commands available on *your* bot. Commands whose API key or tool is missing are hidden automatically. Send `.help <command>` for details, e.g. `.help sticker`, or `.help <section>` for one section with descriptions, e.g. `.help tools`, `.help info`, `.help downloads`. A mistyped name gets a "Did you mean …?" suggestion.
 - The owner can send `.doctor` to see which tools were found (with their paths and versions), which commands are disabled, and exactly what to install or set to enable them.
 - In the tables, "group admins" means admins of the current group. The bot owner and sudo users also count as admins everywhere.
