@@ -2,6 +2,15 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.21.0 — 2026-10-07
+
+### Added
+- **`.quranquiz`: "which surah is this verse from?"** A random verse (quran-uthmani from alquran.cloud), not the first of a surah and 25–220 characters long, with four choices: the answer, two surahs near it in the mushaf and one random. The first right number within 45 s wins a point, with one try per person and a quiet ❌ for wrong answers. Leaderboard with `.quranquiz top`; scores are removed when the bot leaves the group. Checked live: questions from al-Kafirun 109:4 and az-Zukhruf 43:53 with nearby surahs as choices.
+- `.mathquiz` and `.quranquiz` don't run at the same time in a chat (both take plain numbers as answers).
+
+### Checked
+- 3 tests (192 in total).
+
 ## 2.20.0 — 2026-10-06
 
 ### Added
