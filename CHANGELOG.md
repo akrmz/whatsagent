@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.33.0 — 2026-10-08
+
+### Security — limits on what strangers can trigger
+Commands already have a per-person limit, but some listeners answer plain messages from anyone:
+- **`#12` and `#note` lookups** had no limit. A group member could send `#1` repeatedly and make the bot post a photo each time (group spam and a ban risk for the number). Now the same item is answered at most once per 30 s per chat, and each person gets at most 5 answers a minute. Extra requests are ignored silently and nothing else answers them. The owner and sudo users are exempt.
+- **Inquiry capture** (`.agent autoleads on`) notified the owner on every repeat, and any number of new numbers could create clients. Now:
+  - the same question from the same client is noted once a day;
+  - the owner gets at most one 🔔 per client per hour;
+  - at most 30 new clients are saved per hour;
+  - a full client list no longer causes an error.
+- `core/ratelimit.js`: a small sliding-window limiter kept in memory and bounded, one set per bot.
+- Reviewed the other listeners strangers can trigger. Auto-replies were already limited (welcome once, away once per 12 h), and filters and AFK notices had cooldowns. Campaigns and quizzes only react.
+
+### Checked
+- 4 tests (247 in total), including floods from several numbers in a group.
+
 ## 2.32.0 — 2026-10-08
 
 ### Fixed
