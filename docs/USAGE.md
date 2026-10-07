@@ -141,6 +141,9 @@ Verses can be given by number (`2:255`, Arabic digits too) or by surah name and 
 In a private chat with the bot, `.backup` sends you a file with all settings and lists: mode, sudo users, bans, warnings, group settings, auto-replies, notes, reminders, levels and statistics. To restore it (for example on a new server), reply to that file with `.restore`. The bot shows what's inside; reply again with `.restore confirm` to apply it. It takes effect immediately.
 
 - `.backup full` also includes API keys set from chat and saved cookies. Keep that file private.
+- `.backup photos` sends the real-estate listing photos as a `.tar.gz` file (the normal backup holds the listings' text). To move to a new server: `.restore` the normal backup first, then reply to the photos file with `.restore` and `.restore confirm`.
+  - Only photos named like `listings/12/3.jpg` are restored, and each must be a JPEG for a listing that exists. Anything else in the file (other names, links, `../` paths) is skipped and listed. Nothing is ever written outside the photos folder.
+  - Above about 95 MB the photos can't be sent on WhatsApp; the bot then says which server folder to copy instead.
 - The WhatsApp session is never in a backup. Move the `session` folder separately, or pair again.
 
 ## Setting up the AI
@@ -263,7 +266,7 @@ When you lower a listing's price with `.listing edit`, the reply shows the cut i
 
 **About `.lead send`:** it messages from the bot's WhatsApp number. Use it for clients who asked you. WhatsApp restricts numbers that send to many people who never wrote to them first.
 
-The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text but not the photos, so copy that folder too if you move servers.
+The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text, and `.backup photos` the photos (see [Backup and restore](#backup-and-restore)).
 
 ## Everyday tools
 
@@ -513,7 +516,7 @@ This list is generated from the command files themselves.
 | `.autoread` | – | Marks every incoming message as read (except ones that mention the bot). | owner | `.autoread on` |
 | `.autostatus` | – | Automatically views contacts' statuses, and optionally reacts to them with 💚. | owner | `.autostatus react on` |
 | `.autotyping` | – | Shows a 'typing…' indicator when the bot receives messages. | owner | `.autotyping on` |
-| `.backup` | – | Sends you a backup file of all bot settings and lists (mode, sudo, bans, group settings, notes, reminders, levels …) to restore later with .restore. ".backup full" also includes API keys set from chat and saved cookies. The WhatsApp session is never included. | owner (private chat) | `.backup` |
+| `.backup` | – | Sends you a backup file of all bot settings and lists (mode, sudo, bans, group settings, notes, reminders, levels, listings, clients …) to restore later with .restore. ".backup full" also includes API keys set from chat and saved cookies; ".backup photos" sends the listing photos as a .tar.gz. The WhatsApp session is never included. | owner (private chat) | `.backup` |
 | `.block` | – | Blocks someone on the bot's WhatsApp account (they can't message or call it). Mention them, reply to them, or give the number. | owner | `.block` |
 | `.clearsession` | `.clearsesi` | Deletes cached encryption key files from the session folder (keeps creds.json). Only for fixing persistent 'waiting for this message' errors; restart the bot afterwards. | owner | `.clearsession confirm` |
 | `.cleartmp` | – | Deletes leftover temporary files. | owner, sudo | `.cleartmp` |

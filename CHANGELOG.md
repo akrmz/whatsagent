@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.30.0 — 2026-10-08
+
+### Added
+- **`.backup photos`**: the listing photos as a `.tar.gz`, and `.restore` on that file, with a preview first and `confirm` to apply. Before this the photos had no backup from chat.
+- `services/tar.js`: a minimal ustar `.tar.gz` writer and reader, with no new dependency. Its archives open with the standard `tar`, and archives made with `tar -czf … listings` are read.
+
+### Security (restoring a file received in a chat)
+- Only entries named exactly `listings/<number>/<number>.jpg` are used, and the path written to is built from those numbers, never from the archive's name. `../` and absolute names can't escape the folder.
+- Links, devices and other non-regular entries are never read. Folders are ignored.
+- Each photo must start like a JPEG, be at most 10 MB, have a photo number of 1–10, and belong to an existing listing. Files are written to a temporary name, then renamed.
+- Decompression is capped while inflating (a 260 MB "zip bomb" in a 260 KB file is refused), and damaged headers (checksum) are refused.
+- Tested with hostile archives: path traversal, absolute paths, a symlink, a fake JPEG, unknown listings, out-of-range numbers. Nothing was written outside the photos folder.
+
+### Checked
+- 4 tests (235 in total).
+
 ## 2.29.0 — 2026-10-08
 
 ### Added
