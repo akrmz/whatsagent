@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.1.0 — 2026-10-08
+
+### Added — marketing insight
+- **Price history**: each listing keeps its last 10 prices. For 30 days after a cut, the card shows the old price and the discount, and the flyer shows a "خصم %" badge with the old price struck through. Right-to-left order was checked visually: the badge reads "خصم 11%" and the old price "3,600,000 جنيه".
+- **Interest counters** per listing:
+  - views (`#12` and `.listing 12` by clients; staff views aren't counted);
+  - inquiries (captured questions);
+  - sent (`.lead send`);
+  - posted (listing of the day).
+
+  The counters don't change a listing's "last updated" time.
+- **`.restats`**: the most requested listings, listings nobody asked about, recent price cuts, stale listings, clients by source with deals won and conversion, and the average days to a deal. A client's `wonAt` is now recorded when they move to "won".
+- **Morning summary**: lists available listings not updated for 30+ days.
+
+### Checked
+- 3 tests (256 in total).
+
 ## 3.0.0 — 2026-10-08
 
 ### Changed — Baileys 7 (your decision)

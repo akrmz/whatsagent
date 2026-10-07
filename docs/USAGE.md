@@ -265,6 +265,18 @@ A sentence works too: "أحمد 01001234567 عايز شقة في التجمع 3 
 
 `.listing add` also warns when the property looks already saved ("⚠️ This looks like #7").
 
+**`.restats`: marketing report** (owner and sudo users):
+- the listings clients ask about most: 👀 views, ❓ inquiries, 📤 sent to clients, 📢 posted as listing of the day;
+- available listings nobody has asked about;
+- price cuts in the last 30 days;
+- listings not updated for 30+ days;
+- clients by source (فيسبوك، واتساب، إحالة …), with how many from each closed a deal;
+- the overall conversion and the average days from first contact to a deal.
+
+Views by you and your team are not counted.
+
+**Price cuts:** every price change is remembered. For 30 days after a cut, the listing card shows "📉 كان 3,600,000 جنيه — خصم 11%", and the flyer gets a "خصم 11%" badge with the old price struck through. The morning summary also lists listings not updated for 30+ days, so you can check they are still available.
+
 When you lower a listing's price with `.listing edit`, the reply shows the cut in % and the clients whose budget the listing now fits (it didn't before, or it was over their budget).
 
 ### Automatic replies in private chats
@@ -415,6 +427,7 @@ This list is generated from the command files themselves.
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
 | `.rehelp` | `.dalil` `.reguide` `.aqarguide` | دليل أدوات العقارات بالعربي — a short Arabic guide to the real-estate tools, step by step, showing which steps you have already done. | owner, sudo | `.rehelp` |
+| `.restats` | `.mystats` `.reportre` `.ihsaat` | تقرير التسويق — which listings clients ask about most (views, inquiries, sent, posted), recent price cuts, listings not updated for 30+ days, where your clients come from and how many of each source closed a deal, and the average days to a deal. Owner and sudo users. | owner, sudo | `.restats` |
 | `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
 | `.viewing` | `.moaayna` `.visit` `.showing` | مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add "send" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Owner and sudo users. | owner, sudo | `.viewing add 5 12 tomorrow at 4pm` |
 | `.viewings` | `.appointments` `.mawaeed` | المعاينات القادمة — upcoming viewings, soonest first (today's past ones too). Owner and sudo users. | owner, sudo | `.viewings` |
