@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.22.0 — 2026-10-07
+
+### Added
+- **`.tz`**: converts a time between two cities, or compares their current times. Daylight saving time is included, and half-hour zones work.
+- **`.days`**: a date calculator. It gives days until/since a date, days between two dates, and the date N days from today, with the result in years/months/days and weeks. Invalid dates such as 31/02 are rejected.
+- **`.color`**: a colour swatch drawn locally (sharp) with HEX, RGB and HSL, plus the more readable text colour (WCAG contrast). Accepts `#09f`, `rgb()` and 35 colour names.
+- **`.topdf`**: one or more pictures to a PDF, A4 and oriented to match each picture. The PDF is written directly (JPEG embedded as-is), so no new dependency is needed. Grayscale and transparent pictures are handled. Checked by opening the result in Chrome's PDF viewer.
+- **`.ocr`**: text from a picture via the configured AI (Claude, Gemini or OpenAI-compatible).
+- **`.whois`**: domain registration data from RDAP (dates, registrar, status, name servers). It falls back to the parent domain for subdomains.
+
+### Fixed
+- `.age` counted "today" in UTC, so for a few hours each night (east of UTC) it was a day behind. It now uses the bot's time zone.
+
+### Checked
+- 7 tests (199 in total). Live: conversions Cairo→London (−2 h), New York→Tokyo (+13 h), Sydney→Dubai (−7 h, Sydney summer time), RDAP for github.com.
+
 ## 2.21.0 — 2026-10-07
 
 ### Added

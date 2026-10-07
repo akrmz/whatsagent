@@ -169,6 +169,17 @@ Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other 
 - **Limits:** one download at a time per group, 15 seconds between them, at most 30 an hour per group, plus the usual `MAX_DOWNLOAD_MB` / `MAX_VIDEO_SECONDS`.
 - `.autodl off` turns it off, and `.autos` shows whether it is on. Downloaded videos are converted to H.264 when WhatsApp couldn't play them (needs ffmpeg).
 
+## Everyday tools
+
+| Command | What it does |
+|---|---|
+| `.tz 15:00 Cairo to London` | Converts a time between two cities, with daylight saving time. `.tz Riyadh Paris` compares the current time. Also `9am New York to Tokyo`. |
+| `.days 2026-12-31` | Days until (or since) a date, in years/months/days and weeks. `.days 01/01/2026 31/12/2026` gives the days between two dates, and `.days +90` / `.days -30` the date that many days from today. `.age 2000-05-14` is still there for ages and birthdays. |
+| `.color #1e90ff` | A picture of the colour with its HEX, RGB and HSL codes, and whether black or white text reads better on it (WCAG contrast). Accepts `#09f`, `rgb(255,99,71)` and names like `orange`. Drawn on the server. |
+| `.topdf` | Turns a picture into a PDF (A4, portrait or landscape to match the picture): send it with `.topdf` as the caption, or reply to it. For several pages: `.topdf add` on each picture, then `.topdf done` (up to 20; `.topdf cancel` discards them). Made on the server. |
+| `.ocr` | Reads the text in a picture (screenshot, document, sign; any language, handwriting too) and sends it as text you can copy. Uses the configured AI (counts as one AI request). |
+| `.whois wikipedia.org` | Domain registration info: registration and expiry dates, registrar, status and name servers, from RDAP (the registries' official data). Accepts a link or an email address too. |
+
 ## To-do list
 
 `.todo add Book the hall` adds a task to this chat's shared list, and `.todo` shows it with numbers.
@@ -229,7 +240,9 @@ This list is generated from the command files themselves.
 | `.autos` | `.automations` `.scheduled` `.auto` | كل ما يعمل تلقائياً في هذه المحادثة في قائمة واحدة، و".autos off" لإيقاف الرسائل الإسلامية التلقائية كلها — lists everything automatic in this chat; ".autos off" stops all automatic Islamic posts here. | everyone | `.autos` |
 | `.base64` | `.b64` | Encodes text to Base64 or decodes it back. | everyone | `.base64 encode hello` |
 | `.calc` | `.calculate` `.math` | Calculates a maths expression: + - * / % ^ !, brackets, sqrt, sin/cos/tan (degrees), log, ln, abs, round, min, max, pi, e. | everyone | `.calc (12+8)*3/4` |
+| `.color` | `.colour` `.hex` `.rgb` | Shows a colour as a picture with its HEX, RGB and HSL codes, and whether black or white text reads better on it (WCAG contrast). Drawn on the server. | everyone | `.color #1e90ff` |
 | `.currency` | `.convert` `.cur` `.exchange` | Converts money between currencies with today's exchange rate. | everyone | `.currency 100 usd egp` |
+| `.days` | `.countdown` `.daysuntil` `.datecalc` | Date calculator: days until or since a date, between two dates, or the date N days from today (in the bot's time zone). | everyone | `.days 2026-12-31` |
 | `.delnote` | `.rmnote` `.clearnote` | Deletes a saved note. In groups, only admins can. | everyone | `.delnote` |
 | `.getpp` | `.pp` `.avatar` `.pfp` | Sends the profile picture of the person you mention or reply to (or yours). Add "group" for the group photo. | everyone | `.getpp @someone` |
 | `.gold` | `.dahab` `.silver` | سعر الذهب للجرام (عيار 24 و21 و18) والفضة بأي عملة — gold price per gram (24k/21k/18k) and silver, in any currency. | everyone | `.gold` |
@@ -245,7 +258,9 @@ This list is generated from the command files themselves.
 | `.short` | `.shorturl` `.tinyurl` `.shorten` | Shortens a long link with TinyURL. | everyone | `.short https://example.com/a/very/long/link` |
 | `.toaudio` | `.tomp3` `.mp3convert` | Extracts the sound of a video (or converts a voice note/audio file) to an MP3 you can play or save. _Needs: ffmpeg._ | everyone | `.toaudio` _(reply to a video or audio)_ |
 | `.todo` | `.tasks` `.todolist` `.mahamm` | A shared to-do list for this chat: anyone can add tasks and tick them off; the author or an admin can delete one, admins can clear the list. | everyone | `.todo add Buy the projector` |
+| `.topdf` | `.pdf` `.img2pdf` | Turns pictures into a PDF document (A4, made on the server). One picture: send or reply to it with .topdf. Several pages: ".topdf add" on each picture, then ".topdf done" (up to 20 pages). | everyone | `.topdf` _(reply to a picture)_ |
 | `.tovn` | `.toptt` `.tovoice` | Turns a video, song or audio file into a WhatsApp voice note. _Needs: ffmpeg._ | everyone | `.tovn` _(reply to a video or audio)_ |
+| `.tz` | `.timezone` `.convert-time` `.timeconv` | Converts a time from one city to another (daylight saving included), or compares the current time in two cities. | everyone | `.tz 15:00 Cairo to London` |
 | `.unit` | `.units` `.conv` | Converts units: length, weight, volume, area (incl. feddan), speed, temperature, data, time, energy. | everyone | `.unit 10 km to mi` |
 
 ### Info & search
@@ -257,6 +272,7 @@ This list is generated from the command files themselves.
 | `.news` | `.headlines` | Latest headlines (Google News, no key needed), or news about a topic. Start with a country:language code for another region. | everyone | `.news` |
 | `.time` | `.clock` `.date` | Shows the current date and time in a city (or the bot's time zone). | everyone | `.time Tokyo` |
 | `.weather` | `.forecast` | Shows the current weather and a 3-day forecast for a city (no API key needed). | everyone | `.weather Cairo` |
+| `.whois` | `.rdap` `.domain` | Domain registration info: when it was registered and expires, the registrar, status and name servers (RDAP, the official registry data). | everyone | `.whois wikipedia.org` |
 | `.wiki` | `.wikipedia` | Shows the Wikipedia summary of a topic. Start with a language code for other Wikipedias (ar:, fr:, es: …). | everyone | `.wiki Great Pyramid of Giza` |
 
 ### Islamic · إسلاميات
@@ -483,6 +499,7 @@ This list is generated from the command files themselves.
 | `.aimodel` | `.models` `.setmodel` | Lists the models your AI key can use and switches to one (by name or number). Add a word to filter the list. _Needs: ai._ | owner | `.aimodel` |
 | `.aireset` | `.newchat` `.forget` `.clearai` | Makes .ai forget your conversation, to start a new topic. Also shows how many AI requests you have left today. _Needs: ai._ | everyone | `.aireset` |
 | `.imagine` | `.draw` `.genimg` `.dalle` `.nanobanana` | Draws a picture from your description with AI (Gemini or OpenAI, whichever key the owner set). Reply to a picture to edit it instead (Gemini only), e.g. "make it a cartoon". _Needs: aiImage._ | everyone | `.imagine a cat astronaut on the moon, watercolor` |
+| `.ocr` | `.readtext` `.img2text` `.scantext` | Reads the text in a picture (screenshots, documents, signs; any language, handwriting too) and sends it as text you can copy. Send or reply to a picture. _Needs: ai._ | everyone | `.ocr` _(reply to a picture)_ |
 | `.recap` | `.catchup` `.missed` `.mulakhas` | ملخص ما دار في المجموعة مؤخراً — summarizes the recent group conversation ("what did I miss?"): topics, decisions and open questions. Uses up to the last 200 messages the bot saw (kept in memory only). _Needs: ai._ | everyone (groups) | `.recap` |
 | `.setai` | `.aiset` `.aiprovider` | Chooses the AI (Claude, Gemini or any OpenAI-compatible service) and sets its API key. The key is tested before it is saved. Without arguments, shows the current AI. | owner | `.setai gemini AIza…` |
 | `.summarize` | `.summary` `.tldr` `.sum` | Summarizes a long message (reply to it), a web page link, or a YouTube video (from its captions). Add a question to ask about it instead. _Needs: ai._ | everyone | `.summarize https://en.wikipedia.org/wiki/Nile` |
@@ -656,7 +673,7 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 ## Privacy notes for group members
 
-- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
+- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.
