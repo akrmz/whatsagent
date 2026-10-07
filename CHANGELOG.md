@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.23.0 — 2026-10-07
+
+### Added
+- **Website checks**:
+  - `.dns`: A/AAAA/CNAME/MX/NS/TXT records.
+  - `.ssl`: certificate issuer, trust, names and expiry (⚠️ within 14 days).
+  - `.up`: HTTP status, response time and redirects; `http://` links work.
+
+  They use the same protection as every other request: names that resolve to internal addresses are refused (checked with a name pointing at 127.0.0.1). Checked live: expired.badssl.com is reported as expired, self-signed.badssl.com as not trusted.
+- **`.smeme`**: meme captions on a picture (white text, black outline, sized and wrapped to fit, Arabic shaped right-to-left). Made with sharp on the server.
+- **`.cal`**: a month calendar with today marked. The week can start on Monday, Sunday or Saturday, and the Hijri months spanned are shown.
+- **`.split`**: splits a bill with an optional tip, in cents, so the shares always add up to the total.
+
+### Changed
+- `.whois` and the new website checks share one domain parser (links, emails, international domain names).
+
+### Fixed (before release)
+- `.dns` first sent its six queries in parallel. Some DNS servers then answer far more slowly (measured: 8–11 s instead of about 3 s), and every type timed out, so the reply was "no records". Queries now go one at a time, with a per-query timeout and an overall limit.
+
+### Checked
+- 6 tests (205 in total).
+
 ## 2.22.0 — 2026-10-07
 
 ### Added

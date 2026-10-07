@@ -178,6 +178,12 @@ Default models: `claude-opus-5-5`, `gemini-3.8-flash`, `gpt-6-luna`. With other 
 | `.color #1e90ff` | A picture of the colour with its HEX, RGB and HSL codes, and whether black or white text reads better on it (WCAG contrast). Accepts `#09f`, `rgb(255,99,71)` and names like `orange`. Drawn on the server. |
 | `.topdf` | Turns a picture into a PDF (A4, portrait or landscape to match the picture): send it with `.topdf` as the caption, or reply to it. For several pages: `.topdf add` on each picture, then `.topdf done` (up to 20; `.topdf cancel` discards them). Made on the server. |
 | `.ocr` | Reads the text in a picture (screenshot, document, sign; any language, handwriting too) and sends it as text you can copy. Uses the configured AI (counts as one AI request). |
+| `.cal` / `.cal dec 2026 sat` | A month calendar with today marked. Weeks start on Monday; add `sun` or `sat` for Sunday or Saturday. Shows the Hijri months it spans. |
+| `.split 450 3 10%` | Splits a bill between people, with an optional tip. The shares always add up to the total exactly; when it doesn't divide evenly, it says who pays the extra cent. |
+| `.smeme top \| bottom` | Makes a meme from the picture you send or reply to: big white text with a black outline. `.smeme \| bottom only` for the bottom only. Arabic works. Made on the server. |
+| `.dns example.com` | The domain's DNS records: addresses (A/AAAA), CNAME, mail servers (MX), name servers (NS) and TXT (SPF, verification …). |
+| `.ssl example.com` | The site's HTTPS certificate: whether it is trusted, who issued it, the names it covers and when it expires (warns 14 days before). |
+| `.up example.com` | Whether a website answers, with the HTTP status and response time, and where it redirects. |
 | `.whois wikipedia.org` | Domain registration info: registration and expiry dates, registrar, status and name servers, from RDAP (the registries' official data). Accepts a link or an email address too. |
 
 ## To-do list
@@ -239,6 +245,7 @@ This list is generated from the command files themselves.
 | `.age` | `.birthday` `.datediff` | Calculates an age (or time since a date) and the days to the next birthday. | everyone | `.age 2000-05-14` |
 | `.autos` | `.automations` `.scheduled` `.auto` | كل ما يعمل تلقائياً في هذه المحادثة في قائمة واحدة، و".autos off" لإيقاف الرسائل الإسلامية التلقائية كلها — lists everything automatic in this chat; ".autos off" stops all automatic Islamic posts here. | everyone | `.autos` |
 | `.base64` | `.b64` | Encodes text to Base64 or decodes it back. | everyone | `.base64 encode hello` |
+| `.cal` | `.calendar` `.month` | A month calendar with today marked. Weeks start on Monday; add "sun" or "sat" to start on Sunday or Saturday. Also shows the Hijri months it spans. | everyone | `.cal` |
 | `.calc` | `.calculate` `.math` | Calculates a maths expression: + - * / % ^ !, brackets, sqrt, sin/cos/tan (degrees), log, ln, abs, round, min, max, pi, e. | everyone | `.calc (12+8)*3/4` |
 | `.color` | `.colour` `.hex` `.rgb` | Shows a colour as a picture with its HEX, RGB and HSL codes, and whether black or white text reads better on it (WCAG contrast). Drawn on the server. | everyone | `.color #1e90ff` |
 | `.currency` | `.convert` `.cur` `.exchange` | Converts money between currencies with today's exchange rate. | everyone | `.currency 100 usd egp` |
@@ -256,6 +263,7 @@ This list is generated from the command files themselves.
 | `.remind` | `.reminder` `.remindme` | Reminds you in this chat: after a delay (10m, 2h, 3d), at a time (at 18:30, tomorrow at 9am), or repeating (every day at 08:00, every 2h). Times use the bot's TIMEZONE. Survives restarts. | everyone | `.remind 10m check the oven` |
 | `.save` | `.savenote` `.addnote` | Saves a note in this chat (rules, links, FAQ …). Anyone can then send #name to see it. In groups, only admins can save. | everyone | `.save rules Be kind. No spam.` |
 | `.short` | `.shorturl` `.tinyurl` `.shorten` | Shortens a long link with TinyURL. | everyone | `.short https://example.com/a/very/long/link` |
+| `.split` | `.bill` `.splitbill` | Splits a bill between people, with an optional tip; the shares always add up to the total exactly. | everyone | `.split 450 3` |
 | `.toaudio` | `.tomp3` `.mp3convert` | Extracts the sound of a video (or converts a voice note/audio file) to an MP3 you can play or save. _Needs: ffmpeg._ | everyone | `.toaudio` _(reply to a video or audio)_ |
 | `.todo` | `.tasks` `.todolist` `.mahamm` | A shared to-do list for this chat: anyone can add tasks and tick them off; the author or an admin can delete one, admins can clear the list. | everyone | `.todo add Buy the projector` |
 | `.topdf` | `.pdf` `.img2pdf` | Turns pictures into a PDF document (A4, made on the server). One picture: send or reply to it with .topdf. Several pages: ".topdf add" on each picture, then ".topdf done" (up to 20 pages). | everyone | `.topdf` _(reply to a picture)_ |
@@ -269,8 +277,11 @@ This list is generated from the command files themselves.
 |---|---|---|---|---|
 | `.crypto` | `.price` `.btc` | Shows cryptocurrency prices and 24 h change (CoinGecko). Without a coin, the top 10. Information only — not financial advice. | everyone | `.crypto` |
 | `.define` | `.dict` `.dictionary` `.meaning` | Looks up an English word: pronunciation, meanings, examples and synonyms. | everyone | `.define serendipity` |
+| `.dns` | `.nslookup` `.dig` | Looks up a domain's DNS records: A/AAAA (addresses), CNAME, MX (mail), NS (name servers) and TXT (SPF, verification …). | everyone | `.dns example.com` |
 | `.news` | `.headlines` | Latest headlines (Google News, no key needed), or news about a topic. Start with a country:language code for another region. | everyone | `.news` |
+| `.ssl` | `.cert` `.tls` | Checks a website's HTTPS certificate: who issued it, whether it is trusted, and when it expires. | everyone | `.ssl example.com` |
 | `.time` | `.clock` `.date` | Shows the current date and time in a city (or the bot's time zone). | everyone | `.time Tokyo` |
+| `.up` | `.isup` `.ping-site` `.sitecheck` | Checks whether a website is answering, with the HTTP status and response time. | everyone | `.up example.com` |
 | `.weather` | `.forecast` | Shows the current weather and a 3-day forecast for a city (no API key needed). | everyone | `.weather Cairo` |
 | `.whois` | `.rdap` `.domain` | Domain registration info: when it was registered and expires, the registrar, status and name servers (RDAP, the official registry data). | everyone | `.whois wikipedia.org` |
 | `.wiki` | `.wikipedia` | Shows the Wikipedia summary of a topic. Start with a language code for other Wikipedias (ar:, fr:, es: …). | everyone | `.wiki Great Pyramid of Giza` |
@@ -435,6 +446,7 @@ This list is generated from the command files themselves.
 | `.saturate` | `.vivid` | Makes colours stronger (or weaker below 1). Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.saturate` |
 | `.sepia` | – | Old-photo sepia tone. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.sepia` _(send or reply to a picture)_ |
 | `.sharpen` | – | Makes a blurry picture sharper. Works on the picture or sticker you send or reply to; done on the server, nothing is uploaded. | everyone | `.sharpen` _(send or reply to a picture)_ |
+| `.smeme` | `.memegen` `.mememaker` `.captionimg` | Makes a meme: big white text with a black outline on a picture. "top \| bottom" for both, "\| bottom" for the bottom only. Arabic works. Made on the server. | everyone | `.smeme when the code works \| on the first try` _(reply to a picture)_ |
 | `.toformat` | `.convertimg` `.tojpg` `.topng` `.towebp` | Converts a picture or sticker to JPG, PNG or WebP and sends it as a file (so WhatsApp doesn't recompress it). | everyone | `.toformat png` |
 
 ### Audio effects
@@ -673,7 +685,7 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 ## Privacy notes for group members
 
-- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
+- Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.
