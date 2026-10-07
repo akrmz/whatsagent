@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 2.29.0 — 2026-10-08
+
+### Added
+- **Free-text posts**: `.listing add` now reads details written as sentences, as most broker posts are:
+  - area after في/بكمبوند/منطقة, stopping at the next detail;
+  - size (متر، م، م²، sqm), rooms (غرف، أوض، غرفتين), baths (حمامين، وحمامين), floor, finishing;
+  - the price after a price word, or the first amount in millions/thousands that isn't next to مقدم/قسط/وديعة.
+
+  Labelled lines still win over a value found in a sentence.
+- **`.listing add ai`**: the configured AI extracts the fields as JSON, which is then checked: known types and deals only, numbers in range (e.g. 99 rooms is dropped), unknown keys dropped, prose around the JSON tolerated. An unreadable answer saves nothing.
+- **Clients in a sentence**: area, rooms, and a budget when it's signalled (ميزانية، في حدود، لحد، حتى، budget, or "من 2 ل 3 مليون"). A lone number is never taken as a budget.
+
+### Checked
+- 4 tests (231 in total) with real-style posts in Arabic and English.
+
 ## 2.28.0 — 2026-10-07
 
 ### Added

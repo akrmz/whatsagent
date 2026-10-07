@@ -189,7 +189,9 @@ A catalogue of your properties, images ready to post, and the calculations clien
 التشطيب: سوبر لوكس
 قريبة من الجامعة الأمريكية
 ```
-Or forward a broker's post to the bot and reply to it with `.listing add`. Lines without a label become the notes. The bot answers with the listing number (#12) and how it read it.
+Or forward a broker's post to the bot and reply to it with `.listing add`. **Posts written as sentences work too**, e.g. "شقة للبيع في التجمع الخامس 150 متر 3 غرف 2 حمام الدور الرابع سوبر لوكس بسعر 3.5 مليون". The bot reads the area (after في / بكمبوند), size (متر، م، sqm), rooms (غرف، أوض، غرفتين), baths, floor, finishing and price. Amounts next to مقدم or قسط are never taken as the price. Lines without a label also stay in the notes.
+
+For a messy post, `.listing add ai` (or reply with it) lets the configured AI read it. Its answer is checked before saving (known types only, numbers in sensible ranges), and anything the normal reader finds fills the gaps. It counts as one AI request. The bot answers with the listing number (#12) and how it read it.
 
 **3. Photos**: send a photo with `.listing photo 12` as the caption, or reply to a photo with it (up to 10 per listing).
 
@@ -235,7 +237,7 @@ A small client tracker for the owner and sudo users. Clients' details are never 
 المصدر: فيسبوك
 عايز تسليم قريب
 ```
-Local numbers (0100…) are saved in international form using your own country code, and the same number can't be saved twice. Budgets can be written as "2-3 مليون", "من 2 إلى 3 مليون", "حتى 3 مليون" or "800 ألف - 1.2 مليون".
+A sentence works too: "أحمد 01001234567 عايز شقة في التجمع 3 غرف ميزانية من 2 ل 3 مليون". The budget is read only after ميزانية / في حدود / لحد / حتى / budget, or as a range "من … ل …". Local numbers (0100…) are saved in international form using your own country code, and the same number can't be saved twice. Budgets can be written as "2-3 مليون", "من 2 إلى 3 مليون", "حتى 3 مليون" or "800 ألف - 1.2 مليون".
 
 | Command | What it does |
 |---|---|
