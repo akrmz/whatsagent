@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.5.0 — 2026-10-08
+
+### Added — clients' requests
+- **`.agent requests on`**: a client who writes a request in a private chat ("عايز شقة في التجمع 3 غرف ميزانية من 2 ل 3 مليون", "عندك فيلا في زايد؟") gets up to 3 matching available listings, or "وصلني طلبك" if none match.
+  - The request is saved: a new client, or an update to an existing client's wishes.
+  - You get a 🔔 with the request and what was sent.
+- **Only requests are answered**: the message must name a property type and ask (عايز، محتاج، عندك، فيه، "?" …). Broker posts ("يوجد/متاح شقة للبيع …") are not answered.
+- **Limits**:
+  - one answer per client per 10 minutes; extra requests are silent, with no greeting;
+  - 30 new clients an hour, shared with `autoleads`;
+  - one 🔔 per client an hour;
+  - private chats only; never staff; never in private mode.
+- `.rehelp` mentions it. `.agent` shows the setting.
+
+### Checked
+- 4 tests (276 in total). Detection was tried on real-style requests and broker posts.
+
 ## 3.4.0 — 2026-10-08
 
 ### Added — campaigns
