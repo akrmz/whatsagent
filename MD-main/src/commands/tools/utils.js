@@ -5,6 +5,7 @@ const units = require("../../services/units");
 const { formatNumber } = require("../../services/calc");
 const { getText } = require("../../core/context");
 const { request } = require("../../core/http");
+const { localDate } = require("../../services/timecalc");
 
 const textOrQuoted = (ctx, text) => text || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
@@ -77,8 +78,9 @@ module.exports = [
     async run(ctx) {
       const born = parseDate(ctx.text);
       if (!born) return ctx.reply(`Usage: ${ctx.prefix}age 2000-05-14  (or 14/05/2000)`);
-      const now = new Date();
-      const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+      // "Today" in the bot's time zone, not UTC (otherwise it's a day behind for some hours each night).
+      const local = localDate(ctx.config.bot.timezone, Date.now());
+      const today = new Date(Date.UTC(local.y, local.m - 1, local.d));
       if (born > today) {
         const days = Math.round((born - today) / 86400000);
         return ctx.reply(`📅 That date is in ${days} day(s).`);
