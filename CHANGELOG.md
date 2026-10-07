@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.6.0 — 2026-10-08
+
+### Added — client activity
+- **Replies are tracked**: when a saved client writes in a private chat, the bot notes it. The first message after a listing was sent goes into their history as "ردّ بعد إرسال العقار #12". The listener is passive (it never replies), works in private mode, and writes at most once per client every 10 minutes. "وقف" and "اشتراك" don't count as replies.
+- **Morning summary**:
+  - 💬 clients who replied to what you sent in the last 24 hours;
+  - 📭 clients who haven't replied 2–14 days after you sent them a listing.
+- **Client card**: "📤 آخر إرسال: #12 … (لم يرد بعد)" and "💬 آخر رسالة منه".
+- **`.restats`**: the reply rate ("📬 نسبة الرد: 3 من 10 …").
+
+### Changed
+- Listings sent as an automatic answer to a request (`.agent requests on`) now count as sent:
+  - in the client's history, as one note;
+  - in the listing's 📤 counter;
+  - in the client's sent list, so campaigns don't resend them;
+  - and a new client moves to "contacted".
+
+### Checked
+- 3 tests (279 in total), with simulated clocks.
+
 ## 3.5.0 — 2026-10-08
 
 ### Added — clients' requests

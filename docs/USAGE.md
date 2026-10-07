@@ -279,7 +279,7 @@ A sentence works too: "أحمد 01001234567 عايز شقة في التجمع 3 
 | `.commission 3.5m 2.5% vat 14% share 50%` | Brokerage commission: price × rate, optional VAT on the commission and your share when it is split. |
 
 | `.lead assign 5 @colleague` | For an office: gives client #5 to a team member (the owner or a sudo user), or `me`, or `none`. Follow-up reminders mention them too. `.leads mine` lists the clients assigned to you. |
-| `.digest on 08:30` | **Morning summary** in this chat (e.g. your private chat with the bot): today's viewings and follow-ups (overdue ones too), new clients from the last 24 hours, active clients nobody has contacted for 7+ days, and the catalogue counts. `.digest now` shows it now; `.digest off` stops it. |
+| `.digest on 08:30` | **Morning summary** in this chat (e.g. your private chat with the bot): today's viewings and follow-ups (overdue ones too), new clients from the last 24 hours, 💬 clients who replied to a listing you sent in the last 24 hours, 📭 clients who haven't replied 2–14 days after you sent them one, active clients nobody has contacted for 7+ days, and the catalogue counts. `.digest now` shows it now; `.digest off` stops it. |
 | `.import listings` / `.import leads` | Reply to a **CSV file** to add many listings or clients at once, e.g. your existing Excel sheet saved as "CSV UTF-8", or a file made with `.export`. Headers can be English (`type, deal, location, price, size, rooms, baths, floor, finishing, status, notes`; for clients `name, phone, type, location, rooms, budget_min, budget_max, source, status`) or Arabic (النوع، الغرض، المنطقة، السعر، المساحة، الغرف، الحالة، الاسم، الموبايل، الميزانية …). Duplicates are skipped (listings: same type, deal, price, size and location; clients: same number), and the reply lists the skipped rows by their spreadsheet row number. Up to 1,000 rows; .xlsx files must be saved as CSV first. |
 
 `.listing add` also warns when the property looks already saved ("⚠️ This looks like #7").
@@ -290,9 +290,17 @@ A sentence works too: "أحمد 01001234567 عايز شقة في التجمع 3 
 - price cuts in the last 30 days;
 - listings not updated for 30+ days;
 - clients by source (فيسبوك، واتساب، إحالة …), with how many from each closed a deal;
+- 📬 the reply rate: of the clients you sent a listing to, how many wrote back;
 - the overall conversion and the average days from first contact to a deal.
 
 Views by you and your team are not counted.
+
+**Who replied:** when a saved client writes to the bot in a private chat, the bot notes it. This is passive: it never answers, and it works in private mode too.
+- The first message after you sent them a listing is added to their history ("ردّ بعد إرسال العقار #12").
+- Their card shows "📤 آخر إرسال: #12 … (لم يرد بعد)" until they answer, and "💬 آخر رسالة منه" with the time.
+- A message also counts as contact, so the client drops off the "no contact for 7+ days" list.
+
+Listings count as sent when they go out by `.lead send`, `.offer … send`, a campaign, or an automatic answer to a request (`.agent requests on`). Campaigns don't resend any of them. "وقف" and "اشتراك" are not counted as replies. At most one note is written per client every 10 minutes.
 
 **Price cuts:** every price change is remembered. For 30 days after a cut, the listing card shows "📉 كان 3,600,000 جنيه — خصم 11%", and the flyer gets a "خصم 11%" badge with the old price struck through. The morning summary also lists listings not updated for 30+ days, so you can check they are still available.
 
@@ -451,7 +459,7 @@ This list is generated from the command files themselves.
 | `.campaigns` | `.blasts` `.hamalat` | قائمة الحملات — your listing campaigns: running, finished and stopped, with how many were sent, failed and skipped. | owner, sudo | `.campaigns` |
 | `.commission` | `.omola` `.brokerage` | حساب العمولة — the brokerage commission on a deal: price × rate, optionally with VAT on the commission and your share when it is split with another broker or the office. | everyone | `.commission 3.5m 2.5%` |
 | `.compare` | `.qarn` `.moqarna` `.vs` | مقارنة العقارات — 2 to 4 listings side by side: price, size, price per m², rooms, baths, floor, finishing and status, with the best value marked, and the distance between two listings when both have a location. | everyone | `.compare 3 7` |
-| `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, clients without contact for a week, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |
+| `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |
 | `.export` | `.csv` `.excel` | تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users. | owner, sudo | `.export listings` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
 | `.import` | `.importcsv` | استيراد من Excel — reply to a CSV file (an Excel sheet saved as CSV, or a file from .export) to add listings or clients in one go. Column headers in English (type, location, price …) or Arabic (النوع، المنطقة، السعر …). Duplicates are skipped. Owner and sudo users. | owner, sudo | `.import listings` _(reply to listings.csv)_ |
