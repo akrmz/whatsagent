@@ -242,7 +242,7 @@ For a messy post, `.listing add ai` (or reply with it) lets the configured AI re
 - the request is saved: a new client is added (name, number, what they want, source "واتساب"), or an existing client's wishes are updated with the details they mentioned;
 - you get "🔔 طلب من عميل جديد: … 🔎 شقة، في التجمع، 3 غرف …" with the listings that were sent.
 
-A message counts as a request only if it names a property type **and** asks (عايز، عاوز، محتاج، عندك، فيه، مطلوب، أريد، "looking for", or a question mark). A broker's post ("يوجد شقة للبيع … بسعر …") is not answered.
+A message counts as a request only if it names a property type **and** asks. Words like عايز، محتاج، مطلوب، أريد or "looking for" always count, and so does a question mark. فيه، عندك and حد عنده count only when the message doesn't look like an offer: an asking price (بسعر، السعر، المطلوب), a down payment or instalments, or a size in متر. So "فيه شقة في التجمع؟" and "حد عنده شقة إيجار في المعادي" are answered. Broker posts like "فيه شقة للبيع … 150 متر بسعر 3 مليون" and "يوجد شقة للبيع …" are not.
 
 Each client gets at most one answer every 10 minutes; extra requests are ignored silently. The 30-new-clients-an-hour limit is shared with `autoleads`. Groups, you, sudo users, and private mode are never answered.
 

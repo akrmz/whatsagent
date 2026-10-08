@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.7.1 — 2026-10-08
+
+A review of the 3.2–3.7 additions.
+
+### Fixed
+- **Client requests**: a broker's post starting with "فيه" ("فيه شقة للبيع في التجمع 150 متر بسعر 3 مليون") was answered as a client's request.
+  - فيه، عندك and حد عنده now count as asking only in a question, or in a message without the marks of an offer (asking price, down payment, instalments, size in متر).
+  - عايز، محتاج، مطلوب … always count. "مطلوبة/مطلوبين" are now recognised.
+  - A test checks that keywords match whole words only.
+- **Opt-out**: "وقف!" (with punctuation) was ignored by the activity tracker and noted as a reply. Both listeners now read the stop/start words the same way.
+
+### Improved
+- **Speed**: finding a client by phone number, which happens on every private message, no longer sorts the whole client list. At 5,000 clients it now takes 0.05 ms instead of 0.35 ms per lookup.
+- **Campaigns**: only the latest 30 finished campaigns are kept. Their file is rewritten on every message sent, so it no longer grows without limit.
+
+### Checked
+- `.backup` includes the newer data files (campaigns, rentals), because it saves every file in `DATA_DIR`.
+- 283 tests pass.
+
 ## 3.7.0 — 2026-10-08
 
 ### Added — rentals
