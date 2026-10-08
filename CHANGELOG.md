@@ -2,6 +2,29 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.8.0 — 2026-10-08
+
+### Added — brokers' groups
+- **`.watch on`** in a brokers' group makes the bot read other members' posts. The bot never posts in the group. It sorts posts into:
+  - **offers**: a type with a price and an area or size;
+  - **requests**: someone asking, with the same rules as `.agent requests`, so "فيه شقة للبيع … بسعر" is an offer.
+- **Alerts** to the owner, in private:
+  - an offer that suits saved clients, with their names and the broker's number;
+  - a request that your listings match.
+
+  At most 20 alerts an hour.
+- **`.feed`**:
+  - offers from the last 30 days, with the `.listings` filters and how many clients each suits;
+  - `.feed requests`;
+  - `.feed 12` for the full post and the broker;
+  - `.feed add 12` to copy an offer into the catalogue, noted as shared with that broker;
+  - `.feed groups`.
+- **Limits**: reposts within a week, even with other emoji or spacing, count once. Posts are kept 30 days, at most 2,000. Owner and sudo users' own posts are skipped.
+- `.listings` search can now search any list of listings, which `.feed` uses for its offers.
+
+### Checked
+- 4 tests (287 in total): classification, alerts, reposts, other groups, the owner's own posts, `.watch off`, search, adding to the catalogue, retention, and the alert limit.
+
 ## 3.7.1 — 2026-10-08
 
 A review of the 3.2–3.7 additions.
