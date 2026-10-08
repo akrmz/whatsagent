@@ -290,7 +290,7 @@ Lines without a label are kept as notes. After saving, it tells you which plan d
 
 | Command | What it does |
 |---|---|
-| `.project 3` | The project, with the instalment worked out for the cheapest unit, e.g. "≈ 182,813 جنيه ربع سنوي (≈ 60,938 شهرياً) بعد مقدم 650,000 — لأقل وحدة". You and sudo users also see which clients it suits. |
+| `.project 3` / `P3` / `P3 en` | The project, with the instalment worked out for the cheapest unit, e.g. "≈ 182,813 جنيه ربع سنوي (≈ 60,938 شهرياً) بعد مقدم 650,000 — لأقل وحدة". You and sudo users also see which clients it suits. Anyone can send **`P3`** (also `#P3`) to get the card, like `#12` for a listing, with the same flood limits. **`P3 en`** or `.project 3 en` gives it in English: the area in English, unit types and sizes, "From EGP …", the plan ("10% down · 8 years · Delivery 2028") and the example in EGP. |
 | `.projects التجمع حتى 8 مليون مقدم 10% 8 سنين` | Search, cheapest first. Filters: words from the name, developer or area; a unit type; `حتى 8 مليون` (starting price); `مقدم 10%` (at most); `8 سنين` (at least); `فوري` (ready). |
 | `.project edit 3 المقدم: 5%` / `.project del 3` | Change or delete. |
 
@@ -615,7 +615,7 @@ This list is generated from the command files themselves.
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.offer` | `.pricequote` `.ard` `.proposal` | عرض سعر PDF — a price offer for a listing as a PDF: the client's name, the property, the price and, with a payment plan (down payment, years, frequency, maintenance), every instalment with its date, plus the listing's flyer. Valid for 7 days. Add a client (#5) to put their name on it, and "send" to send it to them on WhatsApp (noted in their history). Owner and sudo users. | owner, sudo | `.offer 12` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
-| `.project` | `.compound` `.mashroo` | مشروعات المطورين — off-plan projects you sell: developer, area, unit types and sizes, starting price, down payment, instalment years, delivery and maintenance; the card works out the instalment for the cheapest unit. Anyone can view; the owner and sudo users manage. | everyone | `.project add
+| `.project` | `.compound` `.mashroo` | مشروعات المطورين — off-plan projects you sell: developer, area, unit types and sizes, starting price, down payment, instalment years, delivery and maintenance; the card works out the instalment for the cheapest unit. Clients can send P3 (or “P3 en” in English) to see one. Anyone can view; the owner and sudo users manage. | everyone | `.project add
 المشروع: ماونتن فيو آي سيتي
 المطور: ماونتن فيو
 المنطقة: التجمع الخامس

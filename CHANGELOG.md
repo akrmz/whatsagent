@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.26.0 — 2026-10-10
+
+### Added — projects by code, and in English
+- **`P3`** (also `#P3`), sent by anyone, shows that developer's project, like `#12` for a listing, with the same flood limits. The Arabic card now ends with "للاستفسار أرسل: P3".
+- **`P3 en`** and **`.project 3 en`** give an English card:
+  - developer, the area in English (the same names as listings);
+  - unit types and sizes ("Apartments, Villas · 120–200 m²"), "From EGP 6,500,000 (EGP 6.5M)";
+  - the plan ("10% down · 8 years · Delivery 2028", "Ready to move in", "No down payment"), and the quarterly/monthly example in EGP.
+- The clients' catalogue menu now says "أرسل رقم المشروع (مثلاً P1)" instead of "ask by name".
+
+### Checked
+- 2 tests (335 in total): `P1`, `#p1 en` (the exact English card), `.project 1 en`, an unknown code, the flood limit, and the menu hint.
+
 ## 3.25.0 — 2026-10-09
 
 ### Added — the week in numbers
