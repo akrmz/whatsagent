@@ -6,6 +6,8 @@ const re = require("../../services/realestate");
 const { parseWhen } = require("../../services/reminders");
 const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
+const deals = require("../../services/deals");
+const hotleads = require("../../services/hotleads");
 
 const base = { category: "realestate", permission: "sudo", cooldown: 2 };
 const idOf = (s) => {
@@ -21,11 +23,12 @@ const HELP = (p) =>
     `${p}lead add (details, or reply to a contact card) — save a client`,
     `${p}lead 5 — card, history and matching listings`,
     `${p}lead note 5 <text> · ${p}lead status 5 viewing`,
+    `${p}lead won 5 #12 3.1m 2.5% — a closed deal (price, commission); the listing is marked sold`,
     `${p}lead follow 5 tomorrow at 10am <note> — follow-up reminder`,
     `${p}lead send 5 12 — send listing #12 to the client on WhatsApp`,
     `${p}lead edit 5 الميزانية: 3-4 مليون · ${p}lead del 5`,
     `${p}lead assign 5 @colleague | me | none — for teams · ${p}leads mine`,
-    `${p}leads [status | words] — the list`,
+    `${p}leads [status | words] — the list · ${p}leads hot — who to call first`,
     "",
     `Statuses: ${Object.entries(leads.STATUS).map(([k, s]) => `${k} (${s.ar})`).join(", ")}`,
   ].join("\n");
@@ -37,7 +40,7 @@ module.exports = [
     aliases: ["client", "customer", "ameel"],
     description:
       "متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users.",
-    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | del <id>",
+    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | won <id> [#listing] [price] [rate %|عمولة amount] | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | del <id>",
     examples: [".lead add\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع", ".lead 5", ".lead follow 5 tomorrow at 10am يرد على العرض", ".lead send 5 12"],
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
@@ -72,6 +75,22 @@ module.exports = [
       if (sub === "note") {
         leads.note(ctx.state, id, ctx.sender, rest);
         return ctx.reply(`📝 Note added to #${id}.`);
+      }
+      if (sub === "won" || sub === "deal" || sub === "صفقة") {
+        const { deal, listing } = deals.close(ctx.state, id, deals.parseDealArgs(ctx.args.slice(2)), ctx.sender);
+        const cur = re.agent(ctx.state).currency;
+        return ctx.reply(
+          [
+            `✅ *صفقة* — #${id} ${lead.name || ""}`.trim(),
+            listing ? `🏠 #${listing.id} ${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""} (${re.STATUS_AR[listing.status]})` : null,
+            `💰 ${re.money(deal.price, cur)}`,
+            deal.commission ? `🧾 العمولة: ${re.money(deal.commission, cur)}${deal.rate ? ` (${deal.rate}%)` : ""}` : `🧾 Add the commission next time: ${ctx.prefix}lead won ${id} … 2.5%`,
+            "",
+            `${ctx.prefix}deals — this month's deals and commission`,
+          ]
+            .filter((x) => x !== null)
+            .join("\n"),
+        );
       }
       if (sub === "status") {
         const status = leads.statusFrom(ctx.args[2]);
@@ -141,10 +160,16 @@ module.exports = [
     ...base,
     name: "leads",
     aliases: ["clients", "customers", "pipeline"],
-    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. Owner and sudo users.",
-    usage: "[status | words]",
-    examples: [".leads", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
+    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. \"hot\" ranks who to call first: stage, a viewing coming up, a recent message, a follow-up due, listings in their budget, minus going quiet. Owner and sudo users.",
+    usage: "[status | words | hot]",
+    examples: [".leads", ".leads hot", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
     async run(ctx) {
+      if (/^(hot|ساخن|الأهم|الاهم|top)$/i.test(ctx.text.trim())) {
+        const list = hotleads.hot(ctx.state, 10);
+        if (!list.length) return ctx.reply(`No active client to rank yet (${ctx.prefix}leads).`);
+        const cur = re.agent(ctx.state).currency;
+        return ctx.reply(`🔥 *ابدأ بهؤلاء* (الأعلى أولاً)\n\n${list.map((h) => hotleads.line(h, cur)).join("\n")}\n\n${ctx.prefix}lead <number> للتفاصيل`);
+      }
       const list = leads.search(ctx.state, ctx.text, { me: ctx.app.identity.aliases(ctx.sender) });
       const everyone = leads.all(ctx.state);
       if (!everyone.length) return ctx.reply(`No clients yet. Add one: ${ctx.prefix}lead add`);

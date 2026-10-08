@@ -4,6 +4,7 @@ const re = require("./realestate");
 const leads = require("./leads");
 const viewings = require("./viewings");
 const rentals = require("./rentals");
+const hotleads = require("./hotleads");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 
@@ -45,6 +46,8 @@ function build(state, timeZone, now = Date.now()) {
   lines.push(...(todaysViewings.length ? todaysViewings.map((v) => viewings.line(state, v, timeZone)) : ["لا توجد"]));
   lines.push("", `⏰ *متابعات اليوم (${followUps.length})*`);
   lines.push(...(followUps.length ? followUps.slice(0, 15).map((l) => `${hhmm(l.followUp.at, timeZone)} ${leads.line(l, cur)}${l.followUp.note ? ` — ${l.followUp.note}` : ""}`) : ["لا توجد"]));
+  const top = hotleads.hot(state, 3, now);
+  if (top.length) lines.push("", "🔥 *ابدأ بهؤلاء اليوم*", ...top.map((h) => hotleads.line(h, cur)));
   if (fresh.length) lines.push("", `🆕 *عملاء جدد آخر 24 ساعة (${fresh.length})*`, ...fresh.slice(0, 10).map((l) => leads.line(l, cur)));
   // Replies to what we sent, and clients who went quiet after it (2–14 days ago; older ones are in 💤).
   const replied = all.filter((l) => l.lastSentAt && l.lastMsgAt > l.lastSentAt && now - l.lastMsgAt < DAY).sort((a, b) => b.lastMsgAt - a.lastMsgAt);
