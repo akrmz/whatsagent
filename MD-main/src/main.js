@@ -35,6 +35,7 @@ const { startAutoListingsLoop } = require("./services/autolistings");
 const { startViewingsLoop } = require("./services/viewings");
 const { startDigestLoop } = require("./services/digest");
 const { startCampaignLoop } = require("./services/campaigns");
+const { startRentalsLoop } = require("./services/rentals");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -192,6 +193,7 @@ async function start() {
   const stopViewings = startViewingsLoop(app);
   const stopDigest = startDigestLoop(app);
   const stopCampaigns = startCampaignLoop(app);
+  const stopRentals = startRentalsLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -215,6 +217,7 @@ async function start() {
     stopViewings();
     stopDigest();
     stopCampaigns();
+    stopRentals();
     connection.stop();
     app.state.flush();
     health?.close();

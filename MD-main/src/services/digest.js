@@ -3,6 +3,7 @@
 const re = require("./realestate");
 const leads = require("./leads");
 const viewings = require("./viewings");
+const rentals = require("./rentals");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 
@@ -59,6 +60,7 @@ function build(state, timeZone, now = Date.now()) {
     lines.push("", `💤 *بدون تواصل منذ ${STALE_DAYS}+ أيام (${stale.length})*`);
     lines.push(...stale.slice(0, 8).map((l) => `${leads.line(l, cur)} — منذ ${Math.floor((now - l.updated) / 86400000)} يوم`));
   }
+  lines.push(...rentals.digestLines(state, today));
   lines.push("", `🏠 الكتالوج: ✅ ${count("available")} متاح · ⏳ ${count("reserved")} محجوز · 🔴 ${count("sold") + count("rented")} مباع/مؤجر`);
   const old = re.stale(state, 30, now);
   if (old.length) lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);

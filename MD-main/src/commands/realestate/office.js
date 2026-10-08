@@ -97,7 +97,7 @@ module.exports = [
     name: "digest",
     aliases: ["summary-day", "dailybrief", "molakhas"],
     category: "realestate",
-    description: "ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, and the catalogue. Owner and sudo users.",
+    description: "ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, rent due and late, contracts ending soon, and the catalogue. Owner and sudo users.",
     usage: "on <time> | off | now | (no argument: status)",
     examples: [".digest on 08:30", ".digest now", ".digest off"],
     permission: "sudo",
