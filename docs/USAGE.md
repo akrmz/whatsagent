@@ -248,6 +248,39 @@ A message counts as a request only if it names a property type **and** asks. Wor
 
 Each client gets at most one answer every 10 minutes; extra requests are ignored silently. The 30-new-clients-an-hour limit is shared with `autoleads`. Groups, you, sudo users, and private mode are never answered.
 
+### Developers' projects (مشروعات المطورين)
+
+New units sold off-plan, on a payment plan. They are numbered **P1, P2 …** to tell them apart from resale listings (#12). Anyone can view them; the owner and sudo users manage them.
+
+```
+.project add
+المشروع: ماونتن فيو آي سيتي
+المطور: ماونتن فيو
+المنطقة: التجمع الخامس
+الوحدات: شقق من 120 لـ 200 م، تاون هاوس، فيلات
+يبدأ من: 6.5 مليون
+المقدم: 10%
+التقسيط: 8 سنوات
+الاستلام: 2028
+الصيانة: 8%
+```
+
+The bot reads several things from these lines:
+- the unit types and sizes, from الوحدات;
+- "بدون مقدم" as 0% down;
+- "96 شهر" as 8 years;
+- "فوري" or "جاهز" as ready to move in.
+
+Lines without a label are kept as notes. After saving, it tells you which plan details are missing.
+
+| Command | What it does |
+|---|---|
+| `.project 3` | The project, with the instalment worked out for the cheapest unit, e.g. "≈ 182,813 جنيه ربع سنوي (≈ 60,938 شهرياً) بعد مقدم 650,000 — لأقل وحدة". You and sudo users also see which clients it suits. |
+| `.projects التجمع حتى 8 مليون مقدم 10% 8 سنين` | Search, cheapest first. Filters: words from the name, developer or area; a unit type; `حتى 8 مليون` (starting price); `مقدم 10%` (at most); `8 سنين` (at least); `فوري` (ready). |
+| `.project edit 3 المقدم: 5%` / `.project del 3` | Change or delete. |
+
+**Matching:** a client's card (`.lead 5`) lists the projects that suit them (area, unit type, a starting price within their budget). With `.agent requests on`, a client's written request is also answered with up to 2 suitable projects, even when no resale listing matches. Clients who want to rent are never offered projects.
+
 ### Brokers' groups (جروبات السماسرة)
 
 If you're in WhatsApp groups where brokers post offers and requests, the bot can read them for you. Send **`.watch on`** in such a group (owner and sudo users). From then on, other members' posts are read:
@@ -540,6 +573,16 @@ This list is generated from the command files themselves.
 | `.mortgage` | `.loan` `.tamweel` | تمويل عقاري بفائدة — a bank mortgage: monthly payment, total paid and total interest (standard annuity formula). | everyone | `.mortgage 3.5m 20% 25% 15` |
 | `.offer` | `.pricequote` `.ard` `.proposal` | عرض سعر PDF — a price offer for a listing as a PDF: the client's name, the property, the price and, with a payment plan (down payment, years, frequency, maintenance), every instalment with its date, plus the listing's flyer. Valid for 7 days. Add a client (#5) to put their name on it, and "send" to send it to them on WhatsApp (noted in their history). Owner and sudo users. | owner, sudo | `.offer 12` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
+| `.project` | `.compound` `.mashroo` | مشروعات المطورين — off-plan projects you sell: developer, area, unit types and sizes, starting price, down payment, instalment years, delivery and maintenance; the card works out the instalment for the cheapest unit. Anyone can view; the owner and sudo users manage. | everyone | `.project add
+المشروع: ماونتن فيو آي سيتي
+المطور: ماونتن فيو
+المنطقة: التجمع الخامس
+الوحدات: شقق من 120 لـ 200 م، تاون هاوس
+يبدأ من: 6.5 مليون
+المقدم: 10%
+التقسيط: 8 سنوات
+الاستلام: 2028` |
+| `.projects` | `.compounds` `.mashareea` | البحث في مشروعات المطورين — searches the projects, cheapest first: words from the name, developer or area, a unit type (شقة، فيلا، تاون هاوس …), "حتى 8 مليون" (starting price), "مقدم 10%" (at most), "8 سنين" (at least), "فوري" (ready to move in). | everyone | `.projects` |
 | `.rehelp` | `.dalil` `.reguide` `.aqarguide` | دليل أدوات العقارات بالعربي — a short Arabic guide to the real-estate tools, step by step, showing which steps you have already done. | owner, sudo | `.rehelp` |
 | `.rental` | `.tenant` `.ijar` `.lease` | إدارة الإيجارات — the rentals you manage: tenant, monthly rent and due day, contract dates and deposit; record payments, see who is late and which months are unpaid, remind the tenant (now, or automatically on the due day and every 3 days while late, 10:00–21:00), and renew. The morning summary lists rent due and late, and contracts ending within 60 days. Owner and sudo users. | owner, sudo | `.rental add
 العقار: 12

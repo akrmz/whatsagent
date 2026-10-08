@@ -2,6 +2,29 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.11.0 — 2026-10-08
+
+### Added — developers' projects
+- **`.project add`** records an off-plan project, shown as P1, P2 …, with:
+  - the developer, area, and unit types and sizes;
+  - the starting price;
+  - the down payment ("بدون مقدم" = 0%) and years ("96 شهر" = 8);
+  - delivery ("فوري" = ready) and maintenance.
+
+  It lists the missing plan details after saving. `.project edit` and `.project del`.
+- **`.project 3`** shows the project with the quarterly and monthly instalment for the cheapest unit, and the matching clients (owner/sudo). Anyone can view it.
+- **`.projects`**: search by area words, unit type, `حتى 8 مليون`, `مقدم 10%`, `8 سنين`, `فوري`, cheapest first.
+- **Matching**:
+  - suitable projects on the client card;
+  - up to 2 projects in automatic answers to requests (`.agent requests on`), also when no listing matches;
+  - in the owner's 🔔.
+
+  Renters aren't offered projects.
+- Property types now include plurals (شقق، فيلات، فلل، شاليهات، محلات، مكاتب، عيادات), in listings and searches too.
+
+### Checked
+- 3 tests (296 in total): parsing, the instalment example, the search filters, matching, the commands, and the request answers.
+
 ## 3.10.0 — 2026-10-08
 
 ### Added — hot clients and deals
