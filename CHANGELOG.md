@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.10.0 — 2026-10-08
+
+### Added — hot clients and deals
+- **`.leads hot`** ranks active clients by who to call first, each with the reasons ("👀 معاينة خلال 1 يوم · 💬 راسلك منذ 2 ساعة · 🏠 1 عقار في ميزانيته").
+  - Points for: the stage, a viewing soon, a recent message, a follow-up due, listings in budget, a known budget.
+  - Points off for: no reply after a send, no contact for 14 days.
+  - The top 3 are in the morning summary ("🔥 ابدأ بهؤلاء اليوم").
+- **`.lead won 5 #12 3.1m 2.5%`** records a closed deal: price and commission (a rate, or `عمولة <amount>`), the client marked won, and the listing marked sold or rented. Without a price, the listing's price is used. A client can close more than once.
+- **`.deals`**: this month's deals, value and commission, with the % change from last month, each deal, and sources. `.deals last`, `.deals 2026-09`, and `.deals 2026` (a year, by month).
+
+### Checked
+- 3 tests (293 in total), with simulated clocks: scoring and its reasons, who is left out, the deal arguments and errors, sold/rented, and month/year periods with the % change.
+
 ## 3.9.0 — 2026-10-08
 
 ### Added — designs for posting
