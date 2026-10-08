@@ -12,7 +12,6 @@ const digest = require("../src/services/digest");
 const { makeApp, makeSock, ALL_OFF } = require("./helpers");
 
 const ME = "201011112222@s.whatsapp.net";
-const MIN = 60 * 1000;
 const at = (day, hhmm) => Date.parse(`${day}T${hhmm}:00+03:00`);
 const jid = (p) => `${p}@s.whatsapp.net`;
 
