@@ -2,6 +2,20 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.14.0 — 2026-10-08
+
+### Added — English for foreign buyers
+- **`.listing 12 en`**, **`.flyer 12 en`** and **`.story 12 en`**, and clients can send **`#12 en`**. These are translated:
+  - type, sale/rent, finishing, floor (ordinals: 4th, 11th, 22nd; ground and top floor) and status;
+  - the currency as a code (EGP, SAR, AED …), with prices like "EGP 3,500,000 (EGP 3.5M)", and the price per m²;
+  - "11% OFF" with the old price after a cut.
+- **Areas**: about 40 common Egyptian areas and compounds have English names, matched longest first and listed in order (التجمع الخامس، النرجس → "Fifth Settlement, New Cairo — El Narges"). Unknown areas aren't guessed: add "Location EN: …" to the listing.
+- Notes are included only when written in English.
+- The English flyer and story are laid out left to right. The flyer was rebuilt on the same text helpers as the story; the Arabic flyer looks the same as before (checked by eye).
+
+### Checked
+- 4 tests (307 in total): the translations, the exact English card, the commands and `#12 en` (plain `#12` stays Arabic), the image sizes, and a pixel check that English text sits on the left and Arabic on the right.
+
 ## 3.13.1 — 2026-10-08
 
 A review of the 3.8–3.13 additions.
