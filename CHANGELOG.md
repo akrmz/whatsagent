@@ -2,6 +2,24 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.12.0 — 2026-10-08
+
+### Added — after the viewing
+- **`.viewing done 3 liked|thinking|no [note]`** (also أعجبه، بيفكر، لم يعجبه) records how a viewing went:
+  - in the client's history;
+  - "liked" moves the client to negotiating (never backwards);
+  - the reply suggests the next step.
+- **Asked automatically**: 2 hours after a viewing, the booking chat gets "📝 كيف كانت المعاينة؟" with the command, once. Viewings without an outcome show in `.viewings` and the morning summary.
+- **`.viewings ics`**: the upcoming viewings as an iCalendar file, each with the address, the client's number and a 1-hour alarm.
+  - CRLF line endings, lines folded at 75 bytes without splitting Arabic characters, and commas and semicolons escaped, as the standard (RFC 5545) requires.
+
+### Changed
+- Viewings without an outcome are kept 7 days (was 1), so they can still be recorded. With an outcome, 1 day as before.
+- Times: "today at 16:00" and "today 4pm" now work, like "النهارده 4 م" and "tomorrow at 4pm" already did.
+
+### Checked
+- 3 tests (299 in total), with simulated clocks, plus checks for the English "today" times: when the bot asks (once), the outcomes and stages, how long viewings are kept, and the calendar file format.
+
 ## 3.11.0 — 2026-10-08
 
 ### Added — developers' projects
