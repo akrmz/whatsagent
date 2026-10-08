@@ -61,7 +61,7 @@ function groupText(state, g) {
   const cur = re.agent(state).currency;
   if (g.projects) {
     const all = projects.all(state);
-    return [`🏗️ *مشروعات جديدة بالتقسيط* (${all.length})`, "", ...all.slice(0, MAX_SHOWN).map((p) => projects.line(p, cur)), "", "للتفاصيل اسأل عن المشروع باسمه · 0 للقائمة"].join("\n");
+    return [`🏗️ *مشروعات جديدة بالتقسيط* (${all.length})`, "", ...all.slice(0, MAX_SHOWN).map((p) => projects.line(p, cur)), "", `للتفاصيل أرسل رقم المشروع (مثلاً P${all[0].id}) · 0 للقائمة`].join("\n");
   }
   const items = re
     .all(state)

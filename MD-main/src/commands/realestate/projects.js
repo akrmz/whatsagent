@@ -33,9 +33,9 @@ module.exports = [
     aliases: ["compound", "mashroo"],
     category: "realestate",
     description:
-      "مشروعات المطورين — off-plan projects you sell: developer, area, unit types and sizes, starting price, down payment, instalment years, delivery and maintenance; the card works out the instalment for the cheapest unit. Anyone can view; the owner and sudo users manage.",
-    usage: "add <lines> | <id> | edit <id> <lines> | del <id>",
-    examples: [".project add\nالمشروع: ماونتن فيو آي سيتي\nالمطور: ماونتن فيو\nالمنطقة: التجمع الخامس\nالوحدات: شقق من 120 لـ 200 م، تاون هاوس\nيبدأ من: 6.5 مليون\nالمقدم: 10%\nالتقسيط: 8 سنوات\nالاستلام: 2028", ".project 3", ".project edit 3 المقدم: 5%"],
+      "مشروعات المطورين — off-plan projects you sell: developer, area, unit types and sizes, starting price, down payment, instalment years, delivery and maintenance; the card works out the instalment for the cheapest unit. Clients can send P3 (or “P3 en” in English) to see one. Anyone can view; the owner and sudo users manage.",
+    usage: "add <lines> | <id> [en] | edit <id> <lines> | del <id>",
+    examples: [".project add\nالمشروع: ماونتن فيو آي سيتي\nالمطور: ماونتن فيو\nالمنطقة: التجمع الخامس\nالوحدات: شقق من 120 لـ 200 م، تاون هاوس\nيبدأ من: 6.5 مليون\nالمقدم: 10%\nالتقسيط: 8 سنوات\nالاستلام: 2028", ".project 3", ".project 3 en", ".project edit 3 المقدم: 5%"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -44,6 +44,7 @@ module.exports = [
       if (direct) {
         const p = projects.get(ctx.state, direct);
         if (!p) return ctx.reply(`There is no project P${direct}.`);
+        if (/^(en|english|eng|انجليزي|إنجليزي)$/.test(arg)) return ctx.reply(projects.cardEn(p, a));
         return ctx.reply(projects.card(p, a) + (ctx.isSudoOrOwner ? clientsLine(ctx, p) : ""));
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));

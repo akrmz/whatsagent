@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const calc = require("./recalc");
+const english = require("./english");
 const { UserError } = require("../core/errors");
 
 /**
@@ -143,7 +144,33 @@ function card(p, a) {
     ex && `   ≈ ${re.money(ex.each, cur)} ربع سنوي (≈ ${re.money((ex.each * 4) / 12, cur)} شهرياً) بعد مقدم ${re.money(ex.down, cur)} — لأقل وحدة`,
     p.maint !== undefined && `🛠️ الصيانة: ${p.maint}%`,
     p.notes && `📝 ${p.notes}`,
+    `\nللاستفسار أرسل: P${p.id}`,
     re.contactLine(a) && `\n${re.contactLine(a)}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** The English card (P3 en, .project 3 en): fixed words translated, known areas in English. */
+function cardEn(p, a) {
+  const cur = english.currencyEn(a.currency);
+  const money = (n) => `${cur} ${re.group(Math.round(n))}`;
+  const ex = example(p);
+  const units = (p.types || []).map((t) => (t === "أرض" ? "Land" : `${english.typeEn(t)}s`)).join(", ");
+  const sizes = p.sizes ? `${p.sizes[0]}–${p.sizes[1]} m²` : "";
+  const plan = [p.down !== undefined && (p.down === 0 ? "No down payment" : `${p.down}% down`), p.years && `${p.years} years`, p.ready ? "Ready to move in" : p.deliveryYear && `Delivery ${p.deliveryYear}`].filter(Boolean).join(" · ");
+  const contact = [a.name && `👤 ${a.name}`, a.phone && `📞 ${a.phone}`, a.company && `🏢 ${a.company}`].filter(Boolean).join(" · ");
+  return [
+    `🏗️ *${p.name}* — P${p.id}`,
+    p.developer && `🏢 Developer: ${p.developer}`,
+    p.location && `📍 ${english.locationEn({ location: p.location }) || p.location}`,
+    (units || sizes) && `🏠 Units: ${[units, sizes].filter(Boolean).join(" · ")}`,
+    p.price && `💰 From *${money(p.price)}* (${cur} ${+(p.price / 1e6).toFixed(2)}M)`,
+    plan && `💳 ${plan}`,
+    ex && `   ≈ ${money(ex.each)} quarterly (≈ ${money((ex.each * 4) / 12)} / month) after ${money(ex.down)} down — smallest unit`,
+    p.maint !== undefined && `🛠️ Maintenance: ${p.maint}%`,
+    `\nTo ask about it, send: P${p.id} en`,
+    contact && `\n${contact}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -213,4 +240,4 @@ function search(state, query) {
   return { list, filters: f, words };
 }
 
-module.exports = { get, all, add, update, remove, parseProjectText, sizesIn, example, card, line, planText, suits, forWish, search, USAGE };
+module.exports = { get, all, add, update, remove, parseProjectText, sizesIn, example, card, cardEn, line, planText, suits, forWish, search, USAGE };
