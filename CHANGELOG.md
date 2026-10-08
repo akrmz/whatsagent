@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.18.0 — 2026-10-09
+
+### Added — fewer no-shows
+- **The client is reminded on the day**: a viewing booked with `send` more than 3 hours ahead gets the client "تذكير بمعاد معاينة …" 2 hours before, followed by the listing's **location pin** when it has one. It's sent once; the agent's own 1-hour reminder is unchanged. A booking made shortly before gets only its confirmation.
+- **`.viewing done 3 noshow`** (also محضرش، ماجاش، غاب) records a no-show. It's counted on the client and shown on their card ("🚫 لم يحضر 2 معاينة"), and lowers them in `.leads hot` (−5 each, up to −15). The stage isn't changed. The reply suggests booking again and warns after repeated no-shows.
+- The Arabic guide and USAGE.md cover both.
+
+### Checked
+- 3 tests (318 in total), with simulated clocks:
+  - the client reminder: its timing, text and pin, sent once;
+  - no reminder without `send`, without a number, or when booked shortly before;
+  - no-shows: counting, the card, the hot score, and the stage left as is.
+
 ## 3.17.1 — 2026-10-09
 
 ### Docs
