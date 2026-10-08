@@ -1,6 +1,6 @@
 {
   "name": "whatsapp-bot",
-  "version": "3.17.0",
+  "version": "3.17.1",
   "private": true,
   "description": "Multi-device WhatsApp bot built on Baileys, with auto-loaded commands and centralized permissions.",
   "main": "index.js",
