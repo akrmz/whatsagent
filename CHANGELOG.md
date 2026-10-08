@@ -2,6 +2,17 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.27.0 — 2026-10-10
+
+### Changed — the client menu for bigger catalogues
+- **Areas first**: in the catalogue menu (`.agent catalog on`), a section with more than 10 listings spread over several areas now asks for the area first ("🏠 شقق للبيع (40) — اختار المنطقة: 1️⃣ التجمع الخامس (15) …").
+  - Each area then shows its listings, cheapest first. Another number shows another area, and 0 goes back.
+  - Areas are read from the start of the location ("التجمع الخامس، النرجس" → التجمع الخامس). Up to 8 are shown by name and the rest grouped as "مناطق أخرى".
+  - Small sections still open directly.
+
+### Checked
+- 1 test (336 in total): the area menu, two areas in turn, a wrong number, a small section, the "مناطق أخرى" bucket with 11 areas, and the per-minute limit.
+
 ## 3.26.0 — 2026-10-10
 
 ### Added — projects by code, and in English
