@@ -11,9 +11,17 @@ const { UserError } = require("../../core/errors");
 
 const MAX_BROCHURE = 20;
 
+/**
+ * Text that Excel would run as a formula (starting with = + - @, a tab or a return) gets a
+ * leading apostrophe: clients' names, notes and form answers can come from strangers (a
+ * WhatsApp name, a lead-ads form), and "=HYPERLINK(…)" must stay text. Phone numbers ("+2010…")
+ * and plain numbers are left as they are.
+ */
+const noFormula = (s) => (/^[=+\-@\t\r]/.test(s) && !/^[+-]?\d[\d\s.,]*$/.test(s) ? `'${s}` : s);
+
 /** A CSV cell: quoted when needed, so commas, quotes and line breaks in notes stay in their column. */
 const cell = (v) => {
-  const s = v === undefined || v === null ? "" : String(v);
+  const s = noFormula(v === undefined || v === null ? "" : String(v));
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 // The byte-order mark makes Excel open the file as UTF-8 (Arabic shows correctly).

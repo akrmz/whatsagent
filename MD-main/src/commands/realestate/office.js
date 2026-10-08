@@ -20,7 +20,8 @@ const IGNORE = new Set(["id", "photos", "price_per_m2", "created", "updated", "f
 const rowText = (row, rename) =>
   Object.entries(row)
     .filter(([k, v]) => v && !IGNORE.has(k))
-    .map(([k, v]) => `${rename[k] || k.replace(/_/g, " ")}: ${String(v).replace(/\s*\n\s*/g, " ")}`)
+    // "'=…" is how .export keeps formula-like text as text; the apostrophe isn't part of it.
+    .map(([k, v]) => `${rename[k] || k.replace(/_/g, " ")}: ${String(v).replace(/^'(?=[=+\-@])/, "").replace(/\s*\n\s*/g, " ")}`)
     .join("\n");
 
 const STATUS_OF = { available: "available", reserved: "reserved", sold: "sold", rented: "rented", "متاح": "available", "محجوز": "reserved", "مباع": "sold", "مؤجر": "rented" };
