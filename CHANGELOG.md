@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.22.0 — 2026-10-09
+
+### Added — automatic campaigns for new listings
+- **`.agent autoblast on`**: a listing added with `.listing add` that suits saved clients is queued as a campaign starting **30 minutes later**, so there's time to add photos (they're included when it sends).
+  - The add reply gives the client count, the start time and `.blast stop N` to cancel.
+  - The usual pacing, hours, daily cap, opt-out and "no listing twice" rules apply.
+- **Not queued**: a likely duplicate, a listing that suits nobody, or when 5 campaigns are already running (the reply says so). A listing reserved or sold before the start stops its campaign.
+- **Campaigns can wait**: a start time is stored; the sending loop takes the oldest campaign that is due, and `.campaigns` shows "🕒 يبدأ 11:30".
+- `.agent`, `.rehelp`, the Arabic guide and USAGE.md cover it.
+
+### Checked
+- 2 tests (328 in total), with simulated clocks:
+  - off by default, the 30-minute wait, the start time in `.campaigns`, and a photo added meanwhile being sent;
+  - nobody suited, a duplicate, sold before the start, and the running limit.
+
 ## 3.21.0 — 2026-10-09
 
 ### Added — a catalogue menu for clients
