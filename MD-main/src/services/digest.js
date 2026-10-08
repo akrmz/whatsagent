@@ -44,6 +44,8 @@ function build(state, timeZone, now = Date.now()) {
   const lines = [`📋 *ملخص اليوم* — ${today}`];
   lines.push("", `🗓️ *المعاينات اليوم (${todaysViewings.length})*`);
   lines.push(...(todaysViewings.length ? todaysViewings.map((v) => viewings.line(state, v, timeZone)) : ["لا توجد"]));
+  const open = viewings.pending(state, now).filter((v) => !isToday(v.at));
+  if (open.length) lines.push(`📝 بدون نتيجة: ${open.slice(0, 6).map((v) => `#${v.id}`).join("، ")} — .viewing done <رقم> liked|thinking|no`);
   lines.push("", `⏰ *متابعات اليوم (${followUps.length})*`);
   lines.push(...(followUps.length ? followUps.slice(0, 15).map((l) => `${hhmm(l.followUp.at, timeZone)} ${leads.line(l, cur)}${l.followUp.note ? ` — ${l.followUp.note}` : ""}`) : ["لا توجد"]));
   const top = hotleads.hot(state, 3, now);

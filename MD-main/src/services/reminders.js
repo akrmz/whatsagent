@@ -133,7 +133,8 @@ function arabicTime(text) {
  * @returns {{ ms: number, every: number, rest: string } | null}  ms = time until the first reminder
  */
 function parseWhen(text, timeZone, now = Date.now()) {
-  let rest = arabicTime(text);
+  // "today at 16:00" is just "at 16:00" (as "النهارده 4 م" already is).
+  let rest = arabicTime(text).replace(/^today\s+(?:at\s+)?(?=\d)/i, "at ");
   let every = 0;
   let weekday = -1;
   const ev = rest.match(/^every\s+/i);

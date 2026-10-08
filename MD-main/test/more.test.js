@@ -46,6 +46,9 @@ test("reminders understand 'at 18:30', 'tomorrow at 9am' and 'every day at 08:00
   assert.deepEqual(min("every day at 08:00 pills").every, 86400000);
   assert.equal(min("every 2h stretch").ms, 7200000);
   assert.equal(min("10 apples"), null, "a number alone is not a time");
+  assert.equal(min("today at 18:30 call").ms, (5 * 60 + 29.5) * 60000, "'today at' is 'at'");
+  assert.equal(min("today 6pm call").rest, "call");
+  assert.equal(min("today is busy"), null);
   assert.equal(min("at 25:00 x"), null);
 });
 

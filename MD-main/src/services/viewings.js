@@ -6,13 +6,15 @@ const leads = require("./leads");
 
 /**
  * Property viewings (.viewing): a client, a listing and a time. The agent gets a reminder an
- * hour before, in the chat where it was booked; the client can get a confirmation.
- *   DATA_DIR/viewings.json { seq, items: { [id]: { id, lead, listing, at, chat, by, reminded? } } }
- * Viewings more than a day old are dropped.
+ * hour before, in the chat where it was booked; the client can get a confirmation. Two hours
+ * after, the agent is asked how it went (.viewing done).
+ *   DATA_DIR/viewings.json { seq, items: { [id]: { id, lead, listing, at, chat, by, reminded?, asked?, outcome? } } }
+ * Viewings are dropped a day after they happened once the outcome is recorded, else after 7 days.
  */
 
 const REMIND_BEFORE_MS = 60 * 60 * 1000;
-const KEEP_AFTER_MS = 24 * 60 * 60 * 1000;
+const KEEP_AFTER_MS = 24 * 60 * 60 * 1000; // after a viewing with an outcome
+const KEEP_PENDING_MS = 7 * 24 * 60 * 60 * 1000; // without one (so it can still be recorded)
 const MAX_VIEWINGS = 2000;
 
 const store = (state) => state.store("viewings", { seq: 0, items: {} });
@@ -68,15 +70,108 @@ function confirmation(state, v, timeZone) {
     .join("\n");
 }
 
-/** Reminds the agent an hour before each viewing; drops old ones. */
+// ---- outcomes ----------------------------------------------------------------------------
+
+const RESULTS = {
+  liked: { ar: "👍 أعجبه", words: ["liked", "like", "yes", "good", "أعجبه", "اعجبه", "عجبه", "عجبها", "أعجبها", "اعجبها", "مهتم", "👍"] },
+  thinking: { ar: "🤔 بيفكر", words: ["thinking", "maybe", "think", "بيفكر", "يفكر", "محتار", "متردد", "ربما"] },
+  no: { ar: "👎 لم يعجبه", words: ["no", "not", "disliked", "no-interest", "معجبهوش", "مش عاجبه", "لم يعجبه", "لا", "👎"] },
+};
+const resultFrom = (w) => Object.keys(RESULTS).find((k) => RESULTS[k].words.includes(String(w || "").toLowerCase())) || null;
+const ASK_AFTER_MS = 2 * 60 * 60 * 1000; // ask how it went 2 hours after the viewing …
+const ASK_UNTIL_MS = 12 * 60 * 60 * 1000; // … unless 12 hours have passed (the morning summary lists it then)
+
+/**
+ * Records how a viewing went, on the viewing and in the client's history. A client who liked
+ * it moves to "negotiating" (unless further along already).
+ */
+function done(state, id, result, note, by, now = Date.now()) {
+  const v = get(state, id);
+  if (!v) throw new UserError(`There is no viewing #${id} (viewings are kept 7 days).`);
+  if (v.at > now) throw new UserError(`Viewing #${id} hasn't happened yet.`);
+  store(state).update((d) => (d.items[id].outcome = { result, note: note || undefined, at: now, by }));
+  const c = leads.get(state, v.lead);
+  if (c) {
+    if (result === "liked" && ["new", "contacted", "viewing"].includes(c.status)) leads.update(state, c.id, { status: "negotiating" }, now);
+    leads.note(state, c.id, by, `نتيجة معاينة #${v.listing}: ${RESULTS[result].ar}${note ? ` — ${note}` : ""}`, now);
+  }
+  return get(state, id);
+}
+
+/** Viewings that have happened (an hour ago or more) without an outcome yet, oldest first. */
+const pending = (state, now = Date.now()) =>
+  Object.values(store(state).data.items)
+    .filter((v) => !v.outcome && v.at < now - 60 * 60 * 1000)
+    .sort((a, b) => a.at - b.at);
+
+// ---- calendar ----------------------------------------------------------------------------
+
+const icsDate = (t) => new Date(t).toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+const icsText = (s) => String(s).replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+/** Lines longer than 75 bytes are folded (RFC 5545), without splitting a UTF-8 character. */
+function fold(line) {
+  const out = [];
+  let cur = "";
+  for (const ch of line) {
+    if (Buffer.byteLength(cur + ch) > (out.length ? 74 : 75)) {
+      out.push(cur);
+      cur = "";
+    }
+    cur += ch;
+  }
+  out.push(cur);
+  return out.join("\r\n ");
+}
+
+/** Upcoming viewings as an iCalendar file (one hour each), for Google Calendar or a phone. */
+function ics(state, timeZone, now = Date.now()) {
+  const events = upcoming(state, now)
+    .filter((v) => v.at > now)
+    .flatMap((v) => {
+      const l = re.get(state, v.listing);
+      const c = leads.get(state, v.lead);
+      const what = l ? `${l.type || "عقار"}${l.location ? ` ${l.location}` : ""} (#${l.id})` : `#${v.listing}`;
+      return [
+        "BEGIN:VEVENT",
+        `UID:viewing-${v.id}-${v.at}@whatsapp-bot`,
+        `DTSTAMP:${icsDate(now)}`,
+        `DTSTART:${icsDate(v.at)}`,
+        `DTEND:${icsDate(v.at + 60 * 60 * 1000)}`,
+        `SUMMARY:${icsText(`معاينة: ${what} — ${c?.name || "عميل"}`)}`,
+        `DESCRIPTION:${icsText([c?.phone && `+${c.phone}`, l?.price && `${re.group(l.price)}`, `#${v.id}`].filter(Boolean).join(" · "))}`,
+        ...(l?.location ? [`LOCATION:${icsText(l.location)}`] : []),
+        "BEGIN:VALARM",
+        "TRIGGER:-PT60M",
+        "ACTION:DISPLAY",
+        `DESCRIPTION:${icsText(`معاينة: ${what}`)}`,
+        "END:VALARM",
+        "END:VEVENT",
+      ];
+    });
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//whatsapp-bot//viewings//AR", "CALSCALE:GREGORIAN", `X-WR-TIMEZONE:${timeZone}`, ...events, "END:VCALENDAR"];
+  return { text: `${lines.map(fold).join("\r\n")}\r\n`, count: events.filter((l) => l === "BEGIN:VEVENT").length };
+}
+
+/**
+ * Reminds the agent an hour before each viewing, asks how it went 2 hours after, and drops
+ * old ones (a day after with an outcome, or after 7 days).
+ */
 async function runDue(app, now = Date.now()) {
   if (!app.sock || app.health.state !== "open") return 0;
   const s = store(app.state);
   const zone = app.config.bot.timezone;
   let sent = 0;
   for (const v of Object.values(s.data.items)) {
-    if (v.at < now - KEEP_AFTER_MS) {
+    if (v.at < now - (v.outcome ? KEEP_AFTER_MS : KEEP_PENDING_MS)) {
       s.update((d) => delete d.items[v.id]);
+      continue;
+    }
+    if (!v.outcome && !v.asked && now - v.at >= ASK_AFTER_MS && now - v.at < ASK_UNTIL_MS) {
+      s.update(() => (v.asked = true));
+      await app.sock
+        .sendMessage(v.chat, { text: `📝 *كيف كانت المعاينة؟*\n${line(app.state, v, zone)}\n.viewing done ${v.id} liked | thinking | no [ملاحظة]`, mentions: v.by ? [v.by] : [] })
+        .then(() => sent++)
+        .catch((err) => app.log.warn({ err: err.message }, "could not ask about a viewing"));
       continue;
     }
     if (v.reminded || v.at - now > REMIND_BEFORE_MS || v.at < now) continue;
@@ -112,4 +207,4 @@ function startViewingsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { add, remove, get, upcoming, line, confirmation, runDue, startViewingsLoop, when, REMIND_BEFORE_MS };
+module.exports = { add, remove, get, upcoming, line, confirmation, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
