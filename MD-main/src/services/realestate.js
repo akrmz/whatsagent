@@ -327,6 +327,20 @@ function count(state, id, field) {
   });
 }
 
+const MAX_FEEDBACK = 50;
+
+/**
+ * How a viewing went, kept on the listing for its owner's report (.listing report): one entry
+ * per viewing (recording it again replaces it), the last 50. No client details.
+ */
+function addFeedback(state, id, { viewing, result, note, at }) {
+  store(state).update((d) => {
+    const l = d.items[id];
+    if (!l) return;
+    l.feedback = [...(l.feedback || []).filter((f) => f.viewing !== viewing), { viewing, result, ...(note ? { note } : {}), at }].slice(-MAX_FEEDBACK);
+  });
+}
+
 /** Available listings not updated for `days` days, oldest first. */
 const stale = (state, days = 30, now = Date.now()) =>
   all(state)
@@ -445,6 +459,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
-  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, stale,
+  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, addFeedback, stale,
   STATUS_AR, MAX_PHOTOS,
 };

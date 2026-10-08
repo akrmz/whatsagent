@@ -38,6 +38,7 @@ function add(state, { lead, listing, at, chat, by, notifyClient = false }, now =
     return d.items[id];
   });
   team.record(state, by, "viewings", 1, now);
+  re.count(state, listing, "booked");
   return v;
 }
 
@@ -103,6 +104,7 @@ function done(state, id, result, note, by, now = Date.now()) {
   if (!v) throw new UserError(`There is no viewing #${id} (viewings are kept 7 days).`);
   if (v.at > now) throw new UserError(`Viewing #${id} hasn't happened yet.`);
   store(state).update((d) => (d.items[id].outcome = { result, note: note || undefined, at: now, by }));
+  re.addFeedback(state, v.listing, { viewing: v.id, result, note, at: v.at });
   const c = leads.get(state, v.lead);
   if (c) {
     if (result === "liked" && ["new", "contacted", "viewing"].includes(c.status)) leads.update(state, c.id, { status: "negotiating" }, now);

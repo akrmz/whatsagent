@@ -78,7 +78,7 @@ const idOf = (s) => {
 /** Text of the command, or of the message it replies to (a broker's post forwarded to the bot). */
 const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
-const { show, ownerLine } = require("../../services/listingview");
+const { show, ownerLine, staffOnlyChat } = require("../../services/listingview");
 const owners = require("../../services/owners");
 const campaigns = require("../../services/campaigns");
 
@@ -116,6 +116,9 @@ async function shortLinkGeo(ctx, fields, text) {
 const EN = /^(en|english|eng|انجليزي|إنجليزي)$/;
 const SHOW_MAP = /^(map|خريطة|الخريطة)$/;
 const SET_LOC = /^(loc|location|geo|موقع|الموقع|لوكيشن|اللوكيشن)$/;
+const REPORT = /^(report|تقرير|التقرير)$/;
+const SEND = /^(send|ابعت|ارسل|أرسل)$/;
+const ownerReport = require("../../services/ownerreport");
 
 /** The listing as a WhatsApp location pin (opens in the client's maps app). */
 function sendPin(ctx, l) {
@@ -174,6 +177,7 @@ const HELP = (p) =>
     `${p}listing status 12 reserved|sold|rented|available`,
     `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits`,
     `المالك: الاسم 0100… (in add/edit, private) · ${p}listing ask 12 — ask the owner if it's still available`,
+    `${p}listing report 12 — the owner's marketing report (preview) · ${p}listing report 12 send — send it to the owner`,
     `${p}listing loc 12 (reply to a location pin or Maps link) — save where it is · ${p}listing 12 map — send the pin`,
     `${p}listings near (reply to a client's location) — nearest listings`,
     `${p}listings [filters] — search · ${p}flyer 12 — image for posting`,
@@ -185,9 +189,9 @@ module.exports = [
     aliases: ["property", "aqar"],
     category: "realestate",
     description:
-      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold. Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold"],
+      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). Anyone can view; the owner and sudo users manage.",
+    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -237,6 +241,22 @@ module.exports = [
       const id = idOf(arg);
       if (!id) return ctx.reply(HELP(ctx.prefix));
       if (!re.get(ctx.state, id)) return ctx.reply(`There is no listing #${id}.`);
+
+      if (REPORT.test(sub)) {
+        // ".listing report 12": a preview of the owner's report; "… send" sends it to the owner.
+        if (!staffOnlyChat(ctx)) return ctx.reply(`The report names the owner and viewers' comments: use ${ctx.prefix}listing report ${id} in your private chat with the bot.`);
+        const l = re.get(ctx.state, id);
+        const preview = ownerReport.text(ctx.state, l);
+        if (!SEND.test(String(ctx.args[2] || "").toLowerCase())) {
+          const next = l.owner?.phone
+            ? `Send it to the owner (${l.owner.name || "owner"}, +${l.owner.phone}): ${ctx.prefix}listing report ${id} send`
+            : `To send it, add the owner's number: ${ctx.prefix}listing edit ${id} المالك: الاسم 0100…`;
+          return ctx.reply(`📊 *Report for the owner of #${id}* — preview, not sent yet:\n\n${preview}\n\n${next}`);
+        }
+        if (!l.owner?.phone) throw new UserError(`#${id} has no owner number. Add it: ${ctx.prefix}listing edit ${id} المالك: الاسم 0100…`);
+        if (!(await ownerReport.send(ctx, l))) throw new UserError(`The owner of #${id} already got a report today. Try again tomorrow.`);
+        return ctx.reply(`📤 Sent the marketing report for #${id} to ${l.owner.name || "the owner"} (+${l.owner.phone}).`);
+      }
 
       if (sub === "photo" || sub === "photos" || sub === "صورة") {
         const media = ctx.findMedia({ types: ["image", "document"] });
