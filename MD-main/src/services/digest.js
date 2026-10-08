@@ -68,7 +68,11 @@ function build(state, timeZone, now = Date.now()) {
   lines.push(...rentals.digestLines(state, today));
   lines.push("", `🏠 الكتالوج: ✅ ${count("available")} متاح · ⏳ ${count("reserved")} محجوز · 🔴 ${count("sold") + count("rented")} مباع/مؤجر`);
   const old = re.stale(state, 30, now);
-  if (old.length) lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);
+  if (old.length) {
+    lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);
+    const askable = old.filter((l) => l.owner?.phone && !(l.ask && now - l.ask.at < 7 * 86400 * 1000)).slice(0, 5);
+    if (askable.length) lines.push(`🔑 اسأل الملاك: .listing ask ${askable.map((l) => l.id).join(" ")}`);
+  }
   return lines.join("\n");
 }
 

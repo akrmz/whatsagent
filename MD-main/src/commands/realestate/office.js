@@ -37,7 +37,7 @@ function importCsv(state, text, kind, { by, ownerNumber }) {
     const n = row.line ?? i + 2; // the row number as shown in the spreadsheet
     try {
       if (kind === "listings") {
-        const fields = re.parseListingText(rowText(row, LISTING_COLUMNS));
+        const fields = re.parseListingText(rowText(row, LISTING_COLUMNS), ownerNumber);
         const dup = re.findDuplicate(state, fields);
         if (dup) {
           skipped.push(`${n}: same as #${dup.id}`);

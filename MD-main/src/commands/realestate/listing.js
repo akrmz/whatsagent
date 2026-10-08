@@ -28,7 +28,7 @@ async function aiFields(ctx, text) {
     throw new UserError("The AI's answer couldn't be read. Try again, or use .listing add without ai.");
   }
   const fields = re.cleanFields(parsed);
-  for (const [k, v] of Object.entries(re.parseListingText(text))) if (fields[k] === undefined) fields[k] = v;
+  for (const [k, v] of Object.entries(re.parseListingText(text, ctx.config.owners.numbers[0]))) if (fields[k] === undefined) fields[k] = v;
   return fields;
 }
 
@@ -56,7 +56,8 @@ const idOf = (s) => {
 /** Text of the command, or of the message it replies to (a broker's post forwarded to the bot). */
 const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
-const { show } = require("../../services/listingview");
+const { show, ownerLine } = require("../../services/listingview");
+const owners = require("../../services/owners");
 
 // Short Maps links are opened (a few requests to Google); clients can trigger that, so it is limited.
 const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
@@ -148,6 +149,7 @@ const HELP = (p) =>
     `${p}listing edit 12 السعر: 3.4 مليون — change fields`,
     `${p}listing status 12 reserved|sold|rented|available`,
     `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits`,
+    `المالك: الاسم 0100… (in add/edit, private) · ${p}listing ask 12 — ask the owner if it's still available`,
     `${p}listing loc 12 (reply to a location pin or Maps link) — save where it is · ${p}listing 12 map — send the pin`,
     `${p}listings near (reply to a client's location) — nearest listings`,
     `${p}listings [filters] — search · ${p}flyer 12 — image for posting`,
@@ -183,11 +185,29 @@ module.exports = [
         const useAi = arg === "ai";
         const body = ctx.text.slice(ctx.args[0].length);
         const text = textOrQuoted(ctx, useAi ? body.replace(/^\s*ai\b/i, "") : body);
-        const fields = await shortLinkGeo(ctx, useAi ? await aiFields(ctx, text) : re.parseListingText(text), text);
+        const fields = await shortLinkGeo(ctx, useAi ? await aiFields(ctx, text) : re.parseListingText(text, ctx.config.owners.numbers[0]), text);
         const dup = re.findDuplicate(ctx.state, fields);
         const l = re.add(ctx.state, fields, ctx.sender);
         const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${dupLine}`);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${dupLine}`);
+      }
+      if (sub === "ask") {
+        // ".listing ask 12 15 18": ask each owner whether it's still available (at most 5 at once).
+        const ids = [...new Set(ctx.args.slice(1).map(idOf).filter(Boolean))];
+        if (!ids.length) throw new UserError(`Which listings? ${ctx.prefix}listing ask 12 [15 18 …]`);
+        if (ids.length > owners.MAX_AT_ONCE) throw new UserError(`At most ${owners.MAX_AT_ONCE} at once, so the owners aren't messaged in a burst.`);
+        const done = [];
+        const skipped = [];
+        for (const n of ids) {
+          const l = re.get(ctx.state, n);
+          if (!l) skipped.push(`#${n}: not found`);
+          else if (!l.owner?.phone) skipped.push(`#${n}: no owner number (${ctx.prefix}listing edit ${n} المالك: الاسم 0100…)`);
+          else {
+            await owners.ask(ctx, l);
+            done.push(`#${n}`);
+          }
+        }
+        return ctx.reply([done.length ? `📤 Asked the owner of ${done.join(", ")} whether it's still available. Their answer comes here.` : null, ...skipped.map((x) => `⚠️ ${x}`)].filter(Boolean).join("\n"));
       }
       const id = idOf(arg);
       if (!id) return ctx.reply(HELP(ctx.prefix));
@@ -202,11 +222,11 @@ module.exports = [
       if (sub === "edit") {
         // Everything after "edit 12", line breaks kept (several fields can be changed at once).
         const text = textOrQuoted(ctx, ctx.text.replace(/^\S+\s+\S+\s*/, ""));
-        const changes = await shortLinkGeo(ctx, re.parseListingText(text), text);
+        const changes = await shortLinkGeo(ctx, re.parseListingText(text, ctx.config.owners.numbers[0]), text);
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
         const before = { ...re.get(ctx.state, id) };
         const l = re.update(ctx.state, id, changes);
-        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${priceDropLine(ctx, before, l)}`);
+        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}${priceDropLine(ctx, before, l)}`);
       }
       if (SET_LOC.test(sub)) {
         if (/^(del|delete|remove|off|حذف)$/.test(String(ctx.args[2] || "").toLowerCase())) {

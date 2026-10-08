@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const { UserError } = require("../core/errors");
 const places = require("./places");
+const { normalizePhone } = require("./phones");
 
 /**
  * Real-estate tools: the agent's profile, a catalogue of listings with photos, and the
@@ -115,6 +116,8 @@ const LABELS = {
   floor: ["الدور", "دور", "الطابق", "طابق", "floor"],
   finishing: ["التشطيب", "تشطيب", "finishing"],
   notes: ["ملاحظات", "تفاصيل", "مميزات", "الوصف", "وصف", "notes", "details", "features", "description"],
+  // Private: who owns it (never shown to clients).
+  owner: ["المالك", "مالك", "صاحب العقار", "صاحب الشقة", "صاحب الوحدة", "رقم المالك", "تليفون المالك", "owner", "landlord", "owner phone"],
 };
 const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.map((w) => [w.toLowerCase(), k])));
 
@@ -177,7 +180,7 @@ function extractFree(text) {
  * are also recognised anywhere in the text.
  * @returns {object} the fields found (only those)
  */
-function parseListingText(text) {
+function parseListingText(text, ownerNumber) {
   const out = {};
   const notes = [];
   for (const raw of String(text || "").split(/\n+/)) {
@@ -204,6 +207,7 @@ function parseListingText(text) {
     else if (key === "size") out.size = firstNumber(value) ?? out.size;
     else if (key === "rooms" || key === "baths") out[key] = firstNumber(value) ?? out[key];
     else if (key === "notes") notes.push(value);
+    else if (key === "owner") out.owner = ownerFrom(value, ownerNumber) || out.owner;
     else out[key] = value.slice(0, key === "location" ? 120 : 60);
   }
   const all = String(text || "").replace(places.MAP_LINKS, " ");
@@ -218,6 +222,18 @@ function parseListingText(text) {
   }
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k];
   return out;
+}
+
+/**
+ * "أبو أحمد 0100 123 4567" → { name: "أبو أحمد", phone: "201001234567" }. A local number needs
+ * the bot owner's number for the country code. @returns {{ name?, phone? } | null}
+ */
+function ownerFrom(text, ownerNumber) {
+  const t = latinDigits(String(text || "")).trim();
+  const m = t.match(/(?:\+|00)?\d[\d\s-]{6,16}\d/);
+  const phone = m ? normalizePhone(m[0], ownerNumber) : null;
+  const name = (m ? t.replace(m[0], " ") : t).replace(/[\s,،:\-–—]+/g, " ").trim().slice(0, 60);
+  return phone || name ? { ...(name ? { name } : {}), ...(phone ? { phone } : {}) } : null;
 }
 
 /**
@@ -422,7 +438,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
+  parseListingText, ownerFrom, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, stale,
   STATUS_AR, MAX_PHOTOS,
 };
