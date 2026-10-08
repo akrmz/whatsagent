@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.20.1 — 2026-10-09
+
+A review of the 3.14–3.20 additions.
+
+### Security
+- **CSV formula injection in `.export`** (B-20 in [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md)). Names, notes and lead-ads answers can be typed by strangers (a WhatsApp name, a form). Text such as `=HYPERLINK(…)` was written into the CSV as is, and Excel could run it as a formula when the file was opened.
+  - Formula-like cells now start with an apostrophe, so Excel shows them as text. Phone numbers (`+2010…`) and plain numbers are unchanged.
+  - `.import` removes the apostrophe, so an export round-trips exactly.
+  - The issue predates the lead-ads import: clients saved from `#12` questions already carried their WhatsApp name.
+
+### Checked
+- **Other places stranger text ends up**: the images (flyer, story, collage, offer PDF) escape all text; the calendar file escapes names and line breaks; AI prompts mask phone numbers and frame posts as data; the welcome and campaign messages are built from saved data only.
+- **Data growth** is bounded everywhere: feed, campaigns, team stats, client history, price history. Store writes are debounced, so imports and counters stay cheap.
+- 324 tests pass.
+
 ## 3.20.0 — 2026-10-09
 
 ### Added — team performance

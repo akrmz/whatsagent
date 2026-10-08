@@ -23,6 +23,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-02 reconnect/logout/shutdown | Fixed: `src/core/connection.js`, graceful shutdown |
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
+| **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
 
 Residual risks that remain by design: the bot still relies on an unofficial WhatsApp library (ban risk); some fun commands call free third-party APIs that can change or disappear; features that upload images (`.tourl`, `.remini`, image effects) put pictures on public hosts (this is stated in `.help`); `libsignal` is installed from GitHub (pinned to a commit in the lockfile).
 
@@ -86,6 +87,7 @@ How this was verified:
 | P-09 | Low | Pairing | No security headers, axios *alpha* from CDN without SRI, pairing code logged |
 | P-10 | Low | Pairing | Promotional messages sent to every user who pairs |
 | R-04 | Low | Bot | Assorted correctness bugs that hide errors (`.warnings`, `.move`, catch-block `ReferenceError`, retry cache cleared per message) |
+| B-20 | Low | Bot | `.export` wrote text from strangers (WhatsApp names, notes, lead-ads answers) into CSV cells that Excel could run as formulas (found in the 3.20.1 review of the new code; fixed) |
 
 ---
 
@@ -291,6 +293,10 @@ Locations only (values intentionally omitted):
 
 ### B-19 — Sudo list visible to anyone
 - **Where:** `commands/sudo.js:27-36`. **Fix:** Owner only.
+
+### B-20 — CSV formula injection in `.export` (found in the 3.20.1 review)
+- **Where:** `commands/realestate/marketing.js` (`cell`). Clients saved automatically from `#12` questions and written requests carry their WhatsApp name and message, and lead-ads imports carry form answers, all chosen by strangers. A value such as `=HYPERLINK("http://…","…")` or `+cmd|…` was written as is, and Excel would evaluate it when the agent opened the export.
+- **Fix:** A text cell starting with `=`, `+`, `-`, `@`, a tab or a return gets a leading `'` (phone numbers like `+2010…` and plain numbers are left as they are). `.import` removes that apostrophe, so an export imports back unchanged. Tested in `test/exportsafety.test.js`.
 
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).
