@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.21.0 — 2026-10-09
+
+### Added — a catalogue menu for clients
+- **`.agent catalog on`**: a client who sends "عقارات" (also قائمة، العروض، منيو، menu) in a private chat gets a numbered menu of the available listings, grouped by type and sale/rent with counts ("1️⃣ شقق للبيع (12)"), plus the developers' projects.
+  - A number opens a group: cheapest first, up to 10, with the rest suggested as a written request.
+  - "#12" shows a listing as before; "0" goes back to the menu; a wrong number gets a hint.
+  - Arabic digits work.
+- **Limits**:
+  - a number counts only while that client's menu is open (10 minutes, kept in memory only);
+  - at most 6 menu steps a minute per client (extra steps get no reply);
+  - private chats only; never in private mode.
+- The order is stable: largest group first, then sale before rent, then by name.
+- `.agent`, `.rehelp`, the Arabic guide and USAGE.md cover it.
+
+### Checked
+- 2 tests (326 in total):
+  - off by default, the exact menu, a group in price order, `#12` inside the flow, projects, a wrong number, and back;
+  - numbers without a menu, groups, the 10-minute expiry and the flood limit.
+
 ## 3.20.1 — 2026-10-09
 
 A review of the 3.14–3.20 additions.
