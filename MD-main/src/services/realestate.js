@@ -356,8 +356,9 @@ function card(l, a) {
  * ".listings شقة التجمع 2m-4m 3 غرف للبيع" — filters, in any order:
  *   a type (شقة، فيلا …), بيع/إيجار, a price range "2m-4m" / "<3m" / ">1.5m",
  *   rooms "3 غرف" / "3br", "all" (also reserved and sold); the rest must appear in the location.
+ * `pool`: the listings to search (the catalogue by default; brokers' offers for .feed).
  */
-function search(state, query) {
+function search(state, query, pool = all(state)) {
   let q = latinDigits(String(query || "")).toLowerCase();
   const f = { type: typeIn(q), deal: dealIn(q), all: new RegExp(ALL_RE.source, "iu").test(q) };
   q = q.replace(ALL_RE, " ");
@@ -380,7 +381,7 @@ function search(state, query) {
   // Take out the type and deal words that were used as filters (whole words only, as above).
   for (const [, words] of [...TYPES, ...DEALS]) for (const w of words) q = q.replace(wordRe(w, "giu"), " ");
   const words = q.replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
-  const list = all(state).filter((l) => {
+  const list = pool.filter((l) => {
     if (!f.all && l.status !== "available") return false;
     if (f.type && l.type !== f.type) return false;
     if (f.deal && l.deal !== f.deal) return false;
