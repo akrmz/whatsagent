@@ -5,6 +5,7 @@ const leads = require("./leads");
 const viewings = require("./viewings");
 const rentals = require("./rentals");
 const hotleads = require("./hotleads");
+const weekly = require("./weekly");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 
@@ -73,6 +74,8 @@ function build(state, timeZone, now = Date.now()) {
     const askable = old.filter((l) => l.owner?.phone && !(l.ask && now - l.ask.at < 7 * 86400 * 1000)).slice(0, 5);
     if (askable.length) lines.push(`🔑 اسأل الملاك: .listing ask ${askable.map((l) => l.id).join(" ")}`);
   }
+  // Saturday, the start of the work week in Egypt: the week in numbers too.
+  if (new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now)) === "Sat") lines.push("", weekly.build(state, timeZone, now));
   return lines.join("\n");
 }
 
