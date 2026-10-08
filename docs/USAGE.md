@@ -199,7 +199,7 @@ Or forward a broker's post to the bot and reply to it with `.listing add`. **Pos
 
 **Maps links in posts** are picked up: a Google Maps link anywhere in the post (`اللوكيشن: https://maps.app.goo.gl/…`) becomes the listing's location. Its numbers are never read as the price or size. `.listing edit 12 <Maps link>` adds one later.
 
-For a messy post, `.listing add ai` (or reply with it) lets the configured AI read it. Its answer is checked before saving (known types only, numbers in sensible ranges), and anything the normal reader finds fills the gaps. It counts as one AI request. The bot answers with the listing number (#12) and how it read it.
+For a messy post, `.listing add ai` (or reply with it) lets the configured AI read it. Its answer is checked before saving (known types only, numbers in sensible ranges), and anything the normal reader finds fills the gaps. It counts as one AI request. The bot answers with the listing number (#12) and how it read it. The AI gets only the property: an "المالك:" line is left out, and phone numbers in the post are replaced with "[رقم]". The bot still saves the owner from your text. `.adcopy` on a replied-to post masks phone numbers the same way.
 
 **3. Photos**: send a photo with `.listing photo 12` as the caption, or reply to a photo with it (up to 10 per listing).
 

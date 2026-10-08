@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.13.1 — 2026-10-08
+
+A review of the 3.8–3.13 additions.
+
+### Privacy
+- **Less goes to the AI**: `.listing add ai` no longer sends the "المالك:" line, and phone numbers in the post (the owner's, or a broker's "للتواصل 0100…") are replaced with "[رقم]". The owner is still saved from the full text by the bot's own reader. `.adcopy` on a replied-to post masks phone numbers too. Prices ("3,500,000", "3 500 000") are untouched.
+- Checked: a listing's owner is read in only five places (the staff-only line, the export, `.listing ask`, the owners service, and the morning summary, which prints listing numbers only). None reaches a client.
+
+### Performance
+- **`.leads hot` and the morning summary** were 11× faster in testing (174 ms → 16 ms with 2,000 clients and 500 listings; 30 ms at 5,000 × 1,000). The catalogue and upcoming viewings are now read once per ranking instead of once per client, and listings in budget are counted only up to the 3 that matter. With 3 or more, the reason reads "🏠 3+ عقار في ميزانيته".
+- Checked: the message parsers that strangers can trigger (brokers' posts, requests, owners' answers) are linear in the text length and bounded (2,000 / 300 characters), at about 4 ms in the worst case.
+
+### Checked
+- `npm audit` reports no known vulnerabilities in either service's production dependencies.
+- 303 tests pass.
+
 ## 3.13.0 — 2026-10-08
 
 ### Added — listings' owners
