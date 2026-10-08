@@ -10,6 +10,7 @@ const deals = require("../../services/deals");
 const hotleads = require("../../services/hotleads");
 const projects = require("../../services/projects");
 const campaigns = require("../../services/campaigns");
+const viewings = require("../../services/viewings");
 
 const base = { category: "realestate", permission: "sudo", cooldown: 2 };
 const idOf = (s) => {
@@ -51,6 +52,20 @@ async function welcome(ctx, go) {
   );
 }
 
+/** ".leads dupes": clients that look like the same person, with the merge command for each. */
+function dupes(ctx) {
+  const groups = leads.duplicates(ctx.state);
+  if (!groups.length) return ctx.reply("✅ No duplicate clients found (same number, or the same name).");
+  const lines = [`👥 *Possible duplicates* (${groups.length})`];
+  for (const { reason, list } of groups.slice(0, 15)) {
+    const [keep, ...rest] = list;
+    lines.push("", `${reason === "phone" ? "📞 same number" : "🔤 same name"}: ${list.map((l) => `#${l.id} ${l.name || ""}${l.phone ? ` (+${l.phone})` : " (no number)"}`.trim()).join(" · ")}`);
+    lines.push(...rest.map((o) => `   ${ctx.prefix}lead merge ${keep.id} ${o.id}`));
+  }
+  lines.push("", "The first is kept (the one with a number, else the oldest); the other is folded into it with its history, sends, deals and viewings.");
+  return ctx.reply(lines.join("\n"));
+}
+
 const HELP = (p) =>
   [
     "👥 *Clients · العملاء*",
@@ -61,6 +76,7 @@ const HELP = (p) =>
     `${p}lead follow 5 tomorrow at 10am <note> — follow-up reminder`,
     `${p}lead send 5 12 — send listing #12 to the client on WhatsApp`,
     `${p}lead edit 5 الميزانية: 3-4 مليون · ${p}lead del 5`,
+    `${p}lead merge 3 9 — fold a duplicate (#9) into #3 · ${p}leads dupes — find duplicates`,
     `${p}lead assign 5 @colleague | me | none — for teams · ${p}leads mine`,
     `${p}leads [status | words] — the list · ${p}leads hot — who to call first`,
     "",
@@ -74,7 +90,7 @@ module.exports = [
     aliases: ["client", "customer", "ameel"],
     description:
       "متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users.",
-    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | won <id> [#listing] [price] [rate %|عمولة amount] | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | del <id>",
+    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | won <id> [#listing] [price] [rate %|عمولة amount] | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | merge <id> <other> | del <id>",
     examples: [".lead add\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع", ".lead 5", ".lead follow 5 tomorrow at 10am يرد على العرض", ".lead send 5 12"],
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
@@ -185,6 +201,15 @@ module.exports = [
         leads.note(ctx.state, id, ctx.sender, `أُسند إلى @${jid.split("@")[0]}`);
         return ctx.reply({ text: `🧑‍💼 Client #${id} ${lead.name || ""} assigned to @${jid.split("@")[0]}.`, mentions: [jid] });
       }
+      if (sub === "merge" || sub === "دمج") {
+        // ".lead merge 3 9": #9 is folded into #3 (the one kept), its viewings too.
+        const other = idOf(ctx.args[2]);
+        if (!other) throw new UserError(`Which client to fold into #${id}? ${ctx.prefix}lead merge ${id} <other client>`);
+        leads.merge(ctx.state, id, other, ctx.sender);
+        const moved = viewings.reassign(ctx.state, other, id);
+        const merged = leads.get(ctx.state, id);
+        return ctx.reply(`🔗 Client #${other} merged into #${id}${moved ? ` (${moved} viewing(s) moved)` : ""}.\n\n${leads.card(merged, { ...opts(ctx), matches: leads.matchingListings(ctx.state, merged) })}`);
+      }
       if (sub === "del" || sub === "delete" || sub === "remove") {
         const l = leads.remove(ctx.state, id);
         return ctx.reply(`🗑️ Client #${l.id} ${l.name || ""} deleted.`);
@@ -197,11 +222,12 @@ module.exports = [
     name: "leads",
     aliases: ["clients", "customers", "pipeline"],
     description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. \"hot\" ranks who to call first: stage, a viewing coming up, a recent message, a follow-up due, listings in their budget, minus going quiet. Owner and sudo users.",
-    usage: "[status | words | hot | welcome [go]]",
-    examples: [".leads", ".leads hot", ".leads welcome", ".leads welcome go", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
+    usage: "[status | words | hot | welcome [go] | dupes]",
+    examples: [".leads", ".leads hot", ".leads welcome", ".leads welcome go", ".leads dupes", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
     async run(ctx) {
       const [w, go] = ctx.text.trim().toLowerCase().split(/\s+/);
       if (/^(welcome|ترحيب|رحب)$/.test(w || "")) return welcome(ctx, /^(go|start|ابدأ|ابدا)$/.test(go || ""));
+      if (/^(dupes|duplicates|مكرر|المكرر)$/.test(w || "")) return dupes(ctx);
       if (/^(hot|ساخن|الأهم|الاهم|top)$/i.test(ctx.text.trim())) {
         const list = hotleads.hot(ctx.state, 10);
         if (!list.length) return ctx.reply(`No active client to rank yet (${ctx.prefix}leads).`);

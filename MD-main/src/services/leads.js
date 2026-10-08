@@ -163,6 +163,11 @@ function update(state, id, changes, now = Date.now()) {
   return store(state).update((d) => {
     const l = d.items[id];
     if (!l) throw new UserError(`There is no client #${id}.`);
+    // One number, one client: opt-outs and replies are matched by number.
+    if (changes.phone && changes.phone !== l.phone) {
+      const other = Object.values(d.items).find((x) => x.id !== l.id && x.phone === changes.phone);
+      if (other) throw new UserError(`+${changes.phone} is already client #${other.id} (${other.name || "no name"}). If it's the same person: .lead merge ${other.id} ${l.id}`);
+    }
     if (changes.status === "won" && l.status !== "won") l.wonAt = now; // for "days to a deal" in .restats
     Object.assign(l, changes, { updated: now });
     for (const k of Object.keys(l)) if (l[k] === null) delete l[k];
@@ -262,6 +267,70 @@ function optWord(text) {
 function setOptOut(state, id, optedOut, now = Date.now()) {
   update(state, id, { optedOut: optedOut || null, optedOutAt: optedOut ? now : null }, now);
   return note(state, id, "client", optedOut ? "طلب إيقاف رسائل العروض (وقف)" : "طلب استقبال العروض مرة أخرى", now);
+}
+
+/**
+ * Two records of the same person become one (`keepId` stays): its own fields win, missing ones
+ * come from the other; history, sent listings and deals are combined; a "وقف" on either record
+ * holds. (Viewings that pointed at the other record are moved by the caller.)
+ */
+function merge(state, keepId, otherId, by, now = Date.now()) {
+  if (keepId === otherId) throw new UserError("Those are the same client.");
+  if (!get(state, keepId)) throw new UserError(`There is no client #${keepId}.`);
+  if (!get(state, otherId)) throw new UserError(`There is no client #${otherId}.`);
+  store(state).update((d) => {
+    const k = d.items[keepId];
+    const o = d.items[otherId];
+    for (const [key, v] of Object.entries(o)) if (k[key] === undefined && !["id", "history"].includes(key)) k[key] = v;
+    k.history = [...(k.history || []), ...(o.history || [])].sort((a, b) => a.at - b.at).slice(-MAX_NOTES);
+    k.sentListings = [...new Set([...(k.sentListings || []), ...(o.sentListings || [])])].slice(-200);
+    k.deals = [...(k.deals || []), ...(o.deals || [])].sort((a, b) => a.at - b.at);
+    if (!k.deals.length) delete k.deals;
+    k.dropNotified = { ...(o.dropNotified || {}), ...(k.dropNotified || {}) };
+    if (!Object.keys(k.dropNotified).length) delete k.dropNotified;
+    k.created = Math.min(k.created, o.created);
+    if (o.optedOut) Object.assign(k, { optedOut: true, optedOutAt: k.optedOutAt || o.optedOutAt }); // a stop request is never lost
+    if (o.noShows) k.noShows = (k.noShows || 0) + o.noShows;
+    if (o.replied) k.replied = true;
+    if ((o.lastMsgAt || 0) > (k.lastMsgAt || 0)) k.lastMsgAt = o.lastMsgAt;
+    if ((o.lastSentAt || 0) > (k.lastSentAt || 0)) Object.assign(k, { lastSentAt: o.lastSentAt, lastSentListing: o.lastSentListing ?? null });
+    k.updated = now;
+    delete d.items[otherId];
+  });
+  return note(state, keepId, by, `دُمج معه العميل #${otherId}`, now);
+}
+
+/** "أحمد  علي" ≈ "احمد على": names compared without spaces, hamzas, ة/ه and ى/ي differences. */
+const nameKey = (name) =>
+  String(name || "")
+    .toLowerCase()
+    .replace(/[أإآ]/g, "ا")
+    .replace(/ة/g, "ه")
+    .replace(/ى/g, "ي")
+    .replace(/[\sً-ْـ.]/g, "");
+
+/** Groups of clients that look like the same person: the same number, or the same name. */
+function duplicates(state) {
+  const groups = new Map();
+  const put = (key, l) => groups.set(key, [...(groups.get(key) || []), l]);
+  for (const l of all(state)) {
+    if (l.phone) put(`p:${l.phone}`, l);
+    const k = nameKey(l.name);
+    if (k.length >= 3) put(`n:${k}`, l);
+  }
+  const seen = new Set();
+  const out = [];
+  for (const [key, list] of groups) {
+    if (list.length < 2) continue;
+    // Clients with two different numbers and the same name are probably different people.
+    const phones = new Set(list.map((l) => l.phone).filter(Boolean));
+    if (key.startsWith("n:") && phones.size > 1) continue;
+    const ids = list.map((l) => l.id).sort((a, b) => a - b).join(",");
+    if (seen.has(ids)) continue;
+    seen.add(ids);
+    out.push({ reason: key.startsWith("p:") ? "phone" : "name", list: [...list].sort((a, b) => (b.phone ? 1 : 0) - (a.phone ? 1 : 0) || a.created - b.created) });
+  }
+  return out;
 }
 
 const remove = (state, id) =>
@@ -405,7 +474,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, byPhone, markSent, markWelcomed, markNudged, sentWhat, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
+  add, update, note, byPhone, merge, duplicates, nameKey, markSent, markWelcomed, markNudged, sentWhat, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };

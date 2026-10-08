@@ -41,6 +41,15 @@ function add(state, { lead, listing, at, chat, by, notifyClient = false }, now =
   return v;
 }
 
+/** After two clients are merged: their viewings belong to the one kept. @returns {number} moved */
+function reassign(state, fromLead, toLead) {
+  let n = 0;
+  store(state).update((d) => {
+    for (const v of Object.values(d.items)) if (v.lead === fromLead) (v.lead = toLead), n++;
+  });
+  return n;
+}
+
 const remove = (state, id) =>
   store(state).update((d) => {
     const v = d.items[id];
@@ -249,4 +258,4 @@ function startViewingsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { add, remove, get, upcoming, line, confirmation, clientReminder, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
+module.exports = { add, remove, reassign, get, upcoming, line, confirmation, clientReminder, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
