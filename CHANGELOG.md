@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.9.0 — 2026-10-08
+
+### Added — designs for posting
+- **`.story 12`**: a 1080×1920 vertical design for WhatsApp status. It has:
+  - the first photo, type, area and price;
+  - a discount badge and the old price struck through, after a recent cut;
+  - the specs, a "للاستفسار أرسل: #12" box and your contact.
+- **`.collage 12`**: up to 4 photos in one 1080×1350 image, arranged right to left for 1, 2, 3 or 4 photos, with "+N" when there are more, and the details panel.
+- `.rehelp` lists both.
+
+### Fixed
+- `.flyer`'s description called 1080×1350 the WhatsApp status size. It is the 4:5 post size; status is 9:16, which `.story` now covers.
+
+### Not included
+- A video slideshow (`.reel`) was left out. ffmpeg isn't available on the development machine, so the video couldn't be rendered and checked before release.
+
+### Checked
+- 3 tests (290 in total): the layouts (no overlap, the first photo on the right), the image sizes, and pixel checks (the first photo's place, the darkened "+N" tile). The designs were also checked visually.
+
 ## 3.8.0 — 2026-10-08
 
 ### Added — brokers' groups
