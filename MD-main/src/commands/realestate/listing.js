@@ -115,7 +115,7 @@ function priceDropLine(ctx, before, after) {
     return !was || was.over; // didn't match at all, or was over budget, before the cut
   });
   const names = fitsNow.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ");
-  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك: ${names}${fitsNow.length > 5 ? " …" : ""}\n${ctx.prefix}lead send <client> ${after.id}` : ""}`;
+  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك: ${names}${fitsNow.length > 5 ? " …" : ""}` : ""}\n📣 بلّغ كل العملاء المناسبين بالسعر الجديد: ${ctx.prefix}blast ${after.id} drop`;
 }
 
 /**

@@ -27,9 +27,9 @@ module.exports = [
     aliases: ["tarweej", "sendmatch", "hamla3qar"],
     category: "realestate",
     description:
-      "حملة إرسال عقار — sends a listing to every saved client it suits (type, sale/rent, area, budget, rooms), one at a time: a random 45–90 s gap, only 10:00–21:00, at most 40 a day across all campaigns, so your number isn't flagged as spam. Clients who already got the listing or sent \"وقف\" are skipped; every message tells them how to stop. Shows the list first; \"go\" starts it. Owner and sudo users.",
-    usage: "<listing> [go] | stop <campaign> | limit <per day> | hours <10:00-21:00> | list",
-    examples: [".blast 12", ".blast 12 go", ".campaigns", ".blast stop 3", ".blast limit 30", ".blast hours 11:00-20:00"],
+      "حملة إرسال عقار — sends a listing to every saved client it suits (type, sale/rent, area, budget, rooms), one at a time: a random 45–90 s gap, only 10:00–21:00, at most 40 a day across all campaigns, so your number isn't flagged as spam. Clients who already got the listing or sent \"وقف\" are skipped; every message tells them how to stop. Shows the list first; \"go\" starts it. \"drop\" after a price cut tells every client the new price fits, including those who had it before (once per price). Owner and sudo users.",
+    usage: "<listing> [go] | <listing> drop [go] | stop <campaign> | limit <per day> | hours <10:00-21:00> | list",
+    examples: [".blast 12", ".blast 12 go", ".blast 12 drop", ".blast 12 drop go", ".campaigns", ".blast stop 3", ".blast limit 30", ".blast hours 11:00-20:00"],
     permission: "sudo",
     cooldown: 3,
     async run(ctx) {
@@ -54,14 +54,45 @@ module.exports = [
       if (!listing) throw new UserError(`Which listing? ${ctx.prefix}blast <listing number>, e.g. ${ctx.prefix}blast 12`);
       if (listing.status !== "available") throw new UserError(`#${listing.id} is not available (${re.STATUS_AR[listing.status]}).`);
 
-      if (/^(go|start|yes|ابدأ|ابدا|نعم|تمام)$/.test(arg)) {
-        const c = campaigns.start(ctx.state, listing, { by: ctx.sender, chat: ctx.chatId });
+      // ".blast 12 drop [go]": tell clients the listing now fits about its new price.
+      const mode = /^(drop|تخفيض|خصم)$/.test(arg) ? "drop" : undefined;
+      const goWord = mode ? String(ctx.args[2] || "").toLowerCase() : arg;
+      const cut = mode && re.discount(listing);
+      if (mode && !cut) throw new UserError(`#${listing.id} has no price cut in the last 30 days. Lower it first: ${ctx.prefix}listing edit ${listing.id} السعر: …`);
+      if (/^(go|start|yes|ابدأ|ابدا|نعم|تمام)$/.test(goWord)) {
+        const c = campaigns.start(ctx.state, listing, { by: ctx.sender, chat: ctx.chatId, mode });
         const e = campaigns.estimate(ctx.state, c.total);
-        return ctx.reply(`▶️ Campaign #${c.id} started: #${listing.id} to ${c.total} client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done.\n${ctx.prefix}campaigns — progress · ${ctx.prefix}blast stop ${c.id}`);
+        return ctx.reply(`▶️ ${mode ? "Price-drop campaign" : "Campaign"} #${c.id} started: #${listing.id} to ${c.total} client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done.\n${ctx.prefix}campaigns — progress · ${ctx.prefix}blast stop ${c.id}`);
       }
 
-      const people = campaigns.targets(ctx.state, listing);
-      if (!people.length) return ctx.reply(`No client to send #${listing.id} to: none matches (${ctx.prefix}listing match ${listing.id}), or they all have it already or asked to stop.`);
+      const people = campaigns.targets(ctx.state, listing, mode);
+      if (!people.length) {
+        return ctx.reply(
+          mode
+            ? `No client to tell about #${listing.id}'s new price: none fits it within budget (${ctx.prefix}listing match ${listing.id}), or they were all told already.`
+            : `No client to send #${listing.id} to: none matches (${ctx.prefix}listing match ${listing.id}), or they all have it already or asked to stop.`,
+        );
+      }
+      if (mode) {
+        const had = people.filter((l) => (l.sentListings || []).includes(listing.id)).length;
+        const s = campaigns.settings(ctx.state);
+        const e = campaigns.estimate(ctx.state, people.length);
+        return ctx.reply(
+          [
+            `📉 *Price-drop preview — #${listing.id}*: ${re.shortAr(cut.was)} → ${re.shortAr(listing.price)} (−${cut.pct}%)`,
+            "",
+            `Goes to ${people.length} client(s) it now fits within budget${had ? ` (${had} got it before at the old price)` : ""}:`,
+            ...people.slice(0, 15).map((l) => `▫️ #${l.id} ${l.name || ""} (+${l.phone})${(l.sentListings || []).includes(listing.id) ? " — had it before" : ""}`.trim()),
+            people.length > 15 ? `… and ${people.length - 15} more` : null,
+            "",
+            `It starts with "📉 نزل سعره! بقى ${re.shortAr(listing.price)} بدل ${re.shortAr(cut.was)} …". ⏱️ One every ${s.gapMin}–${s.gapMax} s, ${s.from}–${s.to}, at most ${s.perDay} a day: about ${e.minutes} min.`,
+            "",
+            `Start: ${ctx.prefix}blast ${listing.id} drop go`,
+          ]
+            .filter((x) => x !== null)
+            .join("\n"),
+        );
+      }
       const e = campaigns.estimate(ctx.state, people.length);
       const s = campaigns.settings(ctx.state);
       const names = people.slice(0, 15).map((l) => `▫️ #${l.id} ${l.name || ""} (+${l.phone})`.trim());
