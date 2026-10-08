@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.13.0 — 2026-10-08
+
+### Added — listings' owners
+- **Owner field**: "المالك: أبو أحمد 0100 123 4567" in `.listing add`/`edit` (also صاحب العقار، رقم المالك، owner). It is private:
+  - never on cards, flyers, campaigns or replies clients get;
+  - shown to the owner/sudo users only in their own chat with the bot, not in a group or a client's chat (where the bot's owner might type a command);
+  - included in `.export listings` and `.import`.
+- **`.listing ask 12 [15 18]`** asks owners (up to 5 at once) whether the listing is still available. Replies are read automatically:
+  - "متاح" confirms the listing (it counts as updated);
+  - sold/rented and a new price come to you with the command to apply;
+  - anything else is passed on.
+
+  With several open questions and no "#12", the reply is passed on and the owner asked to name the unit. Questions stay open 7 days, and answers are read in private mode too.
+- **Morning summary**: suggests `.listing ask …` for stale listings with an owner number.
+
+### Changed
+- Phone-number handling moved to `services/phones.js`, shared by clients, tenants and owners. No change in behaviour.
+
+### Checked
+- 4 tests (303 in total):
+  - reading answers, including "#2 السعر بقى 2.8 مليون", where the test caught "2" being read as the price;
+  - where the owner line may and may not appear (own chat, group, client, `#12`);
+  - the export round trip, several open questions, the 7-day window, and private mode.
+
 ## 3.12.0 — 2026-10-08
 
 ### Added — after the viewing
