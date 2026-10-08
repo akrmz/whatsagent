@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const img = require("./reimages");
+const statuspost = require("./statuspost");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 
@@ -9,7 +10,8 @@ const { zoneNow } = require("./gcschedule");
  * "Listing of the day" (.autolistings): once a day at a set time, a chat gets the next
  * available listing (optionally only those matching a search, e.g. "شقة التجمع") as a
  * flyer with its details, going round the catalogue. Up to 3 hours late if the bot was offline.
- * Stored in DATA_DIR/listing-posts.json as { [chat]: { time, query, lastId, last } }.
+ * Stored in DATA_DIR/listing-posts.json as { [chat]: { time, query, lastId, last } }; the chat
+ * "status@broadcast" is the bot's own WhatsApp Status (.statuspost daily).
  */
 
 const LATE_LIMIT_MIN = 180;
@@ -44,8 +46,9 @@ function isDue(entry, timeZone, now) {
   return !(entry.retryAt && now < entry.retryAt);
 }
 
-/** The flyer and caption for one listing. */
+/** The flyer and caption for one listing (or, for the status, the 9:16 design: .statuspost daily). */
 async function post(app, chat, listing) {
+  if (chat === statuspost.STATUS_JID) return void (await statuspost.post(app, listing));
   const agent = re.agent(app.state);
   const [photo] = re.photos(app.config, listing);
   const caption = `🏡 *عقار اليوم*\n\n${re.card(listing, agent)}\n\nللاستفسار أرسل: #${listing.id}`;
