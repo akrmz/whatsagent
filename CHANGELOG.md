@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.17.1 — 2026-10-09
+
+### Docs
+- **[docs/REAL_ESTATE_AR.md](docs/REAL_ESTATE_AR.md)**: a complete Arabic guide to the real-estate tools, organised around the agent's day. It covers:
+  - your details, the catalogue (photos, location, private owner, availability checks) and marketing designs (including English for foreign buyers);
+  - clients (Excel and Meta lead-ads imports, automatic answers, welcome messages, hot clients, offers), campaigns and price drops;
+  - viewings, deals and reports, rentals, developers' projects, brokers' groups, the morning summary, privacy and backups.
+
+  It's linked from the README, USAGE.md and `.rehelp`.
+- **A new test keeps the docs honest**:
+  - every `.command` written in USAGE.md and the Arabic guide must exist (as a name or alias);
+  - every real-estate command must appear in the Arabic guide, so a new one can't go undocumented.
+
+  It found nothing missing today. It is skipped when the repository's `docs/` folder isn't there.
+
 ## 3.17.0 — 2026-10-08
 
 ### Added — price-drop campaigns

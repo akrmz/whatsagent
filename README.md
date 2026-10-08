@@ -56,6 +56,7 @@ For a real deployment (PM2 or Docker on an Ubuntu VPS, pairing, updates, backups
 |---|---|
 | [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | install, pair, update and back up the bot on a VPS |
 | [docs/USAGE.md](docs/USAGE.md) | see every command with examples, and every setting |
+| [docs/REAL_ESTATE_AR.md](docs/REAL_ESTATE_AR.md) | دليل أدوات العقارات بالعربي — the real-estate tools, step by step, in Arabic |
 | [docs/ADDING_FEATURES.md](docs/ADDING_FEATURES.md) | add a command, an event handler or a setting |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | fix a problem |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | understand how it works inside |
