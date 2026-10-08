@@ -26,14 +26,14 @@ const upcoming = (state, now = Date.now()) =>
     .filter((v) => v.at > now - KEEP_AFTER_MS)
     .sort((a, b) => a.at - b.at);
 
-function add(state, { lead, listing, at, chat, by }, now = Date.now()) {
+function add(state, { lead, listing, at, chat, by, notifyClient = false }, now = Date.now()) {
   if (!leads.get(state, lead)) throw new UserError(`There is no client #${lead}.`);
   if (!re.get(state, listing)) throw new UserError(`There is no listing #${listing}.`);
   if (at < now) throw new UserError("That time has already passed.");
   return store(state).update((d) => {
     if (Object.keys(d.items).length >= MAX_VIEWINGS) throw new UserError("Too many viewings saved.");
     const id = ++d.seq;
-    d.items[id] = { id, lead, listing, at, chat, by };
+    d.items[id] = { id, lead, listing, at, chat, by, bookedAt: now, ...(notifyClient ? { notifyClient: true } : {}) };
     return d.items[id];
   });
 }
@@ -76,6 +76,7 @@ const RESULTS = {
   liked: { ar: "👍 أعجبه", words: ["liked", "like", "yes", "good", "أعجبه", "اعجبه", "عجبه", "عجبها", "أعجبها", "اعجبها", "مهتم", "👍"] },
   thinking: { ar: "🤔 بيفكر", words: ["thinking", "maybe", "think", "بيفكر", "يفكر", "محتار", "متردد", "ربما"] },
   no: { ar: "👎 لم يعجبه", words: ["no", "not", "disliked", "no-interest", "معجبهوش", "مش عاجبه", "لم يعجبه", "لا", "👎"] },
+  noshow: { ar: "🚫 لم يحضر", words: ["noshow", "no-show", "absent", "محضرش", "ماحضرش", "ماجاش", "مجاش", "غاب", "غايب", "🚫"] },
 };
 const resultFrom = (w) => Object.keys(RESULTS).find((k) => RESULTS[k].words.includes(String(w || "").toLowerCase())) || null;
 const ASK_AFTER_MS = 2 * 60 * 60 * 1000; // ask how it went 2 hours after the viewing …
@@ -93,6 +94,7 @@ function done(state, id, result, note, by, now = Date.now()) {
   const c = leads.get(state, v.lead);
   if (c) {
     if (result === "liked" && ["new", "contacted", "viewing"].includes(c.status)) leads.update(state, c.id, { status: "negotiating" }, now);
+    if (result === "noshow") leads.update(state, c.id, { noShows: (c.noShows || 0) + 1 }, now);
     leads.note(state, c.id, by, `نتيجة معاينة #${v.listing}: ${RESULTS[result].ar}${note ? ` — ${note}` : ""}`, now);
   }
   return get(state, id);
@@ -152,8 +154,28 @@ function ics(state, timeZone, now = Date.now()) {
   return { text: `${lines.map(fold).join("\r\n")}\r\n`, count: events.filter((l) => l === "BEGIN:VEVENT").length };
 }
 
+const CLIENT_REMIND_MS = 2 * 60 * 60 * 1000;
+
+/** The client's reminder on the day (the location pin follows when the listing has one). */
+function clientReminder(state, v, timeZone) {
+  const l = re.get(state, v.listing);
+  const c = leads.get(state, v.lead);
+  const a = re.agent(state);
+  return [
+    `${c?.name ? `أهلاً ${c.name} 👋` : "أهلاً 👋"}`,
+    `تذكير بمعاد معاينة ${l?.type || "العقار"}${l?.location ? ` في ${l.location}` : ""}`,
+    `🗓️ ${when(v.at, timeZone)}`,
+    l?.geo ? "📍 الموقع على الخريطة في الرسالة اللي بعدها" : null,
+    "لو حصل أي تغيير بلغني 🙏",
+    re.contactLine(a) ? `\n${re.contactLine(a)}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 /**
- * Reminds the agent an hour before each viewing, asks how it went 2 hours after, and drops
+ * Reminds the agent an hour before each viewing (and the client 2 hours before, if booked with
+ * "send"), asks how it went 2 hours after, and drops
  * old ones (a day after with an outcome, or after 7 days).
  */
 async function runDue(app, now = Date.now()) {
@@ -173,6 +195,23 @@ async function runDue(app, now = Date.now()) {
         .then(() => sent++)
         .catch((err) => app.log.warn({ err: err.message }, "could not ask about a viewing"));
       continue;
+    }
+    // The client's reminder, 2 hours before, for viewings booked with "send" well ahead (a
+    // booking made just now already got its confirmation).
+    if (v.notifyClient && !v.clientReminded && v.at > now && v.at - now <= CLIENT_REMIND_MS && v.at - (v.bookedAt || 0) > CLIENT_REMIND_MS + REMIND_BEFORE_MS) {
+      s.update(() => (v.clientReminded = true));
+      const c = leads.get(app.state, v.lead);
+      const l = re.get(app.state, v.listing);
+      if (c?.phone) {
+        const to = `${c.phone}@s.whatsapp.net`;
+        try {
+          await app.sock.sendMessage(to, { text: clientReminder(app.state, v, zone) });
+          if (l?.geo) await app.sock.sendMessage(to, { location: { degreesLatitude: l.geo.lat, degreesLongitude: l.geo.lng, name: `${l.type || "عقار"}${l.location ? ` — ${l.location}` : ""}`.slice(0, 100) } });
+          sent++;
+        } catch (err) {
+          app.log.warn({ err: err.message }, "could not send a client's viewing reminder");
+        }
+      }
     }
     if (v.reminded || v.at - now > REMIND_BEFORE_MS || v.at < now) continue;
     s.update(() => (v.reminded = true));
@@ -207,4 +246,4 @@ function startViewingsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { add, remove, get, upcoming, line, confirmation, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
+module.exports = { add, remove, get, upcoming, line, confirmation, clientReminder, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };

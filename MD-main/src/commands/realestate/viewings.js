@@ -32,7 +32,7 @@ module.exports = [
       if (sub === "done" || sub === "result" || sub === "نتيجة") {
         const id = idOf(ctx.args[1]);
         const result = viewings.resultFrom(ctx.args[2]);
-        if (!id || !result) throw new UserError(`Usage: ${ctx.prefix}viewing done <viewing> liked | thinking | no [note]\n(أعجبه · بيفكر · لم يعجبه)`);
+        if (!id || !result) throw new UserError(`Usage: ${ctx.prefix}viewing done <viewing> liked | thinking | no | noshow [note]\n(أعجبه · بيفكر · لم يعجبه · محضرش)`);
         const note = ctx.args.slice(3).join(" ").slice(0, 200);
         const v = viewings.done(ctx.state, id, result, note, ctx.sender);
         const c = leads.get(ctx.state, v.lead);
@@ -41,7 +41,9 @@ module.exports = [
             ? `\n🤝 #${v.lead} moved to negotiating. Next: ${ctx.prefix}offer ${v.listing} #${v.lead} … or ${ctx.prefix}lead follow ${v.lead} tomorrow at 10am`
             : result === "thinking"
               ? `\n⏰ A follow-up helps: ${ctx.prefix}lead follow ${v.lead} بعد 3 أيام`
-              : `\n🔎 Other listings for them: ${ctx.prefix}lead ${v.lead}`;
+              : result === "noshow"
+                ? `\n📅 Book again: ${ctx.prefix}viewing add ${v.lead} ${v.listing} <when> send${(c?.noShows || 0) > 1 ? ` · ⚠️ ${c.noShows} missed viewings so far` : ""}`
+                : `\n🔎 Other listings for them: ${ctx.prefix}lead ${v.lead}`;
         return ctx.reply(`📝 Viewing #${id}: ${viewings.RESULTS[result].ar}${note ? ` — ${note}` : ""} (${c ? `${c.name || "عميل"} #${c.id}` : `#${v.lead}`}, #${v.listing})${next}`);
       }
       if (sub !== "add" && sub !== "new") return ctx.reply(`Usage: ${ctx.prefix}viewing add <client> <listing> tomorrow at 4pm [send] · ${ctx.prefix}viewing done <viewing> liked|thinking|no · ${ctx.prefix}viewings`);
@@ -54,7 +56,8 @@ module.exports = [
       rest = rest.replace(SEND, "");
       const w = parseWhen(rest, zone);
       if (!w || w.every) throw new UserError("When? e.g. tomorrow at 4pm, friday at 18:00, at 17:30, 3h");
-      const v = viewings.add(ctx.state, { lead, listing, at: Date.now() + w.ms, chat: ctx.chatId, by: ctx.sender });
+      const known = leads.get(ctx.state, lead);
+      const v = viewings.add(ctx.state, { lead, listing, at: Date.now() + w.ms, chat: ctx.chatId, by: ctx.sender, notifyClient: send && Boolean(known?.phone) });
       const client = leads.get(ctx.state, lead);
       if (["new", "contacted"].includes(client.status)) leads.update(ctx.state, lead, { status: "viewing" });
       leads.note(ctx.state, lead, ctx.sender, `موعد معاينة #${listing}: ${viewings.when(v.at, zone)}`);
@@ -63,7 +66,7 @@ module.exports = [
         if (!client.phone) sent = "\n⚠️ The client has no number, so no confirmation was sent.";
         else {
           await ctx.sock.sendMessage(`${client.phone}@s.whatsapp.net`, { text: viewings.confirmation(ctx.state, v, zone) });
-          sent = `\n📤 Confirmation sent to +${client.phone}.`;
+          sent = `\n📤 Confirmation sent to +${client.phone}.${v.notifyClient && v.at - Date.now() > 3 * 60 * 60 * 1000 ? " They'll also get a reminder 2 hours before (with the location pin if the listing has one)." : ""}`;
         }
       }
       return ctx.reply(`✅ Viewing booked\n${viewings.line(ctx.state, v, zone)}\n⏰ I'll remind you here an hour before.${sent}`);

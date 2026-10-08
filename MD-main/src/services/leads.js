@@ -314,6 +314,7 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
     lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
     lead.optedOut && "🚫 أوقف رسائل العروض (أرسل وقف)",
+    lead.noShows && `🚫 لم يحضر ${lead.noShows} معاينة`,
     lead.lastSentAt && `📤 آخر إرسال: ${sentWhat(lead)} — ${when(lead.lastSentAt, timeZone)}${awaitingReply(lead) ? " (لم يرد بعد)" : ""}`,
     lead.lastMsgAt && `💬 آخر رسالة منه: ${when(lead.lastMsgAt, timeZone)}`,
     lead.followUp && `⏰ متابعة: ${when(lead.followUp.at, timeZone)}${lead.followUp.note ? ` — ${lead.followUp.note}` : ""}`,

@@ -60,6 +60,7 @@ function score(state, lead, now = Date.now(), prepared = prepare(state, now)) {
   if (fits) add(fits * 5, `🏠 ${fits === 3 ? "3+" : fits} عقار في ميزانيته`);
   if (lead.max) add(5, "💰 ميزانية معروفة");
   if (leads.awaitingReply(lead) && now - lead.lastSentAt > 3 * DAY) add(-10, `📭 لم يرد منذ ${Math.floor((now - lead.lastSentAt) / DAY)} يوم`);
+  if (lead.noShows) add(-5 * Math.min(lead.noShows, 3), `🚫 لم يحضر ${lead.noShows} معاينة`);
   if (now - lead.updated > 14 * DAY) add(-15, `💤 بدون تواصل ${Math.floor((now - lead.updated) / DAY)} يوم`);
   return { lead, score: pts, reasons };
 }
