@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.29.0 — 2026-10-10
+
+### Added — a marketing report for listings' owners
+- **`.listing report 12`** previews an Arabic report for the listing's owner:
+  - how long it has been offered, and the price (with the earlier one after a cut);
+  - how many clients it was sent to, views and inquiries, status and post shares;
+  - viewings and their results (👍 🤔 👎 🚫), and the last 5 viewing notes;
+  - its price per m² against similar listings (sale listings with 3 or more similar ones).
+
+  **`.listing report 12 send`** sends it to the owner's number. It keeps owners informed and gives you the numbers when you suggest a price cut.
+- **Privacy:**
+  - the report has counts only, no client names or numbers;
+  - phone numbers in viewing notes are masked;
+  - it works only in a staff member's private chat with the bot, because it names the owner;
+  - one report per listing a day, so an owner isn't messaged twice by mistake.
+- Viewings are now counted on the listing when booked, and their results are kept there (one per viewing; recording it again replaces it). Viewings booked before this version are not in the count.
+
+### Checked
+- 2 tests (341 in total): the full report, the preview vs. the send, groups and clients refused, once a day, an untouched rental listing, and a listing without an owner number.
+
 ## 3.28.0 — 2026-10-10
 
 ### Fixed
