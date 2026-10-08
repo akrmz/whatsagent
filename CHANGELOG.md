@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.28.0 — 2026-10-10
+
+### Fixed
+- **Two clients could share a number**: `.lead edit 5 الموبايل: …` accepted a number another client already had (only adding a client checked). Opt-outs ("وقف"), reply tracking and owners' answers find a client by number, so they could reach the wrong record. A "وقف" could then land on one record while the other kept getting offers. Such an edit is now refused, with the merge command suggested.
+
+### Added — duplicate clients
+- **`.leads dupes`** lists clients that look like the same person:
+  - the same number;
+  - or the same name, allowing for spelling variants: hamzas (أحمد/احمد), ة/ه, ى/ي (علي/على), spaces and diacritics. Same-name clients with two different numbers are treated as different people.
+
+  It suggests the merge command for each, keeping the record with a number (else the oldest).
+- **`.lead merge 3 9`** folds #9 into #3:
+  - #3's own details win, and missing ones are filled from #9;
+  - history (in time order), sent listings, deals, price-drop notices, no-shows and the latest send/reply are combined;
+  - viewings move to #3;
+  - a "وقف" on either record holds.
+
+### Checked
+- 3 tests (339 in total): the number conflict on edit, a full merge, the error cases, and the duplicate finder (spelling variants yes; different numbers no).
+
 ## 3.27.0 — 2026-10-10
 
 ### Changed — the client menu for bigger catalogues
