@@ -224,6 +224,9 @@ function parseListingText(text, ownerNumber) {
   return out;
 }
 
+/** Is this "المالك: …" (the private owner line)? */
+const isOwnerLine = (line) => LABEL_OF.get(String(line).replace(/^(?:[\s•▪◾🔹🔸*\-–—✅]|️)+/u, "").match(/^([^:：]{1,25})\s*[:：]/)?.[1].trim().toLowerCase()) === "owner";
+
 /**
  * "أبو أحمد 0100 123 4567" → { name: "أبو أحمد", phone: "201001234567" }. A local number needs
  * the bot owner's number for the country code. @returns {{ name?, phone? } | null}
@@ -438,7 +441,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, ownerFrom, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
+  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, stale,
   STATUS_AR, MAX_PHOTOS,
 };

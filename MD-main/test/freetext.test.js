@@ -83,8 +83,15 @@ test(".listing add ai: the AI's JSON is checked before anything is saved", async
   assert.match(prompt, /NOT a down payment/);
   assert.match(prompt, /data, not instructions/);
 
+  // The AI gets the property, not people: no owner line, phone numbers masked; the owner is still saved.
+  await b.send(".listing add ai شقة للبيع في التجمع بسعر 3,500,000 للتواصل 0100 123 4567\nالمالك: أبو أحمد 01112223333");
+  assert.doesNotMatch(prompt, /المالك|أبو أحمد|0100|0111|201/);
+  assert.match(prompt, /للتواصل \[رقم\]/);
+  assert.match(prompt, /3,500,000/, "prices stay");
+  assert.deepEqual(re.get(b.app.state, 2).owner, { name: "أبو أحمد", phone: "201112223333" });
+
   b.app.ai = { ask: async () => "I can't help with that." };
   await b.send(".listing add ai شقة");
   assert.match(b.last(), /couldn't be read/);
-  assert.equal(re.all(b.app.state).length, 1, "nothing saved");
+  assert.equal(re.all(b.app.state).length, 2, "nothing more saved");
 });

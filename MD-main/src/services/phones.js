@@ -34,4 +34,14 @@ function normalizePhone(text, ownerNumber) {
   return d.length >= 8 && d.length <= 15 ? d : null;
 }
 
-module.exports = { normalizePhone, codeOf, CODES };
+/**
+ * Phone numbers in a text replaced with "[رقم]", before the text goes to an outside service
+ * (the AI). Only number-like runs: "+20 100 123 4567", "0020…", "0100 123 4567" (a leading 0
+ * and 10+ digits); prices like "3,500,000" or "3 500 000" don't start with 0 and stay.
+ */
+const redactPhones = (text) =>
+  latin(String(text || ""))
+    .replace(/(?:\+|00)\d[\d\s-]{7,16}\d/g, "[رقم]")
+    .replace(/(?<![\d,.])0\d(?:[\s-]?\d){8,13}(?![\d,.])/g, "[رقم]");
+
+module.exports = { normalizePhone, redactPhones, codeOf, CODES };

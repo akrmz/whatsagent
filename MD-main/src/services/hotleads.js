@@ -2,6 +2,7 @@
 
 const leads = require("./leads");
 const viewings = require("./viewings");
+const re = require("./realestate");
 
 /**
  * Which clients to call first (.leads hot): a score from the pipeline stage, a viewing coming
@@ -16,8 +17,29 @@ const STAGE = { new: 10, contacted: 15, viewing: 30, negotiating: 40 };
 const since = (ms) => (ms < HOUR ? "منذ دقائق" : ms < DAY ? `منذ ${Math.floor(ms / HOUR)} ساعة` : `منذ ${Math.floor(ms / DAY)} يوم`);
 const until = (ms) => (ms < DAY ? `خلال ${Math.max(1, Math.round(ms / HOUR))} ساعة` : `خلال ${Math.round(ms / DAY)} يوم`);
 
+/**
+ * What every score needs, computed once per ranking (not once per client): the next viewing of
+ * each client within a week, and the available listings.
+ */
+function prepare(state, now) {
+  const nextViewing = new Map();
+  for (const v of viewings.upcoming(state, now)) if (v.at > now && v.at - now < 7 * DAY && !nextViewing.has(v.lead)) nextViewing.set(v.lead, v);
+  const available = re.all(state).filter((l) => l.status === "available");
+  return { nextViewing, available };
+}
+
+/** Listings within the client's budget, counted up to 3 (all the score needs). */
+function inBudget(lead, available) {
+  let n = 0;
+  for (const l of available) {
+    const fit = leads.fits(lead, l);
+    if (fit && !fit.over && ++n === 3) break;
+  }
+  return n;
+}
+
 /** @returns {{ lead, score, reasons: string[] } | null} null for closed or opted-out clients */
-function score(state, lead, now = Date.now()) {
+function score(state, lead, now = Date.now(), prepared = prepare(state, now)) {
   if (!(lead.status in STAGE) || lead.optedOut) return null;
   let pts = STAGE[lead.status];
   const reasons = [leads.STATUS[lead.status].ar];
@@ -26,7 +48,7 @@ function score(state, lead, now = Date.now()) {
     reasons.push(why);
   };
 
-  const next = viewings.upcoming(state, now).find((v) => v.lead === lead.id && v.at > now && v.at - now < 7 * DAY);
+  const next = prepared.nextViewing.get(lead.id);
   if (next) add(25, `👀 معاينة ${until(next.at - now)}`);
   if (lead.lastMsgAt) {
     const ago = now - lead.lastMsgAt;
@@ -34,8 +56,8 @@ function score(state, lead, now = Date.now()) {
     else if (ago < 7 * DAY) add(10, `💬 راسلك ${since(ago)}`);
   }
   if (lead.followUp && lead.followUp.at < now + DAY) add(10, lead.followUp.at < now ? "⏰ متابعة متأخرة" : "⏰ متابعة اليوم");
-  const fits = leads.matchingListings(state, lead).filter((m) => !m.fit.over).length;
-  if (fits) add(Math.min(fits, 3) * 5, `🏠 ${fits} عقار في ميزانيته`);
+  const fits = inBudget(lead, prepared.available);
+  if (fits) add(fits * 5, `🏠 ${fits === 3 ? "3+" : fits} عقار في ميزانيته`);
   if (lead.max) add(5, "💰 ميزانية معروفة");
   if (leads.awaitingReply(lead) && now - lead.lastSentAt > 3 * DAY) add(-10, `📭 لم يرد منذ ${Math.floor((now - lead.lastSentAt) / DAY)} يوم`);
   if (now - lead.updated > 14 * DAY) add(-15, `💤 بدون تواصل ${Math.floor((now - lead.updated) / DAY)} يوم`);
@@ -43,13 +65,15 @@ function score(state, lead, now = Date.now()) {
 }
 
 /** The best clients to work on now, highest score first. */
-const hot = (state, n = 10, now = Date.now()) =>
-  leads
+function hot(state, n = 10, now = Date.now()) {
+  const prepared = prepare(state, now);
+  return leads
     .all(state)
-    .map((l) => score(state, l, now))
+    .map((l) => score(state, l, now, prepared))
     .filter((x) => x && x.score > 0)
     .sort((a, b) => b.score - a.score || b.lead.updated - a.lead.updated)
     .slice(0, n);
+}
 
 const line = (h, cur) => `🔥 ${h.score} — ${leads.line(h.lead, cur)}\n    ${h.reasons.slice(1).join(" · ") || h.reasons[0]}`;
 

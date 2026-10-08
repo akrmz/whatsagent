@@ -5,6 +5,7 @@ const calc = require("../../services/recalc");
 const img = require("../../services/reimages");
 const usage = require("../../services/aiusage");
 const { getText } = require("../../core/context");
+const { redactPhones } = require("../../services/phones");
 
 const cur = (ctx) => re.agent(ctx.state).currency;
 const m = (ctx, n) => re.money(n, cur(ctx));
@@ -205,7 +206,7 @@ module.exports = [
         const l = re.get(ctx.state, id);
         if (!l) return ctx.reply(`There is no listing #${id}.`);
         details = re.card(l, {}).replace(/\n?(?:🔖|🗺️).*$/gmu, "");
-      } else if (ctx.quoted) details = getText(ctx.quoted.message);
+      } else if (ctx.quoted) details = redactPhones(getText(ctx.quoted.message)); // the AI gets the property, not people's numbers
       if (!details) return ctx.reply(`Usage: ${ctx.prefix}adcopy <listing number>, or reply to a property description with ${ctx.prefix}adcopy`);
       usage.takeQuota(ctx);
       await ctx.react("✍️");

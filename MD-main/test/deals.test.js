@@ -61,6 +61,10 @@ test("hot clients: stage, a viewing soon, a recent message, listings in budget; 
   assert.equal(hotleads.score(s, leads.get(s, cold.id), now).score, 10 - 15, "new but untouched for 20 days");
   assert.match(hotleads.line(w, "جنيه"), /^🔥 95 — \*#3\* متحمس .*\n {4}👀 معاينة خلال 1 يوم · 💬 راسلك منذ 2 ساعة/);
   assert.match(digest.build(s, "Africa/Cairo", now), /🔥 \*ابدأ بهؤلاء اليوم\*\n🔥 95 — \*#3\* متحمس/);
+  for (let i = 0; i < 4; i++) re.add(s, { type: "شقة", deal: "بيع", location: "التجمع", price: 2.5e6 + i }, ME);
+  const many = hotleads.score(s, leads.get(s, warm.id), now);
+  assert.ok(many.reasons.includes("🏠 3+ عقار في ميزانيته"), "counted up to 3");
+  assert.equal(many.score, 95 + 10, "3 listings at most count");
   t.mock.timers.reset();
 });
 
