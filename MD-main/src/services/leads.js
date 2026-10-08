@@ -47,6 +47,7 @@ const LABELS = {
   rooms: ["الغرف", "غرف", "عدد الغرف", "rooms", "bedrooms"],
   deal: ["الغرض", "deal", "for", "purpose"],
   source: ["المصدر", "مصدر", "جاء من", "source", "from"],
+  campaign: ["الإعلان", "اعلان", "إعلان", "الحملة", "حملة", "campaign", "ad"],
   notes: ["ملاحظات", "ملاحظة", "notes", "note"],
 };
 const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.map((w) => [w.toLowerCase(), k])));
@@ -295,7 +296,7 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     lead.phone && `📞 ${phoneText(lead.phone)}`,
     wants && `🔎 يبحث عن: ${wants}`,
     budgetText(lead, currency) && `💰 الميزانية: ${budgetText(lead, currency)}`,
-    lead.source && `📣 المصدر: ${lead.source}`,
+    lead.source && `📣 المصدر: ${lead.source}${lead.campaign ? ` — إعلان: ${lead.campaign}` : ""}`,
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
     lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
     lead.optedOut && "🚫 أوقف رسائل العروض (أرسل وقف)",

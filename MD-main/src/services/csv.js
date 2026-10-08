@@ -12,7 +12,9 @@ function parse(text, { maxRows = 2000 } = {}) {
   if (s.charCodeAt(0) === 0xfeff) s = s.slice(1);
   const end = s.search(/\r?\n/);
   const firstLine = end === -1 ? s : s.slice(0, end);
-  const sep = (firstLine.match(/;/g) || []).length > (firstLine.match(/,/g) || []).length ? ";" : ",";
+  // The separator the header uses most: "," (CSV), ";" (Excel with Arabic/European settings) or a tab (Meta's lead exports).
+  const count = (ch) => firstLine.split(ch).length - 1;
+  const sep = [",", ";", "\t"].reduce((best, ch) => (count(ch) > count(best) ? ch : best), ",");
   const rows = [];
   let row = [];
   let cell = "";
@@ -62,4 +64,18 @@ function records(text, opts) {
   };
 }
 
-module.exports = { parse, records };
+/**
+ * A downloaded file's bytes as text: UTF-16 (Meta's lead exports, Excel's "Unicode text") by
+ * its byte-order mark, or by its many zero bytes; otherwise UTF-8.
+ */
+function decode(buffer) {
+  const b = Buffer.from(buffer);
+  if (b[0] === 0xff && b[1] === 0xfe) return b.subarray(2).toString("utf16le");
+  if (b[0] === 0xfe && b[1] === 0xff) return Buffer.from(b.subarray(2)).swap16().toString("utf16le");
+  const sample = b.subarray(0, 400);
+  const zeros = sample.filter((x) => x === 0).length;
+  if (sample.length >= 4 && zeros > sample.length / 4) return (sample[0] === 0 ? Buffer.from(b.subarray(0, b.length - (b.length % 2))).swap16() : b).toString("utf16le");
+  return b.toString("utf8");
+}
+
+module.exports = { parse, records, decode };

@@ -3,6 +3,7 @@
 const re = require("../../services/realestate");
 const leads = require("../../services/leads");
 const csv = require("../../services/csv");
+const metaleads = require("../../services/metaleads");
 const digest = require("../../services/digest");
 const { parseClock } = require("../../services/reminders");
 const { UserError } = require("../../core/errors");
@@ -29,8 +30,10 @@ const STATUS_OF = { available: "available", reserved: "reserved", sold: "sold", 
  * @returns {{ added: number, total: number, truncated: boolean, skipped: string[] }} skipped: "row: reason"
  */
 function importCsv(state, text, kind, { by, ownerNumber }) {
-  const { rows } = csv.records(text, { maxRows: MAX_IMPORT_ROWS });
+  const { header, rows } = csv.records(text, { maxRows: MAX_IMPORT_ROWS });
   if (!rows.length) throw new UserError("The file has no rows under the header.");
+  const meta = kind === "leads" && metaleads.isMeta(header); // a Facebook/Instagram lead-ads export
+  const ids = [];
   let added = 0;
   const skipped = [];
   rows.slice(0, MAX_IMPORT_ROWS).forEach((row, i) => {
@@ -47,10 +50,11 @@ function importCsv(state, text, kind, { by, ownerNumber }) {
         const status = STATUS_OF[String(row.status || row["الحالة"] || "").toLowerCase()];
         if (status && status !== "available") re.update(state, l.id, { status });
       } else {
-        const fields = leads.parseLeadText(rowText(row, LEAD_COLUMNS), ownerNumber);
-        if (Number(row.budget_min)) fields.min = Number(row.budget_min);
-        if (Number(row.budget_max)) fields.max = Number(row.budget_max);
+        const fields = meta ? metaleads.fromMeta(row, ownerNumber) : leads.parseLeadText(rowText(row, LEAD_COLUMNS), ownerNumber);
+        if (!meta && Number(row.budget_min)) fields.min = Number(row.budget_min);
+        if (!meta && Number(row.budget_max)) fields.max = Number(row.budget_max);
         const l = leads.add(state, fields, by);
+        ids.push(l.id);
         const status = leads.statusFrom(row.status || row["الحالة"]);
         if (status) leads.update(state, l.id, { status });
       }
@@ -59,7 +63,7 @@ function importCsv(state, text, kind, { by, ownerNumber }) {
       skipped.push(`${n}: ${err instanceof UserError ? err.message.split("\n")[0] : "unreadable"}`);
     }
   });
-  return { added, total: Math.min(rows.length, MAX_IMPORT_ROWS), truncated: rows.length > MAX_IMPORT_ROWS, skipped };
+  return { added, total: Math.min(rows.length, MAX_IMPORT_ROWS), truncated: rows.length > MAX_IMPORT_ROWS, skipped, meta, ids };
 }
 
 module.exports = [
@@ -68,7 +72,7 @@ module.exports = [
     aliases: ["importcsv"],
     category: "realestate",
     description:
-      "استيراد من Excel — reply to a CSV file (an Excel sheet saved as CSV, or a file from .export) to add listings or clients in one go. Column headers in English (type, location, price …) or Arabic (النوع، المنطقة، السعر …). Duplicates are skipped. Owner and sudo users.",
+      "استيراد من Excel — reply to a CSV file (an Excel sheet saved as CSV, or a file from .export) to add listings or clients in one go. Column headers in English (type, location, price …) or Arabic (النوع، المنطقة، السعر …). Also reads Facebook/Instagram lead-ads downloads as they are (UTF-16, tab-separated): each lead gets its platform as the source, the ad's name, and the form's answers (budget, area, unit type). Duplicates are skipped. Owner and sudo users.",
     usage: "listings | leads (reply to a .csv file)",
     examples: ["(reply to listings.csv) .import listings", "(reply to clients.csv) .import leads"],
     permission: "sudo",
@@ -84,12 +88,15 @@ module.exports = [
       if (!/csv|text|excel|octet/.test(media.mimetype || "") && !/\.csv$/i.test(media.content?.fileName || "")) {
         throw new UserError("That isn't a CSV file. In Excel use File → Save As → CSV UTF-8 (.xlsx can't be read).");
       }
-      const text = (await ctx.download(media, MAX_IMPORT_BYTES)).toString("utf8");
+      const text = csv.decode(await ctx.download(media, MAX_IMPORT_BYTES));
       await ctx.react("📥");
       const r = importCsv(ctx.state, text, forListings ? "listings" : "leads", { by: ctx.sender, ownerNumber: ctx.config.owners.numbers[0] });
       const more = r.truncated ? `\n(only the first ${MAX_IMPORT_ROWS} rows were read)` : "";
+      const withMatches = r.ids.filter((id) => leads.matchingListings(ctx.state, leads.get(ctx.state, id)).length).length;
+      const from = r.meta ? " from Facebook/Instagram lead ads" : "";
+      const next = forLeads && r.added ? `\n🎯 ${withMatches} of them already have matching listings — ${ctx.prefix}leads hot` : "";
       return ctx.reply(
-        `📥 Imported *${r.added}* ${forListings ? "listing(s)" : "client(s)"} of ${r.total}.${more}${r.skipped.length ? `\n\nSkipped ${r.skipped.length}:\n${r.skipped.slice(0, 15).join("\n")}${r.skipped.length > 15 ? "\n…" : ""}` : ""}`,
+        `📥 Imported *${r.added}* ${forListings ? "listing(s)" : "client(s)"}${from} of ${r.total}.${more}${next}${r.skipped.length ? `\n\nSkipped ${r.skipped.length}:\n${r.skipped.slice(0, 15).join("\n")}${r.skipped.length > 15 ? "\n…" : ""}` : ""}`,
       );
     },
   },

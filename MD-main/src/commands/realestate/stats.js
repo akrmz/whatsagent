@@ -5,6 +5,18 @@ const leads = require("../../services/leads");
 
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "—");
 
+/** Clients from lead ads by the ad's name (imported with .import leads): total, deals won. */
+function byCampaign(all) {
+  const m = new Map();
+  for (const l of all.filter((x) => x.campaign)) {
+    const e = m.get(l.campaign) || { name: l.campaign, total: 0, won: 0 };
+    e.total++;
+    if (l.status === "won") e.won++;
+    m.set(l.campaign, e);
+  }
+  return [...m.values()].sort((a, b) => b.total - a.total);
+}
+
 /** Clients by source: total, deals won, conversion; sorted by size. */
 function bySource(all) {
   const m = new Map();
@@ -54,6 +66,8 @@ module.exports = {
     if (clients.length) {
       lines.push("", `👥 *العملاء حسب المصدر* (${clients.length})`);
       lines.push(...bySource(clients).slice(0, 8).map((e) => `▫️ ${e.name}: ${e.total} عميل · ✅ ${e.won} صفقة (${pct(e.won, e.total)})`));
+      const ads = byCampaign(clients);
+      if (ads.length) lines.push("", `📢 *حسب الإعلان* (${ads.length})`, ...ads.slice(0, 6).map((e) => `▫️ ${e.name}: ${e.total} عميل · ✅ ${e.won} صفقة (${pct(e.won, e.total)})`));
       const sentTo = clients.filter((l) => l.lastSentAt);
       if (sentTo.length) lines.push("", `📬 نسبة الرد: ${sentTo.filter((l) => l.replied).length} من ${sentTo.length} عميل أرسلت لهم عقاراً ردّوا (${pct(sentTo.filter((l) => l.replied).length, sentTo.length)})`);
       lines.push("", `✅ الصفقات: ${won.length} من ${clients.length} (${pct(won.length, clients.length)})${days.length ? ` · متوسط المدة حتى الصفقة: ${Math.round(days.reduce((a, b) => a + b, 0) / days.length)} يوم` : ""}`);
@@ -61,4 +75,5 @@ module.exports = {
     return ctx.reply(lines.join("\n"));
   },
   bySource,
+  byCampaign,
 };
