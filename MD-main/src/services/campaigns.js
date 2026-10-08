@@ -88,7 +88,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -102,10 +102,13 @@ const welcomeTargets = (state) =>
     .sort((a, b) => a.created - b.created || a.id - b.id); // whoever has waited longest first
 
 /** The welcome a client gets: the agent's wording (.agent welcome) or the default, the best match, and how to stop. */
-function welcomeText(state, lead) {
+const welcomeText = (state, lead) => personal(state, lead, re.agent(state).welcome || DEFAULT_WELCOME);
+
+/** A message template filled for one client ({name} {ad} {wish} {agent}), with the best match and the opt-out line. */
+function personal(state, lead, template) {
   const a = re.agent(state);
   const wish = requests.describe({ type: lead.type || "عقار", deal: lead.deal, location: lead.location, rooms: lead.rooms, min: lead.min, max: lead.max }, a.currency);
-  const text = String(a.welcome || DEFAULT_WELCOME)
+  const text = String(template)
     .replace(/\{name\}/g, lead.name || "")
     .replace(/\{ad\}/g, lead.campaign ? ` بإعلان "${lead.campaign}"` : "")
     .replace(/\{wish\}/g, wish)
@@ -115,6 +118,45 @@ function welcomeText(state, lead) {
   const [best] = leads.matchingListings(state, lead).filter((m) => !m.fit.over);
   const match = best ? `\n\n🏠 عندي حالياً: ${re.line(best.listing, a.currency)}\nللتفاصيل والصور أرسل: #${best.listing.id}` : "";
   return `${text}${match}\n\n${OPT_OUT_LINE}`;
+}
+
+// ---- following up with clients who went quiet (.agent nudge on) --------------------------
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const NUDGE_AFTER = 3 * DAY_MS; // no reply for 3 days after something was sent …
+const NUDGE_UNTIL = 14 * DAY_MS; // … and not more than 14 (older ones are left to the agent)
+const NUDGE_MAX = 30; // a day
+const ACTIVE = new Set(["new", "contacted", "viewing", "negotiating"]);
+const DEFAULT_NUDGE = "أهلاً {name} 👋\nلسه بتدور على {wish}؟ لو حابب أبعتلك اختيارات جديدة، قولي الميزانية والمنطقة اللي تناسبك 🙏\n{agent}";
+
+/** Active clients who haven't answered what was last sent (3–14 days ago), not yet followed up for it; oldest first. */
+const nudgeTargets = (state, now = Date.now()) =>
+  leads
+    .all(state)
+    .filter((l) => ACTIVE.has(l.status) && l.phone && !l.optedOut && leads.awaitingReply(l) && !(l.nudgedAt > l.lastSentAt) && now - l.lastSentAt >= NUDGE_AFTER && now - l.lastSentAt < NUDGE_UNTIL)
+    .sort((a, b) => a.lastSentAt - b.lastSentAt)
+    .slice(0, NUDGE_MAX);
+
+const nudgeText = (state, lead) => personal(state, lead, re.agent(state).nudgetext || DEFAULT_NUDGE);
+
+/**
+ * Once a day, from the start of the sending hours, queue the follow-ups as a campaign (told to
+ * the owner when done). @returns {object|null} the campaign started
+ */
+function planNudges(app, now = Date.now()) {
+  if (!re.agent(app.state).nudge) return null;
+  const s = store(app.state);
+  const { day, minutes } = zoneNow(app.config.bot.timezone, now);
+  if (s.data.nudgeDay === day || minutes < parseClock(settings(app.state).from)) return null;
+  s.update((d) => (d.nudgeDay = day));
+  const queue = nudgeTargets(app.state, now).map((l) => l.id);
+  if (!queue.length || running(app.state).some((c) => c.kind === "nudge") || running(app.state).length >= MAX_RUNNING) return null;
+  const owner = app.config.owners.numbers[0];
+  return s.update((d) => {
+    const id = ++d.seq;
+    d.items[id] = { id, kind: "nudge", queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by: "bot", chat: owner ? `${owner}@s.whatsapp.net` : null, created: now };
+    return d.items[id];
+  });
 }
 
 function startWelcome(state, { by, chat }, now = Date.now()) {
@@ -150,6 +192,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   const { day, minutes } = zoneNow(app.config.bot.timezone, now);
   if (s.data.day.date !== day) s.update((d) => (d.day = { date: day, count: 0 }));
   if (minutes < parseClock(set.from) || minutes >= parseClock(set.to)) return "hours";
+  planNudges(app, now);
   if (s.data.day.count >= set.perDay) return "cap";
   if (now < (s.data.next || 0)) return "gap";
   // The oldest running campaign that is due (an automatic one waits 30 minutes for photos).
@@ -163,8 +206,9 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     return "done";
   };
   const welcome = c.kind === "welcome";
-  const listing = welcome ? null : re.get(app.state, c.listing);
-  if (!welcome && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
+  const nudge = c.kind === "nudge";
+  const listing = welcome || nudge ? null : re.get(app.state, c.listing);
+  if (!welcome && !nudge && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
   if (c.mode === "drop" && !re.discount(listing, now)) return finish("stopped", `⏹️ أُوقفت: سعر #${c.listing} لم يعد مخفّضاً.`);
   if (!c.queue.length) return finish("done");
 
@@ -174,7 +218,9 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   // Skipped: gone, no number, said stop, or (since it was queued) already got this listing / was contacted.
   const stale = welcome
     ? lead && (lead.status !== "new" || lead.welcomedAt || lead.lastSentAt)
-    : c.mode === "drop"
+    : nudge
+      ? lead && (!ACTIVE.has(lead.status) || !leads.awaitingReply(lead) || lead.nudgedAt > lead.lastSentAt) // replied, closed or followed up meanwhile
+      : c.mode === "drop"
       ? lead && lead.dropNotified?.[listing.id] === listing.price
       : lead && (lead.sentListings || []).includes(listing.id);
   if (!lead || !lead.phone || lead.optedOut || stale) {
@@ -191,6 +237,9 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     if (welcome) {
       await app.sock.sendMessage(jid, { text: welcomeText(app.state, lead) });
       leads.markWelcomed(app.state, lead.id, c.by, now);
+    } else if (nudge) {
+      await app.sock.sendMessage(jid, { text: nudgeText(app.state, lead) });
+      leads.markNudged(app.state, lead.id, c.by, now);
     } else {
       const text = message(listing, lead, re.agent(app.state), c.mode);
       const [photo] = re.photos(app.config, listing);
@@ -230,4 +279,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };

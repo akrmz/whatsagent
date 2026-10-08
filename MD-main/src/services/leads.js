@@ -213,6 +213,13 @@ function markWelcomed(state, id, by, now = Date.now()) {
   });
 }
 
+/** A follow-up was sent (.agent nudge): noted once per send, so the client isn't followed up twice for it. */
+function markNudged(state, id, by, now = Date.now()) {
+  note(state, id, by, "أُرسلت له رسالة متابعة", now);
+  team.record(state, by, "sent", 1, now);
+  return update(state, id, { nudgedAt: now }, now);
+}
+
 /** What was sent last: "#12", or the welcome. */
 const sentWhat = (l) => (l.lastSentListing ? `#${l.lastSentListing}` : "رسالة الترحيب");
 
@@ -398,7 +405,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, byPhone, markSent, markWelcomed, sentWhat, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
+  add, update, note, byPhone, markSent, markWelcomed, markNudged, sentWhat, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };

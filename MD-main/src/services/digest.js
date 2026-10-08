@@ -59,7 +59,7 @@ function build(state, timeZone, now = Date.now()) {
     .sort((a, b) => a.lastSentAt - b.lastSentAt);
   if (quiet.length) {
     lines.push("", `📭 *أُرسل لهم عقار ولم يردوا (${quiet.length})*`);
-    lines.push(...quiet.slice(0, 8).map((l) => `${leads.line(l, cur)} — ${leads.sentWhat(l)} منذ ${Math.floor((now - l.lastSentAt) / DAY)} يوم`));
+    lines.push(...quiet.slice(0, 8).map((l) => `${leads.line(l, cur)} — ${leads.sentWhat(l)} منذ ${Math.floor((now - l.lastSentAt) / DAY)} يوم${l.nudgedAt > l.lastSentAt ? " · 🔔 تمت متابعته" : ""}`));
   }
   if (stale.length) {
     lines.push("", `💤 *بدون تواصل منذ ${STALE_DAYS}+ أيام (${stale.length})*`);
