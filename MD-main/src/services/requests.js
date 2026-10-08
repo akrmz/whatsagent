@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const leads = require("./leads");
+const projects = require("./projects");
 const { limiterFor } = require("../core/ratelimit");
 
 /**
@@ -76,11 +77,16 @@ async function handle(ctx) {
 
   // The answer follows what they just asked (the saved client may have older wishes too).
   const matches = leads.matchingListings(ctx.state, wish).slice(0, MAX_SHOWN);
+  // New projects sold in instalments that fit too (for buyers; at most 2).
+  const plans = projects.forWish(ctx.state, wish).slice(0, 2);
+  const plansText = plans.length ? `\n\n🏗️ ${matches.length ? "ومشروعات جديدة بالتقسيط تناسبك" : "مشروعات جديدة بالتقسيط تناسبك"}:\n${plans.map((p) => projects.line(p, cur)).join("\n")}` : "";
   const hi = lead.name ? `أهلاً ${lead.name} 👋` : "أهلاً 👋";
   await ctx.reply(
     matches.length
-      ? `${hi}\nدي أقرب العقارات المتاحة لطلبك (${what}):\n\n${matches.map(({ listing }) => re.line(listing, cur)).join("\n")}\n\nأرسل رقم العقار (مثلاً #${matches[0].listing.id}) للتفاصيل والصور.`
-      : `${hi}\nوصلني طلبك (${what}) 👍\nحالياً مفيش عقار مطابق، وهتواصل معاك أول ما يتوفر.`,
+      ? `${hi}\nدي أقرب العقارات المتاحة لطلبك (${what}):\n\n${matches.map(({ listing }) => re.line(listing, cur)).join("\n")}${plansText}\n\nأرسل رقم العقار (مثلاً #${matches[0].listing.id}) للتفاصيل والصور.`
+      : plans.length
+        ? `${hi}\nوصلني طلبك (${what}) 👍${plansText}\n\nهتواصل معاك بالتفاصيل وخطط السداد.`
+        : `${hi}\nوصلني طلبك (${what}) 👍\nحالياً مفيش عقار مطابق، وهتواصل معاك أول ما يتوفر.`,
   );
   // Remembered as sent: campaigns won't send them again, and the summary shows if the client answers.
   if (matches.length) {
@@ -91,7 +97,7 @@ async function handle(ctx) {
   const owner = ctx.config.owners.numbers[0];
   if (owner && notifyOwner(ctx.state, String(lead.id))) {
     const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
-    const found = matches.length ? `أرسلت له ${matches.length}: ${matches.map(({ listing }) => `#${listing.id}`).join("، ")}` : "لا يوجد عقار مطابق";
+    const found = [matches.length ? `أرسلت له ${matches.length}: ${matches.map(({ listing }) => `#${listing.id}`).join("، ")}` : "لا يوجد عقار مطابق", plans.length && `🏗️ مشروعات: ${plans.map((p) => `P${p.id}`).join("، ")}`].filter(Boolean).join("\n");
     await ctx.sock.sendMessage(`${owner}@s.whatsapp.net`, { text: `🔔 ${isNew ? "طلب من عميل جديد" : "طلب جديد"}: ${who}\n🔎 ${what}\n${found}\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
   }
   return { lead, matches, isNew };

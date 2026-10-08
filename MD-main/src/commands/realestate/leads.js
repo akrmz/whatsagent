@@ -8,6 +8,7 @@ const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
 const deals = require("../../services/deals");
 const hotleads = require("../../services/hotleads");
+const projects = require("../../services/projects");
 
 const base = { category: "realestate", permission: "sudo", cooldown: 2 };
 const idOf = (s) => {
@@ -48,7 +49,9 @@ module.exports = [
       if (direct) {
         const l = leads.get(ctx.state, direct);
         if (!l) return ctx.reply(`There is no client #${direct}.`);
-        return ctx.reply(leads.card(l, { ...opts(ctx), matches: leads.matchingListings(ctx.state, l) }));
+        const plans = projects.forWish(ctx.state, l);
+        const plansText = plans.length ? `\n\n🏗️ *مشروعات مناسبة (${plans.length}):*\n${plans.slice(0, 3).map((p) => projects.line(p, opts(ctx).currency)).join("\n")}` : "";
+        return ctx.reply(leads.card(l, { ...opts(ctx), matches: leads.matchingListings(ctx.state, l) }) + plansText);
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));
 

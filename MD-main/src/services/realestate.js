@@ -76,17 +76,17 @@ const contactLine = (a) => [a.name && `👤 ${a.name}`, a.phone && `📞 ${a.pho
 // ---- reading a property description -----------------------------------------------------
 
 const TYPES = [
-  ["شقة", ["شقة", "شقه", "apartment", "flat"]],
-  ["فيلا", ["فيلا", "فيلة", "villa"]],
+  ["شقة", ["شقة", "شقه", "شقق", "apartment", "apartments", "flat"]],
+  ["فيلا", ["فيلا", "فيلة", "فيلات", "فلل", "villa", "villas"]],
   ["دوبلكس", ["دوبلكس", "duplex"]],
   ["بنتهاوس", ["بنتهاوس", "penthouse"]],
   ["تاون هاوس", ["تاون هاوس", "تاون", "townhouse", "town house"]],
   ["توين هاوس", ["توين هاوس", "توين", "twin house", "twinhouse"]],
-  ["شاليه", ["شاليه", "chalet"]],
+  ["شاليه", ["شاليه", "شاليهات", "chalet", "chalets"]],
   ["استوديو", ["استوديو", "ستوديو", "studio"]],
-  ["محل", ["محل", "shop", "store"]],
-  ["مكتب", ["مكتب", "office"]],
-  ["عيادة", ["عيادة", "عياده", "clinic"]],
+  ["محل", ["محل", "محلات", "shop", "store"]],
+  ["مكتب", ["مكتب", "مكاتب", "office", "offices"]],
+  ["عيادة", ["عيادة", "عياده", "عيادات", "clinic"]],
   ["أرض", ["أرض", "ارض", "land", "plot"]],
   ["عمارة", ["عمارة", "عماره", "building"]],
 ];
@@ -119,6 +119,14 @@ const LABELS = {
 const LABEL_OF = new Map(Object.entries(LABELS).flatMap(([k, words]) => words.map((w) => [w.toLowerCase(), k])));
 
 const typeIn = (text) => TYPE_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
+/** The text without its type and sale/rent words (whole words only), for searching the rest. */
+function stripTypeWords(text) {
+  let q = String(text);
+  for (const [, words] of [...TYPES, ...DEALS]) for (const w of words) q = q.replace(wordRe(w, "giu"), " ");
+  return q;
+}
+/** Every type named in the text ("شقق وتاون هاوس وفيلات" → شقة، فيلا، تاون هاوس). */
+const typesIn = (text) => TYPE_RES.filter(([, res]) => res.some((r) => r.test(String(text)))).map(([t]) => t);
 const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(String(text))))?.[0] || null;
 
 const FINISHING = ["ألترا سوبر لوكس", "الترا سوبر لوكس", "سوبر لوكس", "نص تشطيب", "نصف تشطيب", "على المحارة", "علي المحارة", "تشطيب كامل", "متشطب", "بدون تشطيب", "لوكس", "fully finished", "semi finished", "core and shell"];
@@ -379,7 +387,7 @@ function search(state, query, pool = all(state)) {
     q = q.replace(r[0], " ");
   }
   // Take out the type and deal words that were used as filters (whole words only, as above).
-  for (const [, words] of [...TYPES, ...DEALS]) for (const w of words) q = q.replace(wordRe(w, "giu"), " ");
+  q = stripTypeWords(q);
   const words = q.replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
   const list = pool.filter((l) => {
     if (!f.all && l.status !== "available") return false;
@@ -414,7 +422,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, extractFree, cleanFields, typeIn, dealIn,
+  parseListingText, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, stale,
   STATUS_AR, MAX_PHOTOS,
 };
