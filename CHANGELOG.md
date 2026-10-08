@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.23.0 — 2026-10-09
+
+### Added — following up with clients who went quiet
+- **`.agent nudge on`**: once a day, from the start of the sending hours, active clients who haven't answered what was last sent (a listing, an offer or a welcome) for 3–14 days get **one** follow-up for it ("لسه بتدور على شقة، في التجمع …؟"), with the best matching listing and the opt-out line.
+  - It's sent as a paced campaign, at most 30 a day, with a summary to the owner.
+  - Skipped: clients who replied, closed or said وقف in the meantime.
+  - Each send gets at most one follow-up. After 14 days it's left to the agent.
+- **`.agent nudgetext …`** sets your own wording, with the same placeholders as the welcome.
+- **Morning summary**: followed-up clients are marked "🔔 تمت متابعته"; their history notes "أُرسلت له رسالة متابعة", and `.team` counts them as sent.
+- Campaigns now have three kinds: listing (including price drops), welcome and follow-up. They share the message builder, the pacing and the opt-out.
+
+### Checked
+- 3 tests (331 in total), with simulated clocks:
+  - who is due (a 5-day silence yes; 1 day, 19 days, replied, won and opted out no);
+  - off by default, not before the sending hours, the exact message, the summary, the digest marker, once per send;
+  - your own wording, and a reply before their turn.
+
 ## 3.22.0 — 2026-10-09
 
 ### Added — automatic campaigns for new listings
