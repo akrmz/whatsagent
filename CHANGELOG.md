@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.15.0 — 2026-10-08
+
+### Added — Facebook / Instagram lead ads
+- **`.import leads` reads Meta's lead-ads downloads as they are**, from Leads Center or Ads Manager. Each lead becomes a client:
+  - name and number (Meta's "p:" prefix removed; a local number takes the owner's country code);
+  - source فيسبوك or إنستجرام from the platform, and the ad's name (`campaign`, shown on the card as "إعلان: …");
+  - the form's answers read by what the question asks: budget, area, unit type, rooms, buy/rent;
+  - all answers, the e-mail and the date kept in the notes.
+
+  Numbers that are already clients are skipped. The reply says how many new clients already have matching listings.
+- **`.restats`**: "📢 حسب الإعلان", with clients and deals per ad.
+- **Clients**: an "الإعلان:" / "campaign:" line can be typed by hand too.
+
+### Changed
+- **CSV files**: UTF-16 files are read (by their byte-order mark, or their zero bytes when there is none). Tab is recognised as a separator, alongside "," and ";".
+
+### Checked
+- 3 tests (310 in total): UTF-16 LE/BE with and without a byte-order mark, the separators, a Meta row field by field, and the import:
+  - duplicates and empty rows;
+  - the command's reply;
+  - the per-ad report.
+
 ## 3.14.0 — 2026-10-08
 
 ### Added — English for foreign buyers
