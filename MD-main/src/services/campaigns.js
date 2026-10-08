@@ -17,6 +17,7 @@ const { UserError } = require("../core/errors");
 
 const DEFAULTS = { perDay: 40, from: "10:00", to: "21:00", gapMin: 45, gapMax: 90 };
 const MAX_RUNNING = 5;
+const KEEP_FINISHED = 30;
 const OPT_OUT_LINE = "لإيقاف رسائل العروض أرسل: وقف";
 
 const store = (state) => state.store("campaigns", { seq: 0, items: {}, settings: {}, day: { date: "", count: 0 }, next: 0 });
@@ -53,6 +54,9 @@ function start(state, listing, { by, chat }, now = Date.now()) {
   return store(state).update((d) => {
     const id = ++d.seq;
     d.items[id] = { id, listing: listing.id, queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    // The file is rewritten on every message sent, so only the latest finished campaigns are kept.
+    const finished = Object.values(d.items).filter((c) => c.status !== "running").sort((a, b) => b.id - a.id);
+    for (const old of finished.slice(KEEP_FINISHED)) delete d.items[old.id];
     return d.items[id];
   });
 }

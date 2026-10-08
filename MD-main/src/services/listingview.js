@@ -35,7 +35,7 @@ async function captureInquiry(ctx, listing) {
   if (!agent.autoleads || ctx.isGroup || ctx.isSudoOrOwner || ctx.fromMe) return null;
   const pn = ctx.app.identity.toPn(ctx.sender);
   const phone = pn ? pn.split("@")[0] : null;
-  const existing = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;
+  const existing = leads.byPhone(ctx.state, phone);
   const text = `سأل عن العقار #${listing.id} (${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""})`;
   let lead;
   if (existing) {

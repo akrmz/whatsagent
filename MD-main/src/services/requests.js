@@ -12,7 +12,11 @@ const { limiterFor } = require("../core/ratelimit");
 
 const MAX_SHOWN = 3;
 // Asking, not offering: a broker's post ("يوجد شقة للبيع … بسعر") must not read as a request.
-const INTENT = /(?<![\p{L}])(?:عايز|عاوز|عايزه|عاوزه|عايزة|عاوزة|عايزين|عاوزين|محتاج|محتاجه|محتاجة|محتاجين|بدور|بدوّر|ابحث|أبحث|بابحث|مطلوب|اريد|أريد|نريد|حد عنده|عندك|عندكم|عندكو|فيه|في حاجة|looking for|i want|i need|we need)(?![\p{L}])|[؟?]/iu;
+const WANT = /(?<![\p{L}])(?:عايز|عاوز|عايزه|عاوزه|عايزة|عاوزة|عايزين|عاوزين|محتاج|محتاجه|محتاجة|محتاجين|بدور|بدوّر|ابحث|أبحث|بابحث|مطلوب|مطلوبة|مطلوبه|مطلوبين|اريد|أريد|نريد|looking for|i want|i need|we need)(?![\p{L}])/iu;
+// "فيه/عندك …" asks only as a question, or without the marks of an offer ("فيه شقة للبيع … بسعر 3 مليون" is a broker's post).
+const MAYBE = /(?<![\p{L}])(?:حد عنده|عندك|عندكم|عندكو|فيه|في حاجة)(?![\p{L}])/iu;
+const OFFER = /(?<![\p{L}])(?:بسعر|السعر|المطلوب|بمقدم|مقدم|تقسيط|اقساط|أقساط|استلام|متر|م²|م2)(?![\p{L}])/iu;
+const asks = (t) => WANT.test(t) || /[؟?]/.test(t) || (MAYBE.test(t) && !OFFER.test(re.latinDigits(t)));
 const WISH_FIELDS = ["type", "deal", "location", "rooms", "min", "max"];
 
 const perClient = (state, key) => limiterFor(state, "request-client", { max: 1, windowMs: 10 * 60 * 1000 })(key); // one answer per client per 10 min
@@ -27,7 +31,7 @@ const notifyOwner = (state, key) => limiterFor(state, "request-notify", { max: 1
 function detect(text) {
   const t = String(text || "").trim();
   if (t.length < 6 || t.length > 300 || t.split("\n").length > 4) return null;
-  if (!INTENT.test(t)) return null;
+  if (!asks(t)) return null;
   const f = leads.parseLeadText(t);
   if (!f.type) return null;
   const wish = {};
@@ -52,7 +56,7 @@ async function handle(ctx) {
   const cur = re.agent(ctx.state).currency;
   const what = describe(wish, cur);
 
-  let lead = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;
+  let lead = leads.byPhone(ctx.state, phone);
   const isNew = !lead;
   if (lead) {
     leads.update(ctx.state, lead.id, wish);

@@ -164,6 +164,8 @@ function parseLeadText(text, ownerNumber) {
 const store = (state) => state.store("leads", { seq: 0, items: {} });
 const get = (state, id) => store(state).data.items[id] || null;
 const all = (state) => Object.values(store(state).data.items).sort((a, b) => b.updated - a.updated);
+/** The client with this number (digits only, as saved), or null. Unsorted: used on every private message. */
+const byPhone = (state, phone) => (phone ? Object.values(store(state).data.items).find((l) => l.phone === phone) || null : null);
 
 function add(state, fields, by, now = Date.now()) {
   if (!fields.name && !fields.phone) throw new UserError("Give at least the client's name or phone, e.g.\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع");
@@ -250,6 +252,11 @@ function seen(state, id, now = Date.now()) {
 /** What a client sends to stop or restart offers (see listeners/optout.js). */
 const STOP_WORDS = /^(وقف|توقف|ايقاف|إيقاف|الغاء|إلغاء|stop|unsubscribe)$/i;
 const START_WORDS = /^(اشتراك|اشترك|start|subscribe)$/i;
+/** "وقف!" → "stop", "اشتراك" → "start", anything else → null. */
+function optWord(text) {
+  const w = String(text || "").trim().replace(/[.!؟?]+$/, "");
+  return STOP_WORDS.test(w) ? "stop" : START_WORDS.test(w) ? "start" : null;
+}
 
 /** The client asked to stop (or restart) offers: "وقف" / "اشتراك". */
 function setOptOut(state, id, optedOut, now = Date.now()) {
@@ -397,7 +404,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, markSent, seen, awaitingReply, setOptOut, STOP_WORDS, START_WORDS, remove, get, all, search,
+  add, update, note, byPhone, markSent, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };

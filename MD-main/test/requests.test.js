@@ -42,6 +42,12 @@ test("what counts as a request: a property type and a word of asking, not a brok
   assert.deepEqual(requests.detect("محتاج شقة إيجار في المعادي حدود 15 ألف"), { type: "شقة", deal: "إيجار", location: "المعادي", max: 15000 });
   assert.equal(requests.detect("يوجد شقة للبيع في التجمع 150 متر بسعر 3 مليون"), null, "a broker's post");
   assert.equal(requests.detect("متاح شقة للبيع بالتجمع 120 متر"), null);
+  assert.equal(requests.detect("فيه شقة للبيع في التجمع 150 متر بسعر 3 مليون"), null, "'فيه' + an asking price is an offer");
+  assert.deepEqual(requests.detect("فيه شقة في التجمع؟"), { type: "شقة", location: "التجمع" }, "'فيه' as a question asks");
+  assert.deepEqual(requests.detect("حد عنده شقة إيجار في المعادي"), { type: "شقة", deal: "إيجار", location: "المعادي" });
+  assert.ok(requests.detect("عايز شقة 150 متر في التجمع"), "'عايز' always asks, even with a size");
+  assert.ok(requests.detect("مطلوبة شقة في التجمع"));
+  assert.equal(requests.detect("شقة للبيع في التجمع والمطلوب 3 مليون"), null, "whole words only: 'والمطلوب' (the asking price) isn't 'مطلوب'");
   assert.equal(requests.detect("عايز اعرف السعر"), null, "no property type");
   assert.equal(requests.detect("السلام عليكم"), null);
   assert.equal(requests.detect(`عايز شقة ${"تفاصيل ".repeat(60)}`), null, "too long to be a quick request");

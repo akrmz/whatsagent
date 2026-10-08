@@ -15,10 +15,10 @@ module.exports = {
   privateOnly: true,
   async run(ctx) {
     if (ctx.fromMe || ctx.isSudoOrOwner) return undefined;
-    if (leads.STOP_WORDS.test(ctx.body.trim()) || leads.START_WORDS.test(ctx.body.trim())) return undefined; // not a reply
+    if (leads.optWord(ctx.body)) return undefined; // "وقف" / "اشتراك" aren't replies
     const pn = ctx.app.identity.toPn(ctx.sender);
     const phone = pn ? pn.split("@")[0] : null;
-    const lead = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;
+    const lead = leads.byPhone(ctx.state, phone);
     if (lead) leads.seen(ctx.state, lead.id);
     return undefined;
   },

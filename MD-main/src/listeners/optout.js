@@ -16,12 +16,12 @@ module.exports = {
   privateOnly: true,
   async run(ctx) {
     if (ctx.fromMe) return undefined;
-    const word = ctx.body.trim().replace(/[.!؟?]+$/, "");
-    const stop = leads.STOP_WORDS.test(word);
-    if (!stop && !leads.START_WORDS.test(word)) return undefined;
+    const word = leads.optWord(ctx.body);
+    if (!word) return undefined;
+    const stop = word === "stop";
     const pn = ctx.app.identity.toPn(ctx.sender);
     const phone = pn ? pn.split("@")[0] : null;
-    const lead = phone ? leads.all(ctx.state).find((l) => l.phone === phone) : null;
+    const lead = leads.byPhone(ctx.state, phone);
     if (!lead) return undefined;
     if (Boolean(lead.optedOut) === stop) return "stop"; // nothing changes: no reply
     leads.setOptOut(ctx.state, lead.id, stop);

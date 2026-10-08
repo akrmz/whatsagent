@@ -136,6 +136,16 @@ test("the daily cap, a sold listing stopping the campaign, .blast stop and .camp
   assert.equal(await campaigns.tick(b.app, tomorrow + MIN), "idle");
   await b.send(".blast stop 2");
   assert.match(b.text(), /already stopped/);
+
+  for (let i = 0; i < 35; i++) {
+    const c = campaigns.start(s, re.get(s, 1), { by: ME, chat: ME });
+    campaigns.stop(s, c.id);
+  }
+  campaigns.start(s, re.get(s, 1), { by: ME, chat: ME });
+  const kept = campaigns.all(s);
+  assert.equal(kept.filter((c) => c.status !== "running").length, 30, "only the latest 30 finished campaigns are kept");
+  assert.equal(kept.filter((c) => c.status === "running").length, 1);
+  assert.equal(campaigns.get(s, 1), null, "the oldest are gone");
 });
 
 test("opt-out and back in; strangers and repeats get no reply; .lead send respects it", async () => {

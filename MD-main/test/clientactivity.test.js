@@ -44,7 +44,7 @@ test("a client's first message after a listing was sent is noted as a reply; lat
   assert.doesNotMatch(b.text(), /💬 آخر رسالة/);
 
   t.mock.timers.setTime(T0 + 60 * MIN);
-  await b.send("وقف", jid(mona.phone));
+  await b.send("وقف!", jid(mona.phone));
   assert.equal(leads.get(b.s, mona.id).replied, undefined, "a stop request isn't a reply");
   await b.send("اشتراك", jid(mona.phone));
   await b.send("تمام، ممكن صور أكتر؟", jid(mona.phone));
