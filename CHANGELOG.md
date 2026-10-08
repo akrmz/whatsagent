@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.19.0 — 2026-10-09
+
+### Added — listings on your WhatsApp Status
+- **`.statuspost 12`** posts a listing to the bot's WhatsApp Status as its 9:16 design, with a short caption (type, area, price, "للاستفسار أرسل: #12").
+- **`.statuspost daily 09:00 [search]`** posts one available listing every day, going round the catalogue. It uses the same schedule and catch-up as "listing of the day". Also `.statuspost now` and `.statuspost off`.
+- **Audience**:
+  - a status is encrypted to the numbers in `statusJidList`, which was checked in the installed Baileys 7 source (`relayMessage` adds `statusJidList` to the recipients for `status@broadcast`);
+  - the bot uses saved clients with a number, except those who sent وقف (the most recently active first, at most 1,000), plus the owner;
+  - WhatsApp still shows a status only to people who have the number saved.
+- The Arabic guide, USAGE.md and `.rehelp` cover it. The docs test flagged the new command until it was documented in Arabic.
+
+### Checked
+- 3 tests (321 in total):
+  - the audience (opt-outs, no number, the 1,000 cap), and what's sent (`status@broadcast`, the image size, the caption, `statusJidList`);
+  - the daily rotation, once a day, and off.
+- Not checked on a real phone: whether the posted status shows up for contacts. That needs a live WhatsApp account.
+
 ## 3.18.0 — 2026-10-09
 
 ### Added — fewer no-shows
