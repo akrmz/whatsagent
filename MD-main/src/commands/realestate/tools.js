@@ -10,6 +10,13 @@ const cur = (ctx) => re.agent(ctx.state).currency;
 const m = (ctx, n) => re.money(n, cur(ctx));
 const NOT_ADVICE = "_حساب تقريبي للتوضيح، وليس عرضاً أو نصيحة مالية._";
 
+/** The listing named by the first argument, or null. */
+function listingArg(ctx) {
+  const id = Number(re.latinDigits(ctx.args[0] || "").replace(/^#/, ""));
+  return (id && re.get(ctx.state, id)) || null;
+}
+const usageFor = (ctx, name) => ctx.reply(`Usage: ${ctx.prefix}${name} <listing number> (see ${ctx.prefix}listings)`);
+
 module.exports = [
   {
     name: "agent",
@@ -34,7 +41,7 @@ module.exports = [
     name: "flyer",
     aliases: ["poster", "bostar"],
     category: "realestate",
-    description: "صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server.",
+    description: "صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, the 4:5 size for Facebook and Instagram posts; for WhatsApp status use .story) of a listing: its first photo, type, location, price, specs and your contact. Made on the server.",
     usage: "<listing number>",
     examples: [".flyer 12"],
     cooldown: 5,
@@ -45,6 +52,40 @@ module.exports = [
       await ctx.react("🎨");
       const [first] = re.photos(ctx.config, l);
       return ctx.reply({ image: await img.flyer(l, re.agent(ctx.state), first), caption: re.card(l, re.agent(ctx.state)) });
+    },
+  },
+  {
+    name: "story",
+    aliases: ["statusflyer", "vertical", "storyad"],
+    category: "realestate",
+    description:
+      "تصميم للحالة (ستوري) — a 1080×1920 vertical design that fills a WhatsApp status (9:16): the listing's first photo, type, area, price (with a recent discount), specs, \"للاستفسار أرسل: #12\" and your contact. Made on the server.",
+    usage: "<listing number>",
+    examples: [".story 12"],
+    cooldown: 5,
+    async run(ctx) {
+      const l = listingArg(ctx);
+      if (!l) return usageFor(ctx, "story");
+      await ctx.react("🎨");
+      const [first] = re.photos(ctx.config, l);
+      return ctx.reply({ image: await img.story(l, re.agent(ctx.state), first), caption: `#${l.id} — للحالة (Status)` });
+    },
+  },
+  {
+    name: "collage",
+    aliases: ["grid", "photos4", "kolaj"],
+    category: "realestate",
+    description: "كولاج صور العقار — one 1080×1350 image with up to 4 of the listing's photos (\"+3\" when there are more) and the details panel: type, area, price, specs and your contact. Made on the server.",
+    usage: "<listing number>",
+    examples: [".collage 12"],
+    cooldown: 5,
+    async run(ctx) {
+      const l = listingArg(ctx);
+      if (!l) return usageFor(ctx, "collage");
+      const photos = re.photos(ctx.config, l);
+      if (photos.length < 2) return ctx.reply(`#${l.id} has ${photos.length ? "one photo" : "no photos"}; a collage needs at least 2. Add more: reply to a picture with ${ctx.prefix}listing photo ${l.id}. For one photo, ${ctx.prefix}flyer ${l.id}.`);
+      await ctx.react("🎨");
+      return ctx.reply({ image: await img.collage(l, re.agent(ctx.state), photos), caption: re.card(l, re.agent(ctx.state)) });
     },
   },
   {

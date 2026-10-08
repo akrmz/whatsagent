@@ -83,4 +83,123 @@ async function watermark(buffer, text) {
   return sharp(data).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).jpeg({ quality: 90 }).toBuffer();
 }
 
-module.exports = { flyer, watermark, toListingJpeg, esc, isolateNumbers, clip, FONT, RTL };
+const LRI = String.fromCharCode(0x2066); // left-to-right isolate (for "11%" inside Arabic)
+const PDI = String.fromCharCode(0x2069);
+
+/** The texts every listing design shows. */
+function details(listing, agent) {
+  const cur = agent.currency || "جنيه";
+  const status = listing.status && listing.status !== "available" ? re.STATUS_AR[listing.status].replace(/^\S+\s/, "") : "";
+  return {
+    title: `${listing.type || "عقار"} لل${listing.deal || "بيع"}`,
+    price: listing.price ? `${re.group(listing.price)} ${cur}${listing.deal === "إيجار" ? " / شهر" : ""}` : "السعر عند التواصل",
+    specs: [listing.size && `${re.group(listing.size)} م²`, listing.rooms && `${listing.rooms} غرف`, listing.baths && `${listing.baths} حمام`, listing.finishing && clip(listing.finishing, 16)].filter(Boolean).join("   •   "),
+    contact: [agent.name, agent.phone].filter(Boolean).join("   "),
+    status,
+    cut: !status && re.discount(listing),
+    was: (cut) => `${re.group(cut.was)} ${cur}`,
+  };
+}
+
+/** A photo resized to fill a box, or a plain gradient with a house when there is none. */
+async function tile(photoPath, w, h) {
+  if (photoPath && fs.existsSync(photoPath)) return sharp(photoPath).resize(w, h, { fit: "cover", position: "attention" }).toBuffer();
+  const svg = `<svg width="${w}" height="${h}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f3b57"/><stop offset="1" stop-color="#3f6e8c"/></linearGradient></defs><rect width="${w}" height="${h}" fill="url(#g)"/><text x="${w / 2}" y="${h / 2 + Math.round(h / 12)}" font-size="${Math.round(Math.min(w, h) / 4)}" text-anchor="middle" font-family="${FONT}">🏠</text></svg>`;
+  return sharp(Buffer.from(svg)).png().toBuffer();
+}
+
+const contactBar = (contact, w, y, h, size) =>
+  contact
+    ? `<rect y="${y}" width="${w}" height="${h}" fill="#e0b25b"/><text x="${w / 2}" y="${y + h / 2 + size * 0.36}" font-size="${size}" font-weight="bold" fill="#0f2233" text-anchor="middle"${/[؀-ۿ]/.test(contact) ? ` direction="rtl"` : ""} font-family="${FONT}">📞 ${esc(isolateNumbers(clip(contact, 44)))}</text>`
+    : "";
+
+const STORY_W = 1080;
+const STORY_H = 1920;
+const STORY_PHOTO = 1100;
+
+/**
+ * A 1080×1920 design for WhatsApp status (9:16): the first photo, then the type, area, price
+ * (with a recent discount), specs, "للاستفسار أرسل: #12" and the agent's contact.
+ */
+async function story(listing, agent, photoPath) {
+  const d = details(listing, agent);
+  const W = STORY_W;
+  const H = STORY_H;
+  const P = STORY_PHOTO;
+  const badge = d.status
+    ? `<rect x="${W - 320}" y="60" rx="22" width="270" height="76" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 185}" y="112" font-size="38" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(d.status)}</text>`
+    : d.cut
+      ? `<rect x="${W - 320}" y="60" rx="22" width="270" height="76" fill="#e0b25b"/><text x="${W - 185}" y="112" font-size="40" font-weight="bold" fill="#0f2233" text-anchor="middle" direction="rtl" font-family="${FONT}">خصم ${LRI}${d.cut.pct}%${PDI}</text>`
+      : "";
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.75" stop-color="#0f2233" stop-opacity="0"/><stop offset="1" stop-color="#0f2233" stop-opacity="1"/></linearGradient></defs>
+  <rect y="0" width="${W}" height="${P}" fill="url(#fade)"/>
+  <rect y="${P}" width="${W}" height="${H - P}" fill="#0f2233"/>
+  <rect x="50" y="60" rx="22" width="210" height="76" fill="#0f2233" fill-opacity="0.82"/>
+  <text x="155" y="112" font-size="40" font-weight="bold" fill="#e0b25b" text-anchor="middle" font-family="${FONT}">#${listing.id}</text>
+  ${badge}
+  <text x="${W - 70}" y="${P + 100}" font-size="76" font-weight="bold" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.title)}</text>
+  ${listing.location ? `<text x="${W - 70}" y="${P + 180}" font-size="46" fill="#b9c7d3" ${RTL} font-family="${FONT}">📍 ${esc(clip(listing.location, 34))}</text>` : ""}
+  <text x="${W - 70}" y="${P + 310}" font-size="92" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(d.price)}</text>
+  ${d.cut ? `<text x="70" y="${P + 310}" font-size="46" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(d.was(d.cut))}</text>` : ""}
+  ${d.specs ? `<text x="${W - 70}" y="${P + 405}" font-size="44" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.specs)}</text>` : ""}
+  <rect x="70" y="${P + 470}" rx="24" width="${W - 140}" height="110" fill="none" stroke="#e0b25b" stroke-width="4"/>
+  <text x="${W / 2}" y="${P + 542}" font-size="50" font-weight="bold" fill="#e0b25b" text-anchor="middle" direction="rtl" font-family="${FONT}">للاستفسار أرسل: ${LRI}#${listing.id}${PDI}</text>
+  ${contactBar(d.contact, W, H - 150, 150, 50)}
+</svg>`;
+  return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
+    .composite([
+      { input: await tile(photoPath, W, P), top: 0, left: 0 },
+      { input: Buffer.from(svg), top: 0, left: 0 },
+    ])
+    .jpeg({ quality: 88 })
+    .toBuffer();
+}
+
+const COLLAGE_PHOTOS = 900;
+const GAP = 6;
+
+/** Where each photo goes in the top 1080×900 area, for 1 to 4 photos. */
+function collageLayout(n) {
+  const [w, h, half, halfH] = [W, COLLAGE_PHOTOS, (W - GAP) / 2, (COLLAGE_PHOTOS - GAP) / 2];
+  if (n <= 1) return [{ x: 0, y: 0, w, h }];
+  if (n === 2) return [{ x: half + GAP, y: 0, w: half, h }, { x: 0, y: 0, w: half, h }];
+  if (n === 3) return [{ x: half + GAP, y: 0, w: half, h }, { x: 0, y: 0, w: half, h: halfH }, { x: 0, y: halfH + GAP, w: half, h: halfH }];
+  return [
+    { x: half + GAP, y: 0, w: half, h: halfH },
+    { x: 0, y: 0, w: half, h: halfH },
+    { x: half + GAP, y: halfH + GAP, w: half, h: halfH },
+    { x: 0, y: halfH + GAP, w: half, h: halfH },
+  ];
+}
+
+/**
+ * A 1080×1350 image with up to 4 of the listing's photos (the first one top right, reading
+ * right to left), "+N" on the last when there are more, and the details panel below.
+ */
+async function collage(listing, agent, photoPaths) {
+  const d = details(listing, agent);
+  const shown = photoPaths.slice(0, 4);
+  const boxes = collageLayout(shown.length).map((b) => ({ x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b.w), h: Math.round(b.h) }));
+  const tiles = await Promise.all(boxes.map((b, i) => tile(shown[i], b.w, b.h)));
+  const more = photoPaths.length - shown.length;
+  const last = boxes.at(-1);
+  const P = COLLAGE_PHOTOS;
+  const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
+  ${more > 0 ? `<rect x="${last.x}" y="${last.y}" width="${last.w}" height="${last.h}" fill="#0f2233" fill-opacity="0.55"/><text x="${last.x + last.w / 2}" y="${last.y + last.h / 2 + 30}" font-size="90" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">+${more}</text>` : ""}
+  <rect x="40" y="40" rx="18" width="190" height="64" fill="#0f2233" fill-opacity="0.82"/>
+  <text x="135" y="84" font-size="34" font-weight="bold" fill="#e0b25b" text-anchor="middle" font-family="${FONT}">#${listing.id}</text>
+  <rect y="${P}" width="${W}" height="8" fill="#e0b25b"/>
+  <text x="${W - 60}" y="${P + 85}" font-size="56" font-weight="bold" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.title)}${listing.location ? ` — ${esc(clip(listing.location, 26))}` : ""}</text>
+  <text x="${W - 60}" y="${P + 180}" font-size="72" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(d.price)}</text>
+  ${d.cut ? `<text x="60" y="${P + 180}" font-size="40" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(d.was(d.cut))}</text>` : ""}
+  ${d.specs ? `<text x="${W - 60}" y="${P + 255}" font-size="36" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.specs)}</text>` : ""}
+  ${contactBar(d.contact, W, H - 100, 100, 42)}
+</svg>`;
+  return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
+    .composite([...tiles.map((input, i) => ({ input, top: boxes[i].y, left: boxes[i].x })), { input: Buffer.from(svg), top: 0, left: 0 }])
+    .jpeg({ quality: 88 })
+    .toBuffer();
+}
+
+module.exports = { flyer, story, collage, collageLayout, watermark, toListingJpeg, esc, isolateNumbers, clip, FONT, RTL };
