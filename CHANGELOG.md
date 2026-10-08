@@ -2,6 +2,20 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.24.0 — 2026-10-09
+
+### Added — the automation dashboard
+- **`.autopilot`** shows everything the bot does by itself for the real-estate work, on one screen:
+  - client answers: auto-capture, request answers, the client menu, greetings, away replies;
+  - messages the bot starts: automatic campaigns, follow-ups, welcomes waiting, today's campaign messages against the daily cap and hours, and running and waiting campaigns with their start time;
+  - fixed times: the daily status post, listing of the day, the morning summary, rent reminders, client viewing reminders waiting, and watched brokers' groups.
+
+  Each line has ✅/⬜ and the command that switches it.
+- `.rehelp` and the Arabic guide point to it.
+
+### Checked
+- 1 test (332 in total): the empty state, then the switches, a waiting and a running campaign, today's count, and the scheduled items; owner/sudo only.
+
 ## 3.23.0 — 2026-10-09
 
 ### Added — following up with clients who went quiet
