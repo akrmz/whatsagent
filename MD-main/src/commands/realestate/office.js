@@ -94,7 +94,7 @@ module.exports = [
       const more = r.truncated ? `\n(only the first ${MAX_IMPORT_ROWS} rows were read)` : "";
       const withMatches = r.ids.filter((id) => leads.matchingListings(ctx.state, leads.get(ctx.state, id)).length).length;
       const from = r.meta ? " from Facebook/Instagram lead ads" : "";
-      const next = forLeads && r.added ? `\n🎯 ${withMatches} of them already have matching listings — ${ctx.prefix}leads hot` : "";
+      const next = forLeads && r.added ? `\n🎯 ${withMatches} of them already have matching listings — ${ctx.prefix}leads hot\n👋 Welcome them all, paced: ${ctx.prefix}leads welcome` : "";
       return ctx.reply(
         `📥 Imported *${r.added}* ${forListings ? "listing(s)" : "client(s)"}${from} of ${r.total}.${more}${next}${r.skipped.length ? `\n\nSkipped ${r.skipped.length}:\n${r.skipped.slice(0, 15).join("\n")}${r.skipped.length > 15 ? "\n…" : ""}` : ""}`,
       );

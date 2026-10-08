@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const re = require("./realestate");
 const leads = require("./leads");
+const requests = require("./requests");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 const { UserError } = require("../core/errors");
@@ -77,7 +78,47 @@ function estimate(state, count) {
   return { minutes, days };
 }
 
-const summary = (c) => `📣 حملة #${c.id} للعقار #${c.listing}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+const summary = (c) =>
+  `📣 ${c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة #${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+
+// ---- welcoming new clients (.leads welcome) -----------------------------------------------
+
+const DEFAULT_WELCOME = "أهلاً {name} 👋\nشكراً لاهتمامك{ad}. معاك {agent}.\nلسه بتدور على {wish}؟ قولي المنطقة والميزانية اللي تناسبك وأبعتلك أنسب الاختيارات.";
+
+/** New clients nobody has contacted yet, with a number, who haven't said stop. */
+const welcomeTargets = (state) =>
+  leads
+    .all(state)
+    .filter((l) => l.status === "new" && l.phone && !l.optedOut && !l.welcomedAt && !l.lastSentAt)
+    .sort((a, b) => a.created - b.created || a.id - b.id); // whoever has waited longest first
+
+/** The welcome a client gets: the agent's wording (.agent welcome) or the default, the best match, and how to stop. */
+function welcomeText(state, lead) {
+  const a = re.agent(state);
+  const wish = requests.describe({ type: lead.type || "عقار", deal: lead.deal, location: lead.location, rooms: lead.rooms, min: lead.min, max: lead.max }, a.currency);
+  const text = String(a.welcome || DEFAULT_WELCOME)
+    .replace(/\{name\}/g, lead.name || "")
+    .replace(/\{ad\}/g, lead.campaign ? ` بإعلان "${lead.campaign}"` : "")
+    .replace(/\{wish\}/g, wish)
+    .replace(/\{agent\}/g, [a.name, a.company && `من ${a.company}`].filter(Boolean).join(" ") || "فريق المبيعات")
+    .replace(/ {2,}/g, " ")
+    .replace(/ ([،.؟!])/g, "$1"); // an empty placeholder can leave "لاهتمامك ." behind
+  const [best] = leads.matchingListings(state, lead).filter((m) => !m.fit.over);
+  const match = best ? `\n\n🏠 عندي حالياً: ${re.line(best.listing, a.currency)}\nللتفاصيل والصور أرسل: #${best.listing.id}` : "";
+  return `${text}${match}\n\n${OPT_OUT_LINE}`;
+}
+
+function startWelcome(state, { by, chat }, now = Date.now()) {
+  if (running(state).some((c) => c.kind === "welcome")) throw new UserError("A welcome is already being sent (.campaigns).");
+  if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
+  const queue = welcomeTargets(state).map((l) => l.id);
+  if (!queue.length) throw new UserError("No new client to welcome: everyone is contacted already, has no number, or asked to stop.");
+  return store(state).update((d) => {
+    const id = ++d.seq;
+    d.items[id] = { id, kind: "welcome", queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    return d.items[id];
+  });
+}
 
 /** The message a client gets. */
 function message(listing, lead, agent) {
@@ -107,14 +148,17 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     await notify(`${summary(get(app.state, c.id))}${why ? `\n${why}` : ""}`);
     return "done";
   };
-  const listing = re.get(app.state, c.listing);
-  if (!listing || listing.status !== "available") return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
+  const welcome = c.kind === "welcome";
+  const listing = welcome ? null : re.get(app.state, c.listing);
+  if (!welcome && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
   if (!c.queue.length) return finish("done");
 
   const leadId = c.queue[0];
   s.update((d) => d.items[c.id].queue.shift());
   const lead = leads.get(app.state, leadId);
-  if (!lead || !lead.phone || lead.optedOut || (lead.sentListings || []).includes(listing.id)) {
+  // Skipped: gone, no number, said stop, or (since it was queued) already got this listing / was contacted.
+  const stale = welcome ? lead && (lead.status !== "new" || lead.welcomedAt || lead.lastSentAt) : lead && (lead.sentListings || []).includes(listing.id);
+  if (!lead || !lead.phone || lead.optedOut || stale) {
     s.update((d) => d.items[c.id].skipped++);
     if (!get(app.state, c.id).queue.length) return finish("done");
     return "skipped";
@@ -125,10 +169,15 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     const jid = `${lead.phone}@s.whatsapp.net`;
     const [found] = (await app.sock.onWhatsApp?.(jid).catch(() => null)) || [];
     if (found && !found.exists) throw new Error("not on WhatsApp");
-    const text = message(listing, lead, re.agent(app.state));
-    const [photo] = re.photos(app.config, listing);
-    await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
-    leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له العقار #${listing.id} (حملة #${c.id})`, now);
+    if (welcome) {
+      await app.sock.sendMessage(jid, { text: welcomeText(app.state, lead) });
+      leads.markWelcomed(app.state, lead.id, c.by, now);
+    } else {
+      const text = message(listing, lead, re.agent(app.state));
+      const [photo] = re.photos(app.config, listing);
+      await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
+      leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له العقار #${listing.id} (حملة #${c.id})`, now);
+    }
     s.update((d) => d.items[c.id].sent.push(lead.id));
   } catch (err) {
     outcome = "failed";
@@ -161,4 +210,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };

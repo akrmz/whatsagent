@@ -52,7 +52,8 @@ const money = (n, currency) => `${group(n)} ${currency}`;
 const agentStore = (state) => state.store("realestate-agent", { currency: "جنيه" });
 const agent = (state) => ({ currency: "جنيه", ...agentStore(state).data });
 
-const AGENT_FIELDS = { name: 60, phone: 30, company: 60, currency: 12 };
+// welcome: the message new clients get with .leads welcome ({name} {ad} {wish} {agent}).
+const AGENT_FIELDS = { name: 60, phone: 30, company: 60, currency: 12, welcome: 600 };
 const AGENT_SWITCHES = ["autoleads", "requests"];
 function setAgent(state, field, value) {
   if (AGENT_SWITCHES.includes(field)) {

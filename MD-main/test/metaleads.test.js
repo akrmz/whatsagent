@@ -76,7 +76,7 @@ test(".import leads on a Meta file: added, duplicates and empty rows skipped, ma
   const cmd = b.app.commands.byName.get("import");
   b.app.commands.byName.set("import", { ...cmd, run: (ctx) => cmd.run({ ...ctx, findMedia: () => ({ type: "document", mimetype: "text/csv", content: { fileName: "leads.csv" } }), download: async () => metaFile([["l:9", "2026-10-07", "شقق التجمع - أكتوبر", "fb", "سارة", "p:+201005556666", "", "3_مليون", "التجمع", "شقة"]]) }) });
   await b.d.handleMessage(b.sock, { key: { id: "M1", remoteJid: ME, fromMe: false }, pushName: "x", message: { conversation: ".import leads" } });
-  assert.match(b.sock.sent.at(-1).content.text, /^📥 Imported \*1\* client\(s\) from Facebook\/Instagram lead ads of 1\.\n🎯 1 of them already have matching listings — \.leads hot/);
+  assert.match(b.sock.sent.at(-1).content.text, /^📥 Imported \*1\* client\(s\) from Facebook\/Instagram lead ads of 1\.\n🎯 1 of them already have matching listings — \.leads hot\n👋 Welcome them all, paced: \.leads welcome/);
 
   leads.update(b.s, mona.id, { status: "won" });
   await b.d.handleMessage(b.sock, { key: { id: "M2", remoteJid: ME, fromMe: false }, pushName: "x", message: { conversation: ".restats" } });

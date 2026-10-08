@@ -53,13 +53,13 @@ function build(state, timeZone, now = Date.now()) {
   if (fresh.length) lines.push("", `🆕 *عملاء جدد آخر 24 ساعة (${fresh.length})*`, ...fresh.slice(0, 10).map((l) => leads.line(l, cur)));
   // Replies to what we sent, and clients who went quiet after it (2–14 days ago; older ones are in 💤).
   const replied = all.filter((l) => l.lastSentAt && l.lastMsgAt > l.lastSentAt && now - l.lastMsgAt < DAY).sort((a, b) => b.lastMsgAt - a.lastMsgAt);
-  if (replied.length) lines.push("", `💬 *ردوا على ما أرسلته آخر 24 ساعة (${replied.length})*`, ...replied.slice(0, 8).map((l) => `${leads.line(l, cur)} — بخصوص #${l.lastSentListing}`));
+  if (replied.length) lines.push("", `💬 *ردوا على ما أرسلته آخر 24 ساعة (${replied.length})*`, ...replied.slice(0, 8).map((l) => `${leads.line(l, cur)} — بخصوص ${leads.sentWhat(l)}`));
   const quiet = all
     .filter((l) => ACTIVE.has(l.status) && !l.optedOut && leads.awaitingReply(l) && now - l.lastSentAt >= QUIET_DAYS * DAY && now - l.lastSentAt < 14 * DAY)
     .sort((a, b) => a.lastSentAt - b.lastSentAt);
   if (quiet.length) {
     lines.push("", `📭 *أُرسل لهم عقار ولم يردوا (${quiet.length})*`);
-    lines.push(...quiet.slice(0, 8).map((l) => `${leads.line(l, cur)} — #${l.lastSentListing} منذ ${Math.floor((now - l.lastSentAt) / DAY)} يوم`));
+    lines.push(...quiet.slice(0, 8).map((l) => `${leads.line(l, cur)} — ${leads.sentWhat(l)} منذ ${Math.floor((now - l.lastSentAt) / DAY)} يوم`));
   }
   if (stale.length) {
     lines.push("", `💤 *بدون تواصل منذ ${STALE_DAYS}+ أيام (${stale.length})*`);

@@ -9,6 +9,7 @@ const { UserError } = require("../../core/errors");
 const deals = require("../../services/deals");
 const hotleads = require("../../services/hotleads");
 const projects = require("../../services/projects");
+const campaigns = require("../../services/campaigns");
 
 const base = { category: "realestate", permission: "sudo", cooldown: 2 };
 const idOf = (s) => {
@@ -17,6 +18,38 @@ const idOf = (s) => {
 };
 const opts = (ctx) => ({ currency: re.agent(ctx.state).currency, timeZone: ctx.config.bot.timezone });
 const owner = (ctx) => ctx.config.owners.numbers[0];
+
+/**
+ * ".leads welcome": who would get a welcome and what it says; "go" sends it, paced like
+ * campaigns (gap, hours, daily cap), each with the opt-out line.
+ */
+async function welcome(ctx, go) {
+  if (go) {
+    const c = campaigns.startWelcome(ctx.state, { by: ctx.sender, chat: ctx.chatId });
+    const e = campaigns.estimate(ctx.state, c.total);
+    return ctx.reply(`▶️ Welcome #${c.id} started: ${c.total} new client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}, paced like campaigns. I'll tell you here when it's done.\n${ctx.prefix}campaigns — progress · ${ctx.prefix}blast stop ${c.id}`);
+  }
+  const people = campaigns.welcomeTargets(ctx.state);
+  if (!people.length) return ctx.reply("No new client to welcome: everyone is contacted already, has no number, or asked to stop.");
+  const s = campaigns.settings(ctx.state);
+  const e = campaigns.estimate(ctx.state, people.length);
+  return ctx.reply(
+    [
+      `👋 *Welcome preview* — ${people.length} new client(s) nobody has contacted yet:`,
+      ...people.slice(0, 10).map((l) => `▫️ #${l.id} ${l.name || ""} (+${l.phone})${l.campaign ? ` — ${l.campaign}` : ""}`.trim()),
+      people.length > 10 ? `… and ${people.length - 10} more` : null,
+      "",
+      "*The first one gets:*",
+      campaigns.welcomeText(ctx.state, people[0]),
+      "",
+      `⏱️ One every ${s.gapMin}–${s.gapMax} s, ${s.from}–${s.to}, at most ${s.perDay} a day: about ${e.minutes} min${e.days > 1 ? ` over ${e.days} days` : ""}.`,
+      `Your own wording: ${ctx.prefix}agent welcome <text> ({name} {ad} {wish} {agent})`,
+      `Send: ${ctx.prefix}leads welcome go`,
+    ]
+      .filter((x) => x !== null)
+      .join("\n"),
+  );
+}
 
 const HELP = (p) =>
   [
@@ -164,9 +197,11 @@ module.exports = [
     name: "leads",
     aliases: ["clients", "customers", "pipeline"],
     description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. \"hot\" ranks who to call first: stage, a viewing coming up, a recent message, a follow-up due, listings in their budget, minus going quiet. Owner and sudo users.",
-    usage: "[status | words | hot]",
-    examples: [".leads", ".leads hot", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
+    usage: "[status | words | hot | welcome [go]]",
+    examples: [".leads", ".leads hot", ".leads welcome", ".leads welcome go", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
     async run(ctx) {
+      const [w, go] = ctx.text.trim().toLowerCase().split(/\s+/);
+      if (/^(welcome|ترحيب|رحب)$/.test(w || "")) return welcome(ctx, /^(go|start|ابدأ|ابدا)$/.test(go || ""));
       if (/^(hot|ساخن|الأهم|الاهم|top)$/i.test(ctx.text.trim())) {
         const list = hotleads.hot(ctx.state, 10);
         if (!list.length) return ctx.reply(`No active client to rank yet (${ctx.prefix}leads).`);

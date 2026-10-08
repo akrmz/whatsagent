@@ -197,6 +197,20 @@ function markSent(state, id, listingIds, by, text, now = Date.now()) {
   });
 }
 
+/** A welcome was sent (.leads welcome): noted, the client "contacted", and their reply will be tracked. */
+function markWelcomed(state, id, by, now = Date.now()) {
+  note(state, id, by, "أُرسلت له رسالة ترحيب", now);
+  return store(state).update((d) => {
+    const l = d.items[id];
+    Object.assign(l, { welcomedAt: now, lastSentAt: now, lastSentListing: null });
+    if (l.status === "new") l.status = "contacted";
+    return l;
+  });
+}
+
+/** What was sent last: "#12", or the welcome. */
+const sentWhat = (l) => (l.lastSentListing ? `#${l.lastSentListing}` : "رسالة الترحيب");
+
 const SEEN_GAP = 10 * 60 * 1000;
 /** Did the client write since we last sent them something? */
 const awaitingReply = (l) => Boolean(l.lastSentAt) && !(l.lastMsgAt > l.lastSentAt);
@@ -216,7 +230,7 @@ function seen(state, id, now = Date.now()) {
     Object.assign(x, { lastMsgAt: now, updated: now });
     if (reply) {
       x.replied = true;
-      x.history.push({ at: now, by: "client", text: `ردّ بعد إرسال العقار #${x.lastSentListing}` });
+      x.history.push({ at: now, by: "client", text: x.lastSentListing ? `ردّ بعد إرسال العقار #${x.lastSentListing}` : "ردّ على رسالة الترحيب" });
       if (x.history.length > MAX_NOTES) x.history.splice(0, x.history.length - MAX_NOTES);
     }
   });
@@ -300,7 +314,7 @@ function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = 
     `🔖 ${STATUS[lead.status]?.ar || lead.status}`,
     lead.assignee && `🧑‍💼 المسؤول: @${lead.assignee.split("@")[0]}`,
     lead.optedOut && "🚫 أوقف رسائل العروض (أرسل وقف)",
-    lead.lastSentAt && `📤 آخر إرسال: #${lead.lastSentListing} — ${when(lead.lastSentAt, timeZone)}${awaitingReply(lead) ? " (لم يرد بعد)" : ""}`,
+    lead.lastSentAt && `📤 آخر إرسال: ${sentWhat(lead)} — ${when(lead.lastSentAt, timeZone)}${awaitingReply(lead) ? " (لم يرد بعد)" : ""}`,
     lead.lastMsgAt && `💬 آخر رسالة منه: ${when(lead.lastMsgAt, timeZone)}`,
     lead.followUp && `⏰ متابعة: ${when(lead.followUp.at, timeZone)}${lead.followUp.note ? ` — ${lead.followUp.note}` : ""}`,
   ];
@@ -378,7 +392,7 @@ function search(state, query, { me = [] } = {}) {
 
 module.exports = {
   STATUS, statusFrom, normalizePhone, fromVcard, parseBudget, parseLeadText,
-  add, update, note, byPhone, markSent, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
+  add, update, note, byPhone, markSent, markWelcomed, sentWhat, seen, awaitingReply, setOptOut, optWord, remove, get, all, search,
   fits, matchingListings, matchingLeads, card, line, budgetText,
   setFollowUp, runDue, startFollowUpLoop,
 };
