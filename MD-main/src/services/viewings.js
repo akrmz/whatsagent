@@ -3,6 +3,7 @@
 const { UserError } = require("../core/errors");
 const re = require("./realestate");
 const leads = require("./leads");
+const team = require("./team");
 
 /**
  * Property viewings (.viewing): a client, a listing and a time. The agent gets a reminder an
@@ -30,12 +31,14 @@ function add(state, { lead, listing, at, chat, by, notifyClient = false }, now =
   if (!leads.get(state, lead)) throw new UserError(`There is no client #${lead}.`);
   if (!re.get(state, listing)) throw new UserError(`There is no listing #${listing}.`);
   if (at < now) throw new UserError("That time has already passed.");
-  return store(state).update((d) => {
+  const v = store(state).update((d) => {
     if (Object.keys(d.items).length >= MAX_VIEWINGS) throw new UserError("Too many viewings saved.");
     const id = ++d.seq;
     d.items[id] = { id, lead, listing, at, chat, by, bookedAt: now, ...(notifyClient ? { notifyClient: true } : {}) };
     return d.items[id];
   });
+  team.record(state, by, "viewings", 1, now);
+  return v;
 }
 
 const remove = (state, id) =>

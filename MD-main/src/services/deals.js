@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const leads = require("./leads");
+const team = require("./team");
 const { UserError } = require("../core/errors");
 const { zoneNow } = require("./gcschedule");
 
@@ -49,6 +50,8 @@ function close(state, leadId, args, by, now = Date.now()) {
   const commission = args.commission ?? (args.rate ? Math.round((price * args.rate) / 100) : undefined);
   const deal = { ...(listing ? { listing: listing.id } : {}), price, ...(commission ? { commission } : {}), ...(args.rate ? { rate: args.rate } : {}), kind: listing?.deal || lead.deal || "بيع", at: now };
   leads.update(state, leadId, { status: "won", deals: [...(lead.deals || []), deal] }, now);
+  team.record(state, by, "deals", 1, now);
+  if (commission) team.record(state, by, "commission", commission, now);
   const cur = re.agent(state).currency;
   leads.note(state, leadId, by, `✅ صفقة${listing ? ` #${listing.id}` : ""} بـ ${re.shortAr(price)} ${cur}${commission ? ` — عمولة ${re.money(commission, cur)}` : ""}`, now);
   if (listing && listing.status !== "sold" && listing.status !== "rented") re.update(state, listing.id, { status: deal.kind === "إيجار" ? "rented" : "sold" }, now);

@@ -192,6 +192,7 @@ async function start() {
   const stopAutoListings = startAutoListingsLoop(app);
   const stopViewings = startViewingsLoop(app);
   const stopDigest = startDigestLoop(app);
+  require("./services/team").setTimeZone(app.config.bot.timezone); // monthly team counters start at local midnight
   const stopCampaigns = startCampaignLoop(app);
   const stopRentals = startRentalsLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);

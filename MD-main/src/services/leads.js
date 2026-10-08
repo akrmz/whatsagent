@@ -2,6 +2,7 @@
 
 const { UserError } = require("../core/errors");
 const re = require("./realestate");
+const team = require("./team");
 
 /**
  * A small client tracker for real-estate agents (.lead / .leads): who the client is, what
@@ -144,7 +145,7 @@ const byPhone = (state, phone) => (phone ? Object.values(store(state).data.items
 function add(state, fields, by, now = Date.now()) {
   if (!fields.name && !fields.phone) throw new UserError("Give at least the client's name or phone, e.g.\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع");
   const { notes, ...rest } = fields;
-  return store(state).update((d) => {
+  const added = store(state).update((d) => {
     if (Object.keys(d.items).length >= MAX_LEADS) throw new UserError(`You have ${MAX_LEADS} clients saved. Delete old ones first.`);
     if (rest.phone) {
       const dup = Object.values(d.items).find((l) => l.phone === rest.phone);
@@ -154,6 +155,8 @@ function add(state, fields, by, now = Date.now()) {
     d.items[id] = { id, ...rest, status: "new", history: notes ? [{ at: now, by, text: notes }] : [], created: now, updated: now };
     return d.items[id];
   });
+  team.record(state, by, "leads", 1, now);
+  return added;
 }
 
 function update(state, id, changes, now = Date.now()) {
@@ -188,6 +191,7 @@ function markSent(state, id, listingIds, by, text, now = Date.now()) {
   const ids = [].concat(listingIds); // one listing or several (one history note either way)
   note(state, id, by, text, now);
   for (const listingId of ids) re.count(state, listingId, "sent");
+  team.record(state, by, "sent", 1, now);
   return store(state).update((d) => {
     const l = d.items[id];
     l.sentListings = [...new Set([...(l.sentListings || []), ...ids])].slice(-200);
@@ -200,6 +204,7 @@ function markSent(state, id, listingIds, by, text, now = Date.now()) {
 /** A welcome was sent (.leads welcome): noted, the client "contacted", and their reply will be tracked. */
 function markWelcomed(state, id, by, now = Date.now()) {
   note(state, id, by, "أُرسلت له رسالة ترحيب", now);
+  team.record(state, by, "sent", 1, now);
   return store(state).update((d) => {
     const l = d.items[id];
     Object.assign(l, { welcomedAt: now, lastSentAt: now, lastSentListing: null });
