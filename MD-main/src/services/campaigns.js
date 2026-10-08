@@ -55,7 +55,7 @@ function setHours(state, text) {
   store(state).update((d) => Object.assign(d.settings, { from: hhmm(from), to: hhmm(to) }));
 }
 
-function start(state, listing, { by, chat, mode }, now = Date.now()) {
+function start(state, listing, { by, chat, mode, startAt }, now = Date.now()) {
   if (running(state).some((c) => c.listing === listing.id)) throw new UserError(`A campaign for #${listing.id} is already running (.campaigns).`);
   if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
   if (mode === "drop" && !re.discount(listing, now)) throw new UserError(`#${listing.id} has no price cut in the last 30 days. Lower it first: .listing edit ${listing.id} السعر: …`);
@@ -63,7 +63,7 @@ function start(state, listing, { by, chat, mode }, now = Date.now()) {
   if (!queue.length) throw new UserError(mode === "drop" ? `No client to tell about #${listing.id}'s new price: none fits it within budget, or they were all told already.` : `No client to send #${listing.id} to: none matches, or they all have it already or asked to stop.`);
   return store(state).update((d) => {
     const id = ++d.seq;
-    d.items[id] = { id, listing: listing.id, ...(mode === "drop" ? { mode } : {}), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    d.items[id] = { id, listing: listing.id, ...(mode === "drop" ? { mode } : {}), ...(startAt > now ? { startAt } : {}), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
     // The file is rewritten on every message sent, so only the latest finished campaigns are kept.
     const finished = Object.values(d.items).filter((c) => c.status !== "running").sort((a, b) => b.id - a.id);
     for (const old of finished.slice(KEEP_FINISHED)) delete d.items[old.id];
@@ -152,7 +152,8 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   if (minutes < parseClock(set.from) || minutes >= parseClock(set.to)) return "hours";
   if (s.data.day.count >= set.perDay) return "cap";
   if (now < (s.data.next || 0)) return "gap";
-  const c = running(app.state)[0];
+  // The oldest running campaign that is due (an automatic one waits 30 minutes for photos).
+  const c = running(app.state).find((x) => !x.startAt || x.startAt <= now);
   if (!c) return "idle";
 
   const notify = (text) => (c.chat ? app.sock.sendMessage(c.chat, { text }).catch(() => {}) : undefined);

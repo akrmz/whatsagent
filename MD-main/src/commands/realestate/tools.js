@@ -26,9 +26,9 @@ module.exports = [
     aliases: ["broker", "mybrand"],
     category: "realestate",
     description:
-      'بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. "autoleads on" saves people who ask about a listing (#12) in a private chat as clients and tells you. "requests on" answers clients who write what they want ("عايز شقة في التجمع ميزانية 3 مليون") with the closest listings, saves the request and tells you. "catalog on" lets clients browse a menu of your listings in a private chat (they send عقارات, then a number). Owner and sudo users.',
-    usage: "[name|phone|company|currency|welcome <value>] | autoleads on|off | requests on|off | catalog on|off (an empty value clears a field)",
-    examples: [".agent name أحمد العقاري", ".agent phone +20 100 123 4567", ".agent company دار للتسويق العقاري", ".agent currency جنيه", ".agent autoleads on", ".agent requests on", ".agent catalog on", ".agent"],
+      'بياناتك كوسيط — your name, phone, company and currency, shown on listings, flyers and ads. "autoleads on" saves people who ask about a listing (#12) in a private chat as clients and tells you. "requests on" answers clients who write what they want ("عايز شقة في التجمع ميزانية 3 مليون") with the closest listings, saves the request and tells you. "catalog on" lets clients browse a menu of your listings in a private chat (they send عقارات, then a number). "autoblast on" sends each new listing to the saved clients it suits, as a campaign starting 30 minutes later (time to add photos). Owner and sudo users.',
+    usage: "[name|phone|company|currency|welcome <value>] | autoleads on|off | requests on|off | catalog on|off | autoblast on|off (an empty value clears a field)",
+    examples: [".agent name أحمد العقاري", ".agent phone +20 100 123 4567", ".agent company دار للتسويق العقاري", ".agent currency جنيه", ".agent autoleads on", ".agent requests on", ".agent catalog on", ".agent autoblast on", ".agent"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -36,7 +36,7 @@ module.exports = [
       if (field) re.setAgent(ctx.state, field, ctx.text.slice(ctx.args[0].length));
       const a = re.agent(ctx.state);
       return ctx.reply(
-        `👤 *Agent profile*\nname: ${a.name || "—"}\nphone: ${a.phone || "—"}\ncompany: ${a.company || "—"}\ncurrency: ${a.currency}\nautoleads: ${a.autoleads ? "on (questions about #listings in private chats become clients)" : "off"}\nrequests: ${a.requests ? "on (clients' written requests get matching listings)" : "off"}\ncatalog: ${a.catalog ? "on (clients send عقارات to browse a menu)" : "off"}\nwelcome: ${a.welcome ? `your own (${a.welcome.split("\n")[0].slice(0, 40)}…)` : "the default (.leads welcome shows it)"}\n\n${field ? "✅ Saved." : `Set: ${ctx.prefix}agent name <your name>`}`,
+        `👤 *Agent profile*\nname: ${a.name || "—"}\nphone: ${a.phone || "—"}\ncompany: ${a.company || "—"}\ncurrency: ${a.currency}\nautoleads: ${a.autoleads ? "on (questions about #listings in private chats become clients)" : "off"}\nrequests: ${a.requests ? "on (clients' written requests get matching listings)" : "off"}\ncatalog: ${a.catalog ? "on (clients send عقارات to browse a menu)" : "off"}\nautoblast: ${a.autoblast ? "on (new listings go to matching clients after 30 min)" : "off"}\nwelcome: ${a.welcome ? `your own (${a.welcome.split("\n")[0].slice(0, 40)}…)` : "the default (.leads welcome shows it)"}\n\n${field ? "✅ Saved." : `Set: ${ctx.prefix}agent name <your name>`}`,
       );
     },
   },

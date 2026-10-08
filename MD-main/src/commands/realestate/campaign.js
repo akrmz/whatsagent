@@ -16,7 +16,12 @@ function list(ctx) {
   const s = campaigns.settings(ctx.state);
   const lines = [`📣 *Campaigns* — up to ${s.perDay} messages a day, ${s.from}–${s.to}, ${s.gapMin}–${s.gapMax} s apart`];
   if (!items.length) lines.push("", `None yet. ${ctx.prefix}blast <listing> shows who a listing would go to.`);
-  for (const c of items) lines.push("", `${STATUS_AR[c.status] || c.status} ${campaigns.summary(c)}${c.status === "running" ? ` · ⏳ ${c.queue.length} متبقي` : ""}`);
+  const tz = ctx.config.bot.timezone;
+  const hhmm = (t) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
+  for (const c of items) {
+    const waiting = c.status === "running" && c.startAt > Date.now() ? ` · 🕒 يبدأ ${hhmm(c.startAt)}` : "";
+    lines.push("", `${STATUS_AR[c.status] || c.status} ${campaigns.summary(c)}${c.status === "running" ? ` · ⏳ ${c.queue.length} متبقي` : ""}${waiting}`);
+  }
   if (items.some((c) => c.status === "running")) lines.push("", `Stop one: ${ctx.prefix}blast stop <number>`);
   return ctx.reply(lines.join("\n"));
 }

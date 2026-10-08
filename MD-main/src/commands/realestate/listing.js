@@ -36,6 +36,24 @@ async function aiFields(ctx, text) {
   return fields;
 }
 
+const AUTOBLAST_DELAY = 30 * 60 * 1000; // time to add photos before it goes out
+
+/**
+ * With ".agent autoblast on": a new listing that suits saved clients is queued as a campaign
+ * starting in 30 minutes (same pacing and opt-out as .blast). @returns {string} a line for the reply
+ */
+function autoblast(ctx, listing) {
+  if (!re.agent(ctx.state).autoblast) return "";
+  try {
+    const c = campaigns.start(ctx.state, listing, { by: ctx.sender, chat: ctx.chatId, startAt: Date.now() + AUTOBLAST_DELAY });
+    const at = new Intl.DateTimeFormat("en-GB", { timeZone: ctx.config.bot.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(c.startAt));
+    return `\n\n📣 Campaign #${c.id}: it goes to ${c.total} matching client(s) from ${at} (add photos before then). Cancel: ${ctx.prefix}blast stop ${c.id}`;
+  } catch (err) {
+    if (!(err instanceof UserError)) throw err;
+    return /already running/.test(err.message) ? `\n\n📣 Not sent automatically: ${err.message}` : ""; // no matching client: nothing to say
+  }
+}
+
 /** "🎯 Fits 2 of your clients: #3 Ahmed, #7 Mona" (management replies only: client names are private). */
 function clientsLine(ctx, listing) {
   const m = leads.matchingLeads(ctx.state, listing);
@@ -62,6 +80,7 @@ const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.q
 
 const { show, ownerLine } = require("../../services/listingview");
 const owners = require("../../services/owners");
+const campaigns = require("../../services/campaigns");
 
 // Short Maps links are opened (a few requests to Google); clients can trigger that, so it is limited.
 const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
@@ -194,7 +213,8 @@ module.exports = [
         const dup = re.findDuplicate(ctx.state, fields);
         const l = re.add(ctx.state, fields, ctx.sender);
         const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${dupLine}`);
+        const autoLine = dup ? "" : autoblast(ctx, l);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${autoLine}${dupLine}`);
       }
       if (sub === "ask") {
         // ".listing ask 12 15 18": ask each owner whether it's still available (at most 5 at once).
