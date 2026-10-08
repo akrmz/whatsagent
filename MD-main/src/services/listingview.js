@@ -2,6 +2,7 @@
 
 const fs = require("node:fs");
 const re = require("./realestate");
+const english = require("./english");
 const leads = require("./leads");
 const { limiterFor } = require("../core/ratelimit");
 
@@ -19,14 +20,15 @@ const newClients = (state) => limiterFor(state, "inquiry-new", { max: 30, window
 const staffOnlyChat = (ctx) => ctx.isSudoOrOwner && (ctx.chatId === ctx.sender || ctx.chatId === ctx.botJid);
 const ownerLine = (ctx, l) => (l.owner && staffOnlyChat(ctx) ? `\n\n🔑 المالك (خاص): ${l.owner.name || ""}${l.owner.phone ? ` +${l.owner.phone}` : ""}`.trimEnd() : "");
 
-async function show(ctx, l, { allPhotos = false } = {}) {
+async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   const a = re.agent(ctx.state);
+  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l);
   if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views"); // client interest only, not the team's own views
   const pics = re.photos(ctx.config, l);
-  if (!pics.length) return ctx.reply(re.card(l, a) + ownerLine(ctx, l));
+  if (!pics.length) return ctx.reply(text);
   const shown = allPhotos ? pics : pics.slice(0, 1);
   for (const [i, p] of shown.entries()) {
-    await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? re.card(l, a) + ownerLine(ctx, l) : undefined });
+    await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? text : undefined });
   }
   if (!allPhotos && pics.length > 1) await ctx.send(`📷 ${pics.length} صور — ${ctx.prefix}listing ${l.id} photos`);
   return undefined;

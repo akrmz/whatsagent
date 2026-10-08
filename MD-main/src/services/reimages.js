@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const sharp = require("sharp");
 const re = require("./realestate");
+const english = require("./english");
 
 /** Pictures for property marketing, drawn on the server with sharp: listing flyers and watermarks. */
 
@@ -26,37 +27,36 @@ const toListingJpeg = (buffer) =>
  * A 1080×1350 flyer (the size WhatsApp status and Instagram use): the listing's first photo,
  * then a panel with the type, location, price, specs and the agent's contact.
  */
-async function flyer(listing, agent, photoPath) {
-  const cur = agent.currency || "جنيه";
-  const photo = photoPath && fs.existsSync(photoPath)
-    ? await sharp(photoPath).resize(W, PHOTO_H, { fit: "cover", position: "attention" }).toBuffer()
-    : await sharp(Buffer.from(`<svg width="${W}" height="${PHOTO_H}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f3b57"/><stop offset="1" stop-color="#3f6e8c"/></linearGradient></defs><rect width="${W}" height="${PHOTO_H}" fill="url(#g)"/><text x="${W / 2}" y="${PHOTO_H / 2 + 60}" font-size="180" text-anchor="middle" font-family="${FONT}">🏠</text></svg>`)).png().toBuffer();
-  const title = `${listing.type || "عقار"} لل${listing.deal || "بيع"}`;
-  const price = listing.price ? `${re.group(listing.price)} ${cur}${listing.deal === "إيجار" ? " / شهر" : ""}` : "السعر عند التواصل";
-  const specs = [listing.size && `${re.group(listing.size)} م²`, listing.rooms && `${listing.rooms} غرف`, listing.baths && `${listing.baths} حمام`, listing.finishing && clip(listing.finishing, 16)].filter(Boolean).join("   •   ");
-  const contact = [agent.name, agent.phone].filter(Boolean).join("   ") || "";
-  const rtlContact = /[\u0600-\u06FF]/.test(contact);
-  const status = listing.status && listing.status !== "available" ? re.STATUS_AR[listing.status].replace(/^\S+\s/, "") : "";
-  const cut = !status && re.discount(listing); // a recent price cut, shown as a badge and the old price struck through
-  const badge = status
-    ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 170}" y="84" font-size="32" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(status)}</text>`
-    : cut
-      ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#e0b25b"/><text x="${W - 170}" y="84" font-size="34" font-weight="bold" fill="#0f2233" text-anchor="middle" direction="rtl" font-family="${FONT}">خصم \u2066${cut.pct}%\u2069</text>`
+async function flyer(listing, agent, photoPath, { lang = "ar" } = {}) {
+  const en = lang === "en";
+  const d = en ? english.details(listing, agent) : details(listing, agent);
+  const photo = await tile(photoPath, W, PHOTO_H);
+  // Arabic reads from the right edge, English from the left.
+  const side = en ? { x: 60, attrs: `text-anchor="start"` } : { x: W - 60, attrs: RTL };
+  const location = en ? d.location : listing.location;
+  const rtlContact = /[؀-ۿ]/.test(d.contact);
+  const badge = d.status
+    ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 170}" y="84" font-size="32" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(d.status)}</text>`
+    : d.cut
+      ? `<rect x="${W - 300}" y="40" rx="18" width="260" height="64" fill="#e0b25b"/><text x="${W - 170}" y="84" font-size="34" font-weight="bold" fill="#0f2233" text-anchor="middle"${en ? "" : ` direction="rtl"`} font-family="${FONT}">${en ? `${d.cut.pct}% OFF` : `خصم ${LRI}${d.cut.pct}%${PDI}`}</text>`
       : "";
-  // Right-to-left like the price (so it reads "3,600,000 جنيه"), anchored at its left end.
-  const was = cut ? `<text x="60" y="${PHOTO_H + 262}" font-size="40" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(`${re.group(cut.was)} ${cur}`)}</text>` : "";
+  // The old price sits at the other end of the price line, struck through.
+  const was = d.cut
+    ? `<text x="${en ? W - 60 : 60}" y="${PHOTO_H + 262}" font-size="40" fill="#9fb0bf" text-decoration="line-through"${en ? "" : ` direction="rtl"`} text-anchor="end" font-family="${FONT}">${esc(en ? `${d.cur} ${re.group(d.cut.was)}` : d.was(d.cut))}</text>`
+    : "";
+  const specs = en ? [d.specs, d.floor].filter(Boolean).join("  •  ") : d.specs;
   const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <rect y="${PHOTO_H}" width="${W}" height="${H - PHOTO_H}" fill="#0f2233"/>
   <rect y="${PHOTO_H}" width="${W}" height="8" fill="#e0b25b"/>
   <rect x="40" y="40" rx="18" width="190" height="64" fill="#0f2233" fill-opacity="0.82"/>
   <text x="135" y="84" font-size="34" font-weight="bold" fill="#e0b25b" text-anchor="middle" font-family="${FONT}">#${listing.id}</text>
   ${badge}
-  <text x="${W - 60}" y="${PHOTO_H + 95}" font-size="62" font-weight="bold" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(title)}</text>
-  ${listing.location ? `<text x="${W - 60}" y="${PHOTO_H + 160}" font-size="38" fill="#b9c7d3" ${RTL} font-family="${FONT}">📍 ${esc(clip(listing.location, 40))}</text>` : ""}
-  <text x="${W - 60}" y="${PHOTO_H + 265}" font-size="76" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(price)}</text>
+  <text x="${side.x}" y="${PHOTO_H + 95}" font-size="62" font-weight="bold" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(d.title)}</text>
+  ${location ? `<text x="${side.x}" y="${PHOTO_H + 160}" font-size="38" fill="#b9c7d3" ${side.attrs} font-family="${FONT}">📍 ${esc(clip(location, en ? 46 : 40))}</text>` : ""}
+  <text x="${side.x}" y="${PHOTO_H + 265}" font-size="${en ? 70 : 76}" font-weight="bold" fill="#e0b25b" ${side.attrs} font-family="${FONT}">${esc(d.price)}</text>
   ${was}
-  ${specs ? `<text x="${W - 60}" y="${PHOTO_H + 345}" font-size="38" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(specs)}</text>` : ""}
-  ${contact ? `<rect y="${H - 110}" width="${W}" height="110" fill="#e0b25b"/><text x="${W / 2}" y="${H - 42}" font-size="44" font-weight="bold" fill="#0f2233" text-anchor="middle"${rtlContact ? ` direction="rtl"` : ""} font-family="${FONT}">📞 ${esc(isolateNumbers(clip(contact, 44)))}</text>` : ""}
+  ${specs ? `<text x="${side.x}" y="${PHOTO_H + 345}" font-size="${en ? 34 : 38}" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(clip(specs, 60))}</text>` : ""}
+  ${d.contact ? `<rect y="${H - 110}" width="${W}" height="110" fill="#e0b25b"/><text x="${W / 2}" y="${H - 42}" font-size="44" font-weight="bold" fill="#0f2233" text-anchor="middle"${rtlContact ? ` direction="rtl"` : ""} font-family="${FONT}">📞 ${esc(isolateNumbers(clip(d.contact, 44)))}</text>` : ""}
 </svg>`;
   return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
     .composite([
@@ -121,15 +121,19 @@ const STORY_PHOTO = 1100;
  * A 1080×1920 design for WhatsApp status (9:16): the first photo, then the type, area, price
  * (with a recent discount), specs, "للاستفسار أرسل: #12" and the agent's contact.
  */
-async function story(listing, agent, photoPath) {
-  const d = details(listing, agent);
+async function story(listing, agent, photoPath, { lang = "ar" } = {}) {
+  const en = lang === "en";
+  const d = en ? english.details(listing, agent) : details(listing, agent);
   const W = STORY_W;
   const H = STORY_H;
   const P = STORY_PHOTO;
+  const side = en ? { x: 70, attrs: `text-anchor="start"` } : { x: W - 70, attrs: RTL };
+  const location = en ? d.location : listing.location;
+  const specs = en ? [d.specs, d.floor].filter(Boolean).join("  •  ") : d.specs;
   const badge = d.status
     ? `<rect x="${W - 320}" y="60" rx="22" width="270" height="76" fill="#b3261e" fill-opacity="0.9"/><text x="${W - 185}" y="112" font-size="38" font-weight="bold" fill="#fff" text-anchor="middle" font-family="${FONT}">${esc(d.status)}</text>`
     : d.cut
-      ? `<rect x="${W - 320}" y="60" rx="22" width="270" height="76" fill="#e0b25b"/><text x="${W - 185}" y="112" font-size="40" font-weight="bold" fill="#0f2233" text-anchor="middle" direction="rtl" font-family="${FONT}">خصم ${LRI}${d.cut.pct}%${PDI}</text>`
+      ? `<rect x="${W - 320}" y="60" rx="22" width="270" height="76" fill="#e0b25b"/><text x="${W - 185}" y="112" font-size="40" font-weight="bold" fill="#0f2233" text-anchor="middle"${en ? "" : ` direction="rtl"`} font-family="${FONT}">${en ? `${d.cut.pct}% OFF` : `خصم ${LRI}${d.cut.pct}%${PDI}`}</text>`
       : "";
   const svg = `<svg width="${W}" height="${H}" xmlns="http://www.w3.org/2000/svg">
   <defs><linearGradient id="fade" x1="0" y1="0" x2="0" y2="1"><stop offset="0.75" stop-color="#0f2233" stop-opacity="0"/><stop offset="1" stop-color="#0f2233" stop-opacity="1"/></linearGradient></defs>
@@ -138,13 +142,13 @@ async function story(listing, agent, photoPath) {
   <rect x="50" y="60" rx="22" width="210" height="76" fill="#0f2233" fill-opacity="0.82"/>
   <text x="155" y="112" font-size="40" font-weight="bold" fill="#e0b25b" text-anchor="middle" font-family="${FONT}">#${listing.id}</text>
   ${badge}
-  <text x="${W - 70}" y="${P + 100}" font-size="76" font-weight="bold" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.title)}</text>
-  ${listing.location ? `<text x="${W - 70}" y="${P + 180}" font-size="46" fill="#b9c7d3" ${RTL} font-family="${FONT}">📍 ${esc(clip(listing.location, 34))}</text>` : ""}
-  <text x="${W - 70}" y="${P + 310}" font-size="92" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(d.price)}</text>
-  ${d.cut ? `<text x="70" y="${P + 310}" font-size="46" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(d.was(d.cut))}</text>` : ""}
-  ${d.specs ? `<text x="${W - 70}" y="${P + 405}" font-size="44" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.specs)}</text>` : ""}
+  <text x="${side.x}" y="${P + 100}" font-size="${en ? 70 : 76}" font-weight="bold" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(d.title)}</text>
+  ${location ? `<text x="${side.x}" y="${P + 180}" font-size="${en ? 40 : 46}" fill="#b9c7d3" ${side.attrs} font-family="${FONT}">📍 ${esc(clip(location, en ? 44 : 34))}</text>` : ""}
+  <text x="${side.x}" y="${P + 310}" font-size="${en ? 80 : 92}" font-weight="bold" fill="#e0b25b" ${side.attrs} font-family="${FONT}">${esc(d.price)}</text>
+  ${d.cut ? `<text x="${en ? W - 70 : 70}" y="${P + 310}" font-size="46" fill="#9fb0bf" text-decoration="line-through"${en ? "" : ` direction="rtl"`} text-anchor="end" font-family="${FONT}">${esc(en ? `${d.cur} ${re.group(d.cut.was)}` : d.was(d.cut))}</text>` : ""}
+  ${specs ? `<text x="${side.x}" y="${P + 405}" font-size="${en ? 38 : 44}" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(clip(specs, 60))}</text>` : ""}
   <rect x="70" y="${P + 470}" rx="24" width="${W - 140}" height="110" fill="none" stroke="#e0b25b" stroke-width="4"/>
-  <text x="${W / 2}" y="${P + 542}" font-size="50" font-weight="bold" fill="#e0b25b" text-anchor="middle" direction="rtl" font-family="${FONT}">للاستفسار أرسل: ${LRI}#${listing.id}${PDI}</text>
+  <text x="${W / 2}" y="${P + 542}" font-size="50" font-weight="bold" fill="#e0b25b" text-anchor="middle"${en ? "" : ` direction="rtl"`} font-family="${FONT}">${en ? `To ask about it, send: #${listing.id} en` :`للاستفسار أرسل: ${LRI}#${listing.id}${PDI}`}</text>
   ${contactBar(d.contact, W, H - 150, 150, 50)}
 </svg>`;
   return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })

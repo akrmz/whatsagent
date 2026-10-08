@@ -6,6 +6,8 @@ const img = require("../../services/reimages");
 const usage = require("../../services/aiusage");
 const { getText } = require("../../core/context");
 const { redactPhones } = require("../../services/phones");
+const english = require("../../services/english");
+const EN = /^(en|english|eng|انجليزي|إنجليزي)$/i;
 
 const cur = (ctx) => re.agent(ctx.state).currency;
 const m = (ctx, n) => re.money(n, cur(ctx));
@@ -42,9 +44,9 @@ module.exports = [
     name: "flyer",
     aliases: ["poster", "bostar"],
     category: "realestate",
-    description: "صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, the 4:5 size for Facebook and Instagram posts; for WhatsApp status use .story) of a listing: its first photo, type, location, price, specs and your contact. Made on the server.",
-    usage: "<listing number>",
-    examples: [".flyer 12"],
+    description: "صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, the 4:5 size for Facebook and Instagram posts; for WhatsApp status use .story) of a listing: its first photo, type, location, price, specs and your contact. “en” makes it in English for foreign buyers. Made on the server.",
+    usage: "<listing number> [en]",
+    examples: [".flyer 12", ".flyer 12 en"],
     cooldown: 5,
     async run(ctx) {
       const id = Number(re.latinDigits(ctx.args[0] || "").replace(/^#/, ""));
@@ -52,7 +54,9 @@ module.exports = [
       if (!l) return ctx.reply(`Usage: ${ctx.prefix}flyer <listing number> (see ${ctx.prefix}listings)`);
       await ctx.react("🎨");
       const [first] = re.photos(ctx.config, l);
-      return ctx.reply({ image: await img.flyer(l, re.agent(ctx.state), first), caption: re.card(l, re.agent(ctx.state)) });
+      const en = EN.test(ctx.args[1] || "");
+      const a = re.agent(ctx.state);
+      return ctx.reply({ image: await img.flyer(l, a, first, { lang: en ? "en" : "ar" }), caption: en ? english.card(l, a) : re.card(l, a) });
     },
   },
   {
@@ -60,16 +64,17 @@ module.exports = [
     aliases: ["statusflyer", "vertical", "storyad"],
     category: "realestate",
     description:
-      "تصميم للحالة (ستوري) — a 1080×1920 vertical design that fills a WhatsApp status (9:16): the listing's first photo, type, area, price (with a recent discount), specs, \"للاستفسار أرسل: #12\" and your contact. Made on the server.",
-    usage: "<listing number>",
-    examples: [".story 12"],
+      "تصميم للحالة (ستوري) — a 1080×1920 vertical design that fills a WhatsApp status (9:16): the listing's first photo, type, area, price (with a recent discount), specs, \"للاستفسار أرسل: #12\" and your contact. \"en\" makes it in English. Made on the server.",
+    usage: "<listing number> [en]",
+    examples: [".story 12", ".story 12 en"],
     cooldown: 5,
     async run(ctx) {
       const l = listingArg(ctx);
       if (!l) return usageFor(ctx, "story");
       await ctx.react("🎨");
       const [first] = re.photos(ctx.config, l);
-      return ctx.reply({ image: await img.story(l, re.agent(ctx.state), first), caption: `#${l.id} — للحالة (Status)` });
+      const en = EN.test(ctx.args[1] || "");
+      return ctx.reply({ image: await img.story(l, re.agent(ctx.state), first, { lang: en ? "en" : "ar" }), caption: en ? `#${l.id} — for WhatsApp status` : `#${l.id} — للحالة (Status)` });
     },
   },
   {

@@ -94,6 +94,7 @@ async function shortLinkGeo(ctx, fields, text) {
 }
 
 // ".listing 12 map" / ".listing map 12" show the pin; ".listing loc 12 …" saves it.
+const EN = /^(en|english|eng|انجليزي|إنجليزي)$/;
 const SHOW_MAP = /^(map|خريطة|الخريطة)$/;
 const SET_LOC = /^(loc|location|geo|موقع|الموقع|لوكيشن|اللوكيشن)$/;
 
@@ -166,8 +167,8 @@ module.exports = [
     category: "realestate",
     description:
       "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold. Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos|map] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing status 12 sold"],
+    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -176,7 +177,7 @@ module.exports = [
         const l = re.get(ctx.state, direct);
         if (!l) return ctx.reply(`There is no listing #${direct}.`);
         if (SHOW_MAP.test(arg) || SET_LOC.test(arg)) return sendPin(ctx, l);
-        return show(ctx, l, { allPhotos: /^(photos|all|صور)$/.test(arg) });
+        return show(ctx, l, { allPhotos: /^(photos|all|صور)$/.test(arg), lang: EN.test(arg) ? "en" : "ar" });
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));
       if (SHOW_MAP.test(sub) && idOf(arg)) {

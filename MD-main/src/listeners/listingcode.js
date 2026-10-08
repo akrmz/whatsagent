@@ -16,12 +16,12 @@ module.exports = {
   priority: 21,
   publicOnly: true,
   async run(ctx) {
-    const m = re.latinDigits(ctx.body.trim()).match(/^#\s?(\d{1,5})$/);
+    const m = re.latinDigits(ctx.body.trim()).match(/^#\s?(\d{1,5})(?:\s+(en|english))?$/i);
     if (!m) return undefined;
     const listing = re.get(ctx.state, Number(m[1]));
     if (!listing) return undefined;
     if (!allowLookup(ctx, `listing:${listing.id}`)) return "stop"; // flood: silent
-    await show(ctx, listing);
+    await show(ctx, listing, { lang: m[2] ? "en" : "ar" });
     await captureInquiry(ctx, listing);
     return "stop";
   },

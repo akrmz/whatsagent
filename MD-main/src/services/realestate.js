@@ -116,6 +116,8 @@ const LABELS = {
   floor: ["الدور", "دور", "الطابق", "طابق", "floor"],
   finishing: ["التشطيب", "تشطيب", "finishing"],
   notes: ["ملاحظات", "تفاصيل", "مميزات", "الوصف", "وصف", "notes", "details", "features", "description"],
+  // The location in English, for the English card and designs (.listing 12 en).
+  locationEn: ["location en", "location (en)", "english location", "المنطقة بالانجليزي", "المنطقة بالإنجليزي", "العنوان بالانجليزي", "العنوان بالإنجليزي"],
   // Private: who owns it (never shown to clients).
   owner: ["المالك", "مالك", "صاحب العقار", "صاحب الشقة", "صاحب الوحدة", "رقم المالك", "تليفون المالك", "owner", "landlord", "owner phone"],
 };
