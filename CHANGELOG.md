@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.17.0 — 2026-10-08
+
+### Added — price-drop campaigns
+- **`.blast 12 drop`** previews and **`.blast 12 drop go`** sends a price-drop campaign after a cut in the last 30 days.
+  - It goes to every client whose budget the new price fits, including clients who got the listing before at the old price (a normal campaign skips them). The preview marks those clients.
+  - The message opens with "📉 نزل سعره! العقار اللي بعتهولك قبل كده — بقى 3.2 مليون بدل 3.6 مليون جنيه (خصم 11%)".
+  - Each client is told once per price. A further cut is news again.
+  - The campaign stops if the price goes back up.
+  - The pacing and opt-out are the same as other campaigns.
+- After `.listing edit` lowers a price, the reply suggests `.blast 12 drop`. `.rehelp` mentions it.
+
+### Checked
+- 2 tests (314 in total):
+  - the cut is required, and the right clients get it, including "had it before" and not those still over budget;
+  - both message openings, and once per price;
+  - a new cut targets them again, and the campaign stops if the price goes back up.
+
 ## 3.16.0 — 2026-10-08
 
 ### Added — welcoming new clients
