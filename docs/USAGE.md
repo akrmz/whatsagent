@@ -246,6 +246,38 @@ A message counts as a request only if it names a property type **and** asks (ع�
 
 Each client gets at most one answer every 10 minutes; extra requests are ignored silently. The 30-new-clients-an-hour limit is shared with `autoleads`. Groups, you, sudo users, and private mode are never answered.
 
+### Rentals (الإيجارات)
+
+For the rented units you manage. Owner and sudo users only.
+
+```
+.rental add
+العقار: 12
+المستأجر: أحمد
+الموبايل: 01001234567
+الإيجار: 15 ألف
+يوم الاستحقاق: 5
+من: 1/1/2026
+المدة: سنة
+التأمين: 30 ألف
+```
+
+Use `الوحدة: شقة الدقي ش التحرير` instead of `العقار:` for a unit that isn't in your catalogue. The contract end can be given as `إلى: 2026-12-31` instead of `المدة`; without either, it runs for a year. Dates can be written as 2026-01-01 or 1/1/2026 (day first). A linked listing that is available is marked rented.
+
+| Command | What it does |
+|---|---|
+| `.rentals` | This month: who has paid, who is due (and in how many days), who is late; the amount collected out of the total; earlier unpaid months; contracts ending within 60 days. |
+| `.rental 3` | One rental: tenant, rent and due day, contract dates with the days left, deposit, this month's state, unpaid months and the latest payments. |
+| `.rental paid 3` | Marks this month paid (the full rent). `.rental paid 3 سبتمبر 14 ألف` records another month (a name, a number, or 2026-09) and amount. `.rental unpaid 3 سبتمبر` removes a payment entered by mistake. |
+| `.rental remind 3` | Sends the tenant a polite reminder now, with the month, the amount and the due date (or how many days late), and your contact. |
+| `.rental auto 3 on` | Reminds the tenant automatically on the due day and then every 3 days while late (up to 15 days), between 10:00 and 21:00, at most once a day. It stops as soon as the month is marked paid. |
+| `.rental renew 3 الإيجار: 17 ألف` | Extends the contract by a year (or `المدة: 6 شهور`, or `إلى: …`). An optional new rent is shown with the % change. |
+| `.rental edit 3 الموبايل: 0100…` / `.rental del 3` | Changes fields or deletes the rental. Deleting reminds you to set the listing back to available. |
+
+**In the morning summary (`.digest`):** rent due today, 🔴 late rents, ⚠️ earlier months still unpaid, and 📄 contracts ending within 60 days ("جدّد أو جهّز إعادة التسويق").
+
+Unpaid months are counted from the month a rental was added to the bot. A contract that was already running is not shown as owing for the months before.
+
 ### Clients (العملاء)
 
 A small client tracker for the owner and sudo users. Clients' details are never shown to anyone else.
@@ -459,7 +491,7 @@ This list is generated from the command files themselves.
 | `.campaigns` | `.blasts` `.hamalat` | قائمة الحملات — your listing campaigns: running, finished and stopped, with how many were sent, failed and skipped. | owner, sudo | `.campaigns` |
 | `.commission` | `.omola` `.brokerage` | حساب العمولة — the brokerage commission on a deal: price × rate, optionally with VAT on the commission and your share when it is split with another broker or the office. | everyone | `.commission 3.5m 2.5%` |
 | `.compare` | `.qarn` `.moqarna` `.vs` | مقارنة العقارات — 2 to 4 listings side by side: price, size, price per m², rooms, baths, floor, finishing and status, with the best value marked, and the distance between two listings when both have a location. | everyone | `.compare 3 7` |
-| `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |
+| `.digest` | `.summary-day` `.dailybrief` `.molakhas` | ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, rent due and late, contracts ending soon, and the catalogue. Owner and sudo users. | owner, sudo | `.digest on 08:30` |
 | `.export` | `.csv` `.excel` | تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users. | owner, sudo | `.export listings` |
 | `.flyer` | `.poster` `.bostar` | صورة إعلان جاهزة للنشر — a ready-to-post image (1080×1350, for WhatsApp status/Instagram) of a listing: its first photo, type, location, price, specs and your contact. Made on the server. | everyone | `.flyer 12` |
 | `.import` | `.importcsv` | استيراد من Excel — reply to a CSV file (an Excel sheet saved as CSV, or a file from .export) to add listings or clients in one go. Column headers in English (type, location, price …) or Arabic (النوع، المنطقة، السعر …). Duplicates are skipped. Owner and sudo users. | owner, sudo | `.import listings` _(reply to listings.csv)_ |
@@ -484,6 +516,15 @@ This list is generated from the command files themselves.
 | `.offer` | `.pricequote` `.ard` `.proposal` | عرض سعر PDF — a price offer for a listing as a PDF: the client's name, the property, the price and, with a payment plan (down payment, years, frequency, maintenance), every instalment with its date, plus the listing's flyer. Valid for 7 days. Add a client (#5) to put their name on it, and "send" to send it to them on WhatsApp (noted in their history). Owner and sudo users. | owner, sudo | `.offer 12` |
 | `.ppm` | `.pricepermeter` `.meter` | سعر المتر — the price per square metre. | everyone | `.ppm 3.5m 150` |
 | `.rehelp` | `.dalil` `.reguide` `.aqarguide` | دليل أدوات العقارات بالعربي — a short Arabic guide to the real-estate tools, step by step, showing which steps you have already done. | owner, sudo | `.rehelp` |
+| `.rental` | `.tenant` `.ijar` `.lease` | إدارة الإيجارات — the rentals you manage: tenant, monthly rent and due day, contract dates and deposit; record payments, see who is late and which months are unpaid, remind the tenant (now, or automatically on the due day and every 3 days while late, 10:00–21:00), and renew. The morning summary lists rent due and late, and contracts ending within 60 days. Owner and sudo users. | owner, sudo | `.rental add
+العقار: 12
+المستأجر: أحمد
+الموبايل: 01001234567
+الإيجار: 15 ألف
+يوم الاستحقاق: 5
+من: 2026-01-01
+المدة: سنة` |
+| `.rentals` | `.tenants` `.ijarat` `.leases` | الإيجارات هذا الشهر — your rentals: paid, due and late this month, the amount collected, unpaid earlier months, and contracts ending within 60 days. Owner and sudo users. | owner, sudo | `.rentals` |
 | `.restats` | `.mystats` `.reportre` `.ihsaat` | تقرير التسويق — which listings clients ask about most (views, inquiries, sent, posted), recent price cuts, listings not updated for 30+ days, where your clients come from and how many of each source closed a deal, and the average days to a deal. Owner and sudo users. | owner, sudo | `.restats` |
 | `.roi` | `.yield` `.aaed` | العائد من الإيجار — rental yield: yearly rent as a % of the price, and years to recover the price from rent (before costs and taxes). | everyone | `.roi 3.5m 25k` |
 | `.viewing` | `.moaayna` `.visit` `.showing` | مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add "send" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Owner and sudo users. | owner, sudo | `.viewing add 5 12 tomorrow at 4pm` |
@@ -908,6 +949,6 @@ The pairing service has its own `Bot_Pair_Code-main/.env`; its options are expla
 
 - Commands marked "uses external service" in `.help <command>` send the text, image or link to that service. `.ai` with a photo sends that photo to the configured AI provider (Anthropic, Google or the OpenAI-compatible service). `.summarize` sends the message, the web page text or the video captions to it. `.recap` sends the group's recent messages (names and text, up to 200) to it; when an AI key is set, the bot keeps that recent text in memory for this. `.short` sends the link to TinyURL. `.ocr` sends the picture to the configured AI provider. `.whois` sends the domain name to rdap.org and the domain's registry. `.tz` sends the city names to open-meteo.com (like `.time`). `.ssl` and `.up` connect to the website you name, and `.dns` asks the server's DNS resolver. Addresses inside the server's own network are refused. `.imagine` and `.transcribe` send the description, picture or audio to Google or OpenAI. `.news` sends the topic to Google News, `.crypto` the coin name to CoinGecko. `.azkar`, `.dua` and `.hisn` work offline; `.autoazkar city` sends only the city name (to look up prayer times). The new picture effects (`.grayscale`, `.resize` …) and audio effects (`.bass`, `.nightcore` …) run on the server; nothing is uploaded. `.weather`, `.time` and `.prayer` send only the city name; `.wiki`, `.define`, `.currency` and `.quran` send only the search term; `.qsearch` sends the searched words to alquran.cloud. `.tourl`, `.remini` and the image-effect commands upload pictures to **public** file hosts.
 - `.khatma` saves which member took and read which juz (their WhatsApp id) in `DATA_DIR/khatma.json` until the khatma is ended or the bot leaves the group.
-- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them. With `.greet on`, the bot keeps salted SHA-256 fingerprints (not numbers) of everyone who wrote to it privately, to greet each person once. With `.agent autoleads on`, people who send `#<number>` to the bot in a private chat are saved there with their WhatsApp name and number. With `.agent requests on`, people who write a property request to the bot in a private chat are saved there with their WhatsApp name, number and the request.
+- `.listing`, `.agent` and the listings' photos are stored on the bot's server. `.adcopy` sends the property details and your contact line to the configured AI provider. `.lead` keeps clients' names, numbers, budgets and your notes about them in `DATA_DIR/leads.json` on the server (owner and sudo users only), and `.backup` includes them. With `.greet on`, the bot keeps salted SHA-256 fingerprints (not numbers) of everyone who wrote to it privately, to greet each person once. With `.agent autoleads on`, people who send `#<number>` to the bot in a private chat are saved there with their WhatsApp name and number. With `.agent requests on`, people who write a property request to the bot in a private chat are saved there with their WhatsApp name, number and the request. `.rental` keeps tenants' names, numbers, rents and payments in `DATA_DIR/rentals.json` (owner and sudo users only).
 - With `.autodl on`, links to short videos posted in the group are opened by the bot (through yt-dlp) to download them.
 - Antidelete and `.vv` are owner-only features that reveal deleted or view-once content to the bot owner. Tell your groups if you enable antidelete.

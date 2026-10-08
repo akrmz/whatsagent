@@ -2,6 +2,33 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.7.0 — 2026-10-08
+
+### Added — rentals
+- **`.rental add`** (labelled lines) records a rental:
+  - a catalogue listing (marked rented) or a unit description;
+  - the tenant and their number;
+  - the monthly rent and its due day;
+  - the start and the end or duration (a year by default);
+  - the deposit.
+
+  Dates can be written as 2026-01-01 or 1/1/2026, with Arabic digits too.
+- **`.rental paid 3 [month] [amount]`** and `.rental unpaid` record payments. **`.rentals`** shows the month:
+  - who has paid, who is due and who is late;
+  - the amount collected out of the total;
+  - earlier unpaid months;
+  - contracts ending within 60 days.
+- **Tenant reminders**: `.rental remind 3` sends one now. `.rental auto 3 on` sends them on the due day and every 3 days while late (up to 15 days), 10:00–21:00, at most once a day, never after the month is paid.
+- **`.rental renew`** extends the contract, with an optional new rent and the % change. `.rental edit` and `.rental del` (with a reminder to set the listing back to available).
+- **Morning summary**: rent due today, late rents, earlier unpaid months, and contracts ending within 60 days.
+- Months before a rental was added count as settled, so a running contract doesn't show as owing from its start.
+
+### Checked
+- 4 tests (283 in total), with simulated clocks:
+  - due dates on short months (day 31 in February);
+  - end dates (31 Jan + 1 month = 28 Feb);
+  - the reminder schedule.
+
 ## 3.6.0 — 2026-10-08
 
 ### Added — client activity
