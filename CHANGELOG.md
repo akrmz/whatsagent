@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.25.0 — 2026-10-09
+
+### Added — the week in numbers
+- **`.weekly`**: the last 7 days against the 7 before. It covers:
+  - new clients, by source;
+  - messages sent to clients (listings, offers, welcomes, follow-ups) and their replies;
+  - viewings booked, with their outcomes (👍 🤔 👎 🚫);
+  - deals and commission;
+  - new listings and price cuts.
+
+  Each line shows the change in %, or "جديد" when last week was zero.
+- **The morning summary includes it every Saturday**, the usual start of the work week in Egypt.
+- **No new data is stored**: the counts come from what is already dated (clients' creation and history notes, deals, listings, price history). That means past weeks are counted too.
+
+### Checked
+- 1 test (333 in total). Two weeks of real activity are built with the commands under a simulated clock, and every count and the exact text are compared. It also checks that the summary is included on Saturday and not on Friday.
+
 ## 3.24.0 — 2026-10-09
 
 ### Added — the automation dashboard
