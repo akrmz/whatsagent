@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.16.0 — 2026-10-08
+
+### Added — welcoming new clients
+- **`.leads welcome`** previews the welcome: who gets it (new, uncontacted clients with a number who haven't said وقف, oldest first) and the first message in full. **`.leads welcome go`** sends it with the campaign pacing (gap, hours, daily cap), the opt-out line and a summary at the end.
+- **The default welcome** greets by name, mentions the ad they came from and what they're looking for, introduces you (name and company), asks for area and budget, and adds the best matching listing when there is one.
+- **`.agent welcome <text>`** sets your own wording, with {name}, {ad}, {wish} and {agent}.
+- **Tracking**: each welcomed client is noted and moves to "contacted". A client contacted by hand before their turn is skipped. Replies show as "ردّ على رسالة الترحيب", and the card and morning summary say "رسالة الترحيب" where they would say "#12".
+- `.import leads` suggests `.leads welcome` after an import.
+
+### Checked
+- 2 tests (312 in total): the exact default message, a client with no ad or wishes, your own wording and resetting it, who gets it, the order, skipping a client contacted meanwhile, the summary, and the reply tracking.
+
 ## 3.15.0 — 2026-10-08
 
 ### Added — Facebook / Instagram lead ads

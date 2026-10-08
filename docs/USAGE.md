@@ -450,6 +450,15 @@ A campaign also stops by itself if the listing is reserved, sold or deleted.
 
 **Opt-out:** a saved client who sends **وقف** (or "stop") in a private chat gets "✅ تم إيقاف رسائل العروض". From then on, no campaign, `.lead send` or `.offer … send` reaches them, and their card shows 🚫. Sending **اشتراك** turns offers back on. This works even when the bot is in private mode. Messages from numbers that aren't saved clients, and repeats, get no reply.
 
+**Welcoming new clients (`.leads welcome`):** after importing leads from your ads (or adding clients), `.leads welcome` shows who would get a welcome and the first message in full. It goes to clients still "new" who have a number, haven't been contacted (nothing sent to them yet) and haven't said وقف, oldest first. `.leads welcome go` sends them, paced like campaigns: one every 45–90 s, in your sending hours, within the daily cap. You get a summary when it's done.
+
+The default welcome, for example:
+- "أهلاً منى 👋 شكراً لاهتمامك بإعلان "شقق التجمع". معاك أحمد من دار السكن. لسه بتدور على شقة، في التجمع، 2 مليون – 3 مليون جنيه؟ قولي المنطقة والميزانية …";
+- then the best matching listing, if there is one ("🏠 عندي حالياً: #1 … للتفاصيل والصور أرسل: #1");
+- then the opt-out line.
+
+Set your own wording with `.agent welcome <text>`, using {name}, {ad}, {wish} and {agent}. `.agent welcome` with nothing after it goes back to the default. Each welcomed client is noted ("أُرسلت له رسالة ترحيب") and moves to "contacted". Their reply is tracked ("ردّ على رسالة الترحيب") and shows in the morning summary. A client you contact yourself before their turn is skipped. `.campaigns` shows the progress, and `.blast stop <number>` stops it.
+
 Send campaigns only to people who asked you about property. WhatsApp can still restrict a number whose messages many people report or block.
 
 The calculations are illustrations, not offers or financial advice; the replies say so. Photos are stored on the server in `DATA_DIR/listings/`. `.backup` holds the listings' text, and `.backup photos` the photos (see [Backup and restore](#backup-and-restore)).
