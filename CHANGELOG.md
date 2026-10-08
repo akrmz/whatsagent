@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.20.0 — 2026-10-09
+
+### Added — team performance
+- **`.team`** shows the month for the owner and each sudo user:
+  - clients added, and listings, offers and welcomes sent;
+  - viewings booked, and deals closed with their commission;
+  - the active clients assigned to them (in the current month only).
+
+  Members are matched by phone number whatever id WhatsApp used, and mentioned so their names show. Automatic work is one 🤖 line. `.team last` and `.team 2026-09` show other months.
+- **Monthly counters** (`team-stats.json`, 24 months kept) are recorded when clients are added, listings/offers/welcomes are sent, viewings are booked and deals are closed. Viewings and campaigns are deleted after a while, so their history couldn't be counted afterwards. A month starts at midnight in the bot's time zone. Counting starts with this version.
+
+### Checked
+- 2 tests (323 in total):
+  - month boundaries in Cairo time against UTC, and the 24-month limit;
+  - a full month with the owner and a sudo user, sorted by deals, with the commission, the assigned clients, the 🤖 line and the mentions;
+  - an empty past month, and the permissions.
+
 ## 3.19.0 — 2026-10-09
 
 ### Added — listings on your WhatsApp Status
