@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("node:fs");
+const path = require("node:path");
 const re = require("./realestate");
 const leads = require("./leads");
 const requests = require("./requests");
@@ -89,7 +90,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -164,6 +165,75 @@ function queueAuto(app, kind, queue, now) {
   });
 }
 
+// ---- a message to clients: occasions and announcements (.blast msg) -----------------------
+
+const MAX_MESSAGE = 1000;
+const MAX_AUDIENCE = 1000;
+const imagePath = (config, name) => path.join(config.paths.data, "campaigns", path.basename(name));
+
+/**
+ * "التجمع شقة viewing" → who it goes to: statuses, a type, sale/rent, words of the area.
+ * Without a status, everyone but lost clients; "all" includes them.
+ */
+function parseAudience(text) {
+  const out = { statuses: [], words: [], all: false };
+  for (const t of String(text || "").split(/[\s,،]+/).filter(Boolean)) {
+    if (/^(all|everyone|الكل|كل)$/i.test(t)) out.all = true;
+    else if (re.dealIn(t)) out.deal = re.dealIn(t); // before statuses: "بيع" is sale here, not a won deal
+    else if (re.typeIn(t)) out.type = re.typeIn(t);
+    else if (leads.statusFrom(t)) out.statuses.push(leads.statusFrom(t));
+    else out.words.push(t);
+  }
+  return out;
+}
+
+const audienceText = (a) =>
+  [a.statuses.length ? a.statuses.join(", ") : a.all ? "everyone" : "everyone but lost", a.type, a.deal, a.words.length && `area: ${a.words.join(" / ")}`].filter(Boolean).join(" · ");
+
+/** Clients with a number who haven't said stop, matching the audience; oldest first. */
+const messageTargets = (state, a) =>
+  leads
+    .all(state)
+    .filter((l) => l.phone && !l.optedOut)
+    .filter((l) => (a.statuses.length ? a.statuses.includes(l.status) : a.all || l.status !== "lost"))
+    .filter((l) => !a.type || l.type === a.type)
+    .filter((l) => !a.deal || l.deal === a.deal)
+    .filter((l) => !a.words.length || a.words.some((w) => (l.location || "").includes(w)))
+    .sort((x, y) => x.id - y.id)
+    .slice(0, MAX_AUDIENCE);
+
+/** The text one client gets: {name} filled in, and how to stop. */
+const messageText = (lead, text) =>
+  `${String(text)
+    .replace(/\{name\}/g, lead.name || "")
+    .replace(/ {2,}/g, " ")
+    .replace(/ ([،.؟!,])/g, "$1")
+    .trim()}\n\n${OPT_OUT_LINE}`;
+
+function startMessage(state, { by, chat, text, image, audience }, now = Date.now()) {
+  const t = String(text || "").trim();
+  if (t.length < 2 || t.length > MAX_MESSAGE) throw new UserError(`The message is 2 to ${MAX_MESSAGE} characters.`);
+  if (running(state).some((c) => c.kind === "message")) throw new UserError("A message to clients is already being sent (.campaigns). Wait for it, or stop it.");
+  if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
+  const queue = messageTargets(state, audience).map((l) => l.id);
+  if (!queue.length) throw new UserError("No client matches (with a number, and who hasn't said stop).");
+  return store(state).update((d) => {
+    const id = ++d.seq;
+    d.items[id] = { id, kind: "message", text: t, ...(image ? { image } : {}), audience: audienceText(audience), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    return d.items[id];
+  });
+}
+
+/** A finished or stopped message campaign's picture is deleted (it was only kept for sending). */
+function dropImage(config, c) {
+  if (!c?.image) return;
+  try {
+    fs.rmSync(imagePath(config, c.image), { force: true });
+  } catch {
+    /* already gone, or locked: a leftover picture does no harm */
+  }
+}
+
 // ---- weekly reports to listings' owners (.agent ownerreports on) --------------------------
 
 const weekday = (timeZone, now) => new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now));
@@ -227,13 +297,15 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   const notify = (text) => (c.chat ? app.sock.sendMessage(c.chat, { text }).catch(() => {}) : undefined);
   const finish = async (status, why = "") => {
     s.update((d) => Object.assign(d.items[c.id], { status, queue: [], ended: now }));
+    dropImage(app.config, c);
     await notify(`${summary(get(app.state, c.id))}${why ? `\n${why}` : ""}`);
     return "done";
   };
   const welcome = c.kind === "welcome";
+  const msg = c.kind === "message";
   const nudge = c.kind === "nudge";
   const owners = c.kind === "owners";
-  const listing = welcome || nudge || owners ? null : re.get(app.state, c.listing);
+  const listing = c.listing ? re.get(app.state, c.listing) : null;
   if (c.listing && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
   if (c.mode === "drop" && !re.discount(listing, now)) return finish("stopped", `⏹️ أُوقفت: سعر #${c.listing} لم يعد مخفّضاً.`);
   if (!c.queue.length) return finish("done");
@@ -280,6 +352,8 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     ? lead && (lead.status !== "new" || lead.welcomedAt || lead.lastSentAt)
     : nudge
       ? lead && (!ACTIVE.has(lead.status) || !leads.awaitingReply(lead) || lead.nudgedAt > lead.lastSentAt) // replied, closed or followed up meanwhile
+      : msg
+      ? false // a message goes to everyone queued (a stop request is checked below)
       : c.mode === "drop"
       ? lead && lead.dropNotified?.[listing.id] === listing.price
       : lead && (lead.sentListings || []).includes(listing.id);
@@ -292,6 +366,12 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     } else if (nudge) {
       await app.sock.sendMessage(jid, { text: nudgeText(app.state, lead) });
       leads.markNudged(app.state, lead.id, c.by, now);
+    } else if (msg) {
+      // Not a listing: no reply tracking or follow-up starts from it, only a note.
+      const text = messageText(lead, c.text);
+      const file = c.image && imagePath(app.config, c.image);
+      await app.sock.sendMessage(jid, file && fs.existsSync(file) ? { image: fs.readFileSync(file), caption: text } : { text });
+      leads.note(app.state, lead.id, c.by, `أُرسلت له رسالة (#${c.id}): ${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}`, now);
     } else {
       const text = message(listing, lead, re.agent(app.state), c.mode);
       const [photo] = re.photos(app.config, listing);
@@ -319,4 +399,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, startMessage, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
