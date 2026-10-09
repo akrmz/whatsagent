@@ -353,3 +353,51 @@ test("personal messages get no answer and aren't saved; ignored numbers are neve
   assert.match(b.calls.at(-1).system, /12\. Never write links or website addresses/);
   assert.ok(leads.byPhone(b.s, "201099998888"), "a property conversation: saved");
 });
+
+test("[BOOK #n] offers the free viewing times (self-booking on), [SHOW P3] sends a project card, the AI knows the time, the agent gets the context, and .assistant stats counts it all", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T15:30:00+03:00") }); // a Thursday
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  projects.add(b.s, { name: "ماونتن فيو", location: "التجمع", price: 6.5e6 }, ME); // P1
+
+  b.answers.push("أكيد، تقدر تعاين الشقة #1 👇 [BOOK #1]");
+  await b.send("عايز أشوف الشقة #1 على الطبيعة", { from: CLIENT });
+  assert.equal(b.to(CLIENT).length, 1, "self-booking is off: no times offered");
+  assert.match(b.calls.at(-1).system, /13\. When the client wants to visit a listing, say أحمد will arrange it and add \[HANDOFF\]/);
+  assert.match(b.calls.at(-1).system, /NOW: Thursday, 8 October 2026 at 15:30 \(Africa\/Cairo\)/);
+
+  re.setAgent(b.s, "booking", "on");
+  b.answers.push("أكيد، دي المواعيد المتاحة لمعاينة #1 👇 [BOOK #1]");
+  await b.send("طب ممكن أعاينها؟", { from: CLIENT });
+  assert.match(b.calls.at(-1).system, /13\. When the client wants to visit or see a listing in person, add \[BOOK #12\]/);
+  const out = b.to(CLIENT).slice(-2).map((m) => m.content.text);
+  assert.equal(out[0], "أكيد، دي المواعيد المتاحة لمعاينة #1 👇");
+  assert.match(out[1], /^🗓️ \*مواعيد المعاينة المتاحة\* — شقة في التجمع الخامس \(#1\)\n\n1️⃣ /);
+  await b.send("2", { from: CLIENT });
+  assert.match(b.last(CLIENT), /^أهلاً منى 👋\nتم تأكيد موعد معاينة شقة في التجمع الخامس/, "the client picks a time: booked");
+
+  b.answers.push("ده مشروع بالتقسيط في التجمع 👇 [SHOW P1] [SHOW P9]");
+  await b.send("عندك حاجة بالتقسيط؟", { from: CLIENT });
+  assert.match(b.last(CLIENT), /^🏗️ \*ماونتن فيو\* — P1/, "the project's card; an unknown P9 is skipped");
+
+  b.answers.push("هبلغ أحمد يكلمك 🙏 [HANDOFF]");
+  await b.send("طب ممكن خصم؟", { from: CLIENT });
+  assert.match(b.last(ME), /💬 قبلها:\n👤 عايز أشوف الشقة #1 على الطبيعة\n[\s\S]*\n👤 عندك حاجة بالتقسيط؟\n🤖 ده مشروع بالتقسيط في التجمع 👇\n\nلما ترد/, "the earlier exchanges (up to 3), oldest first, come with the handoff");
+
+  await b.send(".assistant stats");
+  const s = b.last(ME);
+  assert.match(s, /💬 Answers: 4 · 4 · 4/);
+  assert.match(s, /🏠 Cards sent: 1 · 1 · 1/);
+  assert.match(s, /🗓️ Viewing times offered: 1 · 1 · 1/);
+  assert.match(s, /🙋 Handed over to you: 1 · 1 · 1/);
+  assert.match(s, /🆕 New clients saved: 1 · 1 · 1/);
+  assert.match(s, /Clients it talked to today: 1/);
+  t.mock.timers.setTime(Date.parse("2026-10-14T12:00:00+03:00"));
+  await b.send(".assistant stats");
+  assert.match(b.last(ME), /💬 Answers: 0 · 4 · 4/, "6 days later: still in the week");
+  t.mock.timers.setTime(Date.parse("2026-10-16T12:00:00+03:00"));
+  await b.send(".assistant stats");
+  assert.match(b.last(ME), /💬 Answers: 0 · 0 · 4/, "8 days later: only the month");
+  t.mock.timers.reset();
+});

@@ -148,6 +148,30 @@ function phoneOf(ctx) {
 }
 
 /**
+ * Offers the client the next free times for a listing (they reply with a number). Also used by
+ * the customer assistant when a client asks to see a listing. @returns {Promise<boolean>} offered
+ */
+async function offerTimes(ctx, listing, now = Date.now()) {
+  const tz = ctx.config.bot.timezone;
+  const phone = phoneOf(ctx);
+  const lead = phone ? leads.byPhone(ctx.state, phone) : null;
+  if (listing.status !== "available") {
+    await ctx.reply(`للأسف العقار #${listing.id} مش متاح دلوقتي. ابعت *عقارات* تشوف المتاح.`);
+    return false;
+  }
+  const slots = freeSlots(ctx.state, tz, now);
+  if (!slots.length) {
+    await ctx.reply("مفيش مواعيد فاضية الأيام الجاية، هنتواصل معاك نحدد معاد 🙏");
+    await ctx.sock.sendMessage(agentOf(ctx, lead), { text: `📅 ${lead?.name || ctx.senderName || "عميل"}${phone ? ` (+${phone})` : ""} عايز يعاين #${listing.id} ومفيش مواعيد فاضية في مواعيد المعاينة. اتواصل معاه.` }).catch(() => {});
+    return false;
+  }
+  keep(mem(ctx.state).offers, ctx.sender, { listing: listing.id, slots, at: now });
+  const what = `${listing.type || "العقار"}${listing.location ? ` في ${listing.location}` : ""} (#${listing.id})`;
+  await ctx.reply([`🗓️ *مواعيد المعاينة المتاحة* — ${what}`, "", ...slots.map((t, i) => `${DIGITS[i + 1]} ${when(t, tz)}`), "", "اكتب رقم المعاد اللي يناسبك 👇"].join("\n"));
+  return true;
+}
+
+/**
  * A client's private message. @returns {Promise<boolean>} true if it was handled
  */
 async function handle(ctx, now = Date.now()) {
@@ -190,19 +214,7 @@ async function handle(ctx, now = Date.now()) {
       await ctx.reply("تحب تعاين أنهي عقار؟ ابعت رقمه، مثلاً: معاينة 12");
       return true;
     }
-    if (listing.status !== "available") {
-      await ctx.reply(`للأسف العقار #${listing.id} مش متاح دلوقتي. ابعت *عقارات* تشوف المتاح.`);
-      return true;
-    }
-    const slots = freeSlots(ctx.state, tz, now);
-    if (!slots.length) {
-      await ctx.reply("مفيش مواعيد فاضية الأيام الجاية، هنتواصل معاك نحدد معاد 🙏");
-      await ctx.sock.sendMessage(agentOf(ctx, lead), { text: `📅 ${lead?.name || ctx.senderName || "عميل"}${phone ? ` (+${phone})` : ""} عايز يعاين #${listing.id} ومفيش مواعيد فاضية في مواعيد المعاينة. اتواصل معاه.` }).catch(() => {});
-      return true;
-    }
-    keep(m.offers, who, { listing: listing.id, slots, at: now });
-    const what = `${listing.type || "العقار"}${listing.location ? ` في ${listing.location}` : ""} (#${listing.id})`;
-    await ctx.reply([`🗓️ *مواعيد المعاينة المتاحة* — ${what}`, "", ...slots.map((t, i) => `${DIGITS[i + 1]} ${when(t, tz)}`), "", "اكتب رقم المعاد اللي يناسبك 👇"].join("\n"));
+    await offerTimes(ctx, listing, now);
     return true;
   }
 
@@ -263,4 +275,4 @@ async function handle(ctx, now = Date.now()) {
   return true;
 }
 
-module.exports = { handle, freeSlots, settings, setHours, setDays, setLength, describe, noteViewed, TRIGGER, CANCEL, DEFAULTS };
+module.exports = { handle, offerTimes, freeSlots, settings, setHours, setDays, setLength, describe, noteViewed, TRIGGER, CANCEL, DEFAULTS };

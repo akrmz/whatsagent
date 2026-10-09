@@ -31,6 +31,7 @@ const HELP = (p) =>
     `${p}assistant test <question> — see what a client would get`,
     `${p}assistant pause 5 [hours] · ${p}assistant resume 5 — stop or restart it for one client`,
     `${p}assistant inbox — clients waiting for your reply (reminded once after 2 hours) · ${p}assistant done 5`,
+    `${p}assistant stats — what it did today, this week and this month`,
     `${p}assistant ignore 2010… — never answer this number (family, friends, suppliers) · ${p}assistant ignored · ${p}assistant unignore 2010…`,
     "",
     "When you answer a client yourself from your phone, it steps back in that chat for 12 hours.",
@@ -41,8 +42,8 @@ module.exports = {
   aliases: ["mosaed", "customerbot", "salesbot"],
   category: "realestate",
   description:
-    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings it recommends, saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
-  usage: "on | off | info <text>|clear | test <question> | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
+    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings and projects it recommends, offers free viewing times when a client wants to visit (with self-booking on), saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
+  usage: "on | off | info <text>|clear | test <question> | stats | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
@@ -70,13 +71,37 @@ module.exports = {
       if (!ctx.app.ai) throw new UserError(`No AI is set up yet (${p}setai).`);
       if (!rest) throw new UserError(`Write a client's question: ${p}assistant test عندك شقة في التجمع؟`);
       await ctx.react("🤖");
-      const { text, handoff, show, wants } = await assistant.answer(ctx.app, { state: ctx.state, key: `test|${ctx.sender}`, lead: null, text: rest });
+      const { text, handoff, show, projects, book, wants } = await assistant.answer(ctx.app, { state: ctx.state, key: `test|${ctx.sender}`, lead: null, text: rest });
+      const codes = [...show.map((l) => `#${l.id}`), ...projects.map((p) => `P${p.id}`)];
       const extra = [
-        show.length && `📎 plus the card${show.length > 1 ? "s" : ""} of ${show.map((l) => `#${l.id}`).join(", ")} (with the photo)`,
+        codes.length && `📎 plus the card${codes.length > 1 ? "s" : ""} of ${codes.join(", ")}${show.length ? " (with the photo)" : ""}`,
+        book && `🗓️ plus the free viewing times for #${book.id}`,
         Object.keys(wants).length && `📝 saved on the client's card: ${requests.describe({ ...wants, type: wants.type || "عقار" }, re.agent(ctx.state).currency)}`,
         handoff && "🙋 and you'd be told to follow up",
       ].filter(Boolean);
       return ctx.reply(`🧪 *A client would get:*\n\n${text}${extra.length ? `\n\n${extra.join("\n")}` : ""}`);
+    }
+    if (sub === "stats" || sub === "report" || sub === "احصائيات" || sub === "إحصائيات") {
+      // Counts only (no names): fine in any chat the command runs in.
+      const s = assistant.stats(ctx.state, ctx.config.bot.timezone);
+      const row = (label, k) => `${label}: ${s.today[k]} · ${s.week[k]} · ${s.month[k]}`;
+      return ctx.reply(
+        [
+          "🤖 *What the assistant did* — today · 7 days · 30 days",
+          "",
+          row("💬 Answers", "answers"),
+          row("🎤 Voice notes", "voice"),
+          row("🏠 Cards sent", "cards"),
+          row("🗓️ Viewing times offered", "viewingOffers"),
+          row("📝 Wishes saved on cards", "wishes"),
+          row("🆕 New clients saved", "newClients"),
+          row("🙋 Handed over to you", "handoffs"),
+          row("🙈 Personal messages left alone", "ignored"),
+          "",
+          `Clients it talked to today: ${s.clientsToday}`,
+          `Waiting for your reply now: ${assistant.waiting(ctx.state).length}`,
+        ].join("\n"),
+      );
     }
     if (sub === "inbox" || sub === "waiting" || sub === "done") {
       // Names and numbers: only where no outsider reads them (see B-21).
