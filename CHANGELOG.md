@@ -2,6 +2,34 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.31.0 — 2026-10-10
+
+### Added — clients book viewings themselves
+- **`.agent booking on`**: in a private chat a client sends **معاينة** (also "معاينة 12", "عايز معاينة", "احجز معاينة").
+  - They get the next 6 free times within your viewing hours, numbered, and reply with a number.
+  - **Which listing:** the number given, else the one they last opened (within a day), else the last one sent to them. If none, they are asked for the number.
+  - **Booked like `.viewing add … send`:** a confirmation and a 2-hour reminder for the client (with the location pin), and a reminder for you an hour before. You're told at once, with `.viewing del` to cancel.
+  - The client moves to the viewing stage. A new number is saved as a client (source "حجز معاينة"), and the client's assigned team member gets the booking if there is one.
+  - **الغاء المعاينة** cancels their next self-booked viewing, and you're told.
+- **Never offered:** times less than 2 hours away, more than 7 days ahead, or overlapping a viewing already booked (you can't be in two places).
+  - A time taken by someone else meanwhile is refused when picked.
+  - At most 2 upcoming self-bookings per client and 20 a day in all; 6 steps a minute per client.
+  - Private chats only (not groups, not staff); sold listings can't be booked.
+- **`.viewing hours 11:00-19:00`, `.viewing days sat-thu`, `.viewing length 60`** set when clients may book. The defaults are Saturday to Thursday, 11:00–19:00, 60 minutes. `.viewing slots` shows them and the next free times.
+- **Where it shows:**
+  - with booking on, listing cards clients open and campaign messages end with "🗓️ لحجز معاينة ابعت: معاينة 12";
+  - `.autopilot` and `.agent` show the setting.
+- The client menu word ("عقارات") closes an open offer of times, so its numbers go to the menu.
+
+### Checked
+- 3 tests (349 in total). They cover:
+  - the offer (today from 2 hours on, no Friday, around a booked viewing), booking, and the agent's notice;
+  - a booked time not offered again, and a closed offer;
+  - cancel, and cancel with nothing booked;
+  - which listing (named, last opened, last sent, none, sold);
+  - groups and staff ignored, a time taken meanwhile, 2 per client, and the menu taking over;
+  - hours, days and length, with their errors.
+
 ## 3.30.1 — 2026-10-10
 
 A review of the code added since 3.20.1 (3.21–3.30). `npm audit` reports no vulnerabilities in the bot's dependencies.
