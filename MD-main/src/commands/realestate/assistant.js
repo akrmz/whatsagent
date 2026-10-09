@@ -32,9 +32,10 @@ const HELP = (p) =>
     `${p}assistant pause 5 [hours] · ${p}assistant resume 5 — stop or restart it for one client`,
     `${p}assistant inbox — clients waiting for your reply (reminded once after 2 hours) · ${p}assistant done 5`,
     `${p}assistant stats — what it did today, this week and this month`,
+    `${p}assistant takeover 6 — how many hours it stays quiet once you write to a client (default 12)`,
     `${p}assistant ignore 2010… — never answer this number (family, friends, suppliers) · ${p}assistant ignored · ${p}assistant unignore 2010…`,
     "",
-    "When you answer a client yourself from your phone, it steps back in that chat for 12 hours.",
+    "When you answer a client yourself from your phone, it steps back in that chat (and tells you once). A client who asks for a person gets a fixed answer, it goes quiet, and you get a 📞 notice with a link to the chat.",
   ].join("\n");
 
 module.exports = {
@@ -43,7 +44,7 @@ module.exports = {
   category: "realestate",
   description:
     "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings and projects it recommends, offers free viewing times when a client wants to visit (with self-booking on), saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
-  usage: "on | off | info <text>|clear | test <question> | stats | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
+  usage: "on | off | info <text>|clear | test <question> | stats | takeover [hours] | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
@@ -81,6 +82,12 @@ module.exports = {
       ].filter(Boolean);
       return ctx.reply(`🧪 *A client would get:*\n\n${text}${extra.length ? `\n\n${extra.join("\n")}` : ""}`);
     }
+    if (sub === "takeover") {
+      // How long it stays quiet in a chat once you write to the client yourself.
+      if (ctx.args[1]) assistant.setTakeoverHours(ctx.state, Number(re.latinDigits(ctx.args[1])));
+      const h = Math.round(assistant.takeoverMs(ctx.state) / 3600000);
+      return ctx.reply(`⏸️ When you write to a client yourself (or they ask for a person), the assistant stays quiet in that chat for ${h} hour(s).${ctx.args[1] ? "" : ` Change: ${p}assistant takeover 6 (1–72)`}`);
+    }
     if (sub === "stats" || sub === "report" || sub === "احصائيات" || sub === "إحصائيات") {
       // Counts only (no names): fine in any chat the command runs in.
       const s = assistant.stats(ctx.state, ctx.config.bot.timezone);
@@ -96,6 +103,7 @@ module.exports = {
           row("📝 Wishes saved on cards", "wishes"),
           row("🆕 New clients saved", "newClients"),
           row("🙋 Handed over to you", "handoffs"),
+          row("📞 Asked for a person", "humanRequests"),
           row("🙈 Personal messages left alone", "ignored"),
           "",
           `Clients it talked to today: ${s.clientsToday}`,

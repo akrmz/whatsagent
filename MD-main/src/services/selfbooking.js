@@ -109,6 +109,25 @@ function freeSlots(state, timeZone, now = Date.now(), count = OFFER) {
   return slots;
 }
 
+/**
+ * When the office opens next (the viewing days and hours stand for the agent's working
+ * hours), or null if it is open now. Used to tell a client who asks for a person when to expect a call.
+ */
+function nextOpen(state, timeZone, now = Date.now()) {
+  const s = settings(state);
+  const [from, to] = [parseClock(s.from), parseClock(s.to)];
+  const today = localDate(timeZone, now);
+  const { minutes } = zoneNow(timeZone, now);
+  for (let i = 0; i <= 7; i++) {
+    const date = new Date(Date.UTC(today.y, today.m - 1, today.d + i));
+    if (!s.days.includes(date.getUTCDay())) continue;
+    if (i === 0 && minutes >= from && minutes < to) return null; // open now
+    if (i === 0 && minutes >= to) continue; // closed for today
+    return zonedInstant(timeZone, { y: date.getUTCFullYear(), m: date.getUTCMonth() + 1, d: date.getUTCDate() }, from);
+  }
+  return null;
+}
+
 // ---- in memory: offered times, and the listing each client last opened ---------------------
 
 const memory = new WeakMap();
@@ -275,4 +294,4 @@ async function handle(ctx, now = Date.now()) {
   return true;
 }
 
-module.exports = { handle, offerTimes, freeSlots, settings, setHours, setDays, setLength, describe, noteViewed, TRIGGER, CANCEL, DEFAULTS };
+module.exports = { handle, offerTimes, nextOpen, freeSlots, settings, setHours, setDays, setLength, describe, noteViewed, TRIGGER, CANCEL, DEFAULTS };

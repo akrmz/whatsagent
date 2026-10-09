@@ -198,10 +198,10 @@ test("voice notes: written out, then answered like text; long ones, music, no sp
   const lead = leads.byPhone(b.s, "201099998888");
   assert.match(lead.history.map((h) => h.text).join("\n"), /🎤 رسالة صوتية: عندك شقة في التجمع؟ ده رقمي \[رقم\]/);
 
-  transcripts.push("عايز أكلم أحمد بخصوص السعر");
+  transcripts.push("عايز أفاصل في السعر شوية");
   b.answers.push("أكيد، أحمد هيكلمك 🙏 [HANDOFF]");
   await voice();
-  assert.match(b.last(ME), /قال \(رسالة صوتية\): "عايز أكلم أحمد بخصوص السعر"/);
+  assert.match(b.last(ME), /قال \(رسالة صوتية\): "عايز أفاصل في السعر شوية"/);
 
   const asked = heard.length;
   assert.equal(await voice({ seconds: 300 }), false, "over 2 minutes: left to the agent");
@@ -280,10 +280,10 @@ test("handed-over clients wait in .assistant inbox, get one reminder after 2 hou
   const digest = require("../src/services/digest");
 
   b.answers.push("أحمد هيكلمك بخصوص السعر 🙏 [HANDOFF]");
-  await b.send("ممكن نتفاوض في السعر؟ كلمني على 01099998888", { from: CLIENT });
+  await b.send("ممكن نتفاوض في السعر؟ رقمي 01099998888", { from: CLIENT });
   await b.send(".assistant inbox");
   const lead = leads.byPhone(b.s, "201099998888");
-  assert.ok(b.last(ME).startsWith(`🙋 *Waiting for your reply* (1) — oldest first\n\n▫️ منى (+201099998888) — من 1 دقيقة: "ممكن نتفاوض في السعر؟ كلمني على [رقم]" · .lead ${lead.id}`), b.last(ME));
+  assert.ok(b.last(ME).startsWith(`🙋 *Waiting for your reply* (1) — oldest first\n\n▫️ منى (+201099998888) — من 1 دقيقة: "ممكن نتفاوض في السعر؟ رقمي [رقم]" · .lead ${lead.id}`), b.last(ME));
   await b.send(".assistant inbox", { chat: GROUP });
   assert.match(b.to(GROUP).at(-1).content.text, /^🔒/, "names and numbers: not in a mixed group");
   await b.send(".assistant");
@@ -383,7 +383,7 @@ test("[BOOK #n] offers the free viewing times (self-booking on), [SHOW P3] sends
 
   b.answers.push("هبلغ أحمد يكلمك 🙏 [HANDOFF]");
   await b.send("طب ممكن خصم؟", { from: CLIENT });
-  assert.match(b.last(ME), /💬 قبلها:\n👤 عايز أشوف الشقة #1 على الطبيعة\n[\s\S]*\n👤 عندك حاجة بالتقسيط؟\n🤖 ده مشروع بالتقسيط في التجمع 👇\n\nلما ترد/, "the earlier exchanges (up to 3), oldest first, come with the handoff");
+  assert.match(b.last(ME), /💬 قبلها:\n👤 عايز أشوف الشقة #1 على الطبيعة\n[\s\S]*\n👤 عندك حاجة بالتقسيط؟\n🤖 ده مشروع بالتقسيط في التجمع 👇\nافتح الشات: https:\/\/wa\.me\/201099998888\n\nلما ترد/, "the earlier exchanges (up to 3), oldest first, and a link to the chat come with the handoff");
 
   await b.send(".assistant stats");
   const s = b.last(ME);
@@ -399,5 +399,76 @@ test("[BOOK #n] offers the free viewing times (self-booking on), [SHOW P3] sends
   t.mock.timers.setTime(Date.parse("2026-10-16T12:00:00+03:00"));
   await b.send(".assistant stats");
   assert.match(b.last(ME), /💬 Answers: 0 · 0 · 4/, "8 days later: only the month");
+  t.mock.timers.reset();
+});
+
+test("asking for a person: a fixed answer without the AI, quiet until the agent writes, an urgent notice with the chat link; the agent taking over is confirmed once", async (t) => {
+  const at = (day, hhmm) => Date.parse(`${day}T${hhmm}:00+03:00`);
+  t.mock.timers.enable({ apis: ["Date"], now: at("2026-10-08", "15:30") }); // Thursday, within the default hours
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  leads.add(b.s, { name: "منى", phone: "201099998888" }, ME);
+  require("../src/services/aiusage").forget("assistant|201099998888"); // conversations are kept in memory across tests
+
+  await b.send("عايز أكلم حد لو سمحت", { from: CLIENT });
+  assert.equal(b.calls.length, 0, "no AI needed");
+  assert.equal(b.last(CLIENT), "حاضر 🙏 بلغت أحمد وهيكلمك في أقرب وقت.\nولو حابب تتصل مباشرة: +20 100 123 4567");
+  assert.match(b.last(ME), /^📞 \*منى \(\+201099998888\) عايز يكلمك\*\nكتب: "عايز أكلم حد لو سمحت"\nافتح الشات: https:\/\/wa\.me\/201099998888\n\nالمساعد ساكت معاه لحد ما ترد \(أو 12 ساعة\)\. ترجّعه: \.assistant resume 201099998888 · \.lead 2$/);
+  await b.send(".assistant inbox");
+  assert.match(b.last(ME), /▫️ منى \(\+201099998888\) — من 1 دقيقة: "📞 عايز أكلم حد لو سمحت"/);
+
+  const sent = b.to(CLIENT).length;
+  await b.send("طيب", { from: CLIENT });
+  await b.send("في حد؟", { from: CLIENT });
+  assert.equal(b.to(CLIENT).length, sent, "quiet while waiting");
+  assert.equal(b.calls.length, 0);
+  t.mock.timers.setTime(at("2026-10-08", "17:45"));
+  await b.send("لسه مستني", { from: CLIENT });
+  assert.equal(b.last(CLIENT), "بلغت أحمد وهيرد عليك قريب 🙏", "reassured after 2 hours");
+  await b.send("؟؟", { from: CLIENT });
+  assert.equal(b.to(CLIENT).length, sent + 1, "once");
+
+  // The agent writes from the phone: one note, off the list, the assistant quiet as usual.
+  await b.send("أهلاً يا منى، أنا أحمد", { chat: CLIENT, fromMe: true });
+  assert.equal(b.last(ME), "⏸️ رديت على منى (+201099998888) اللي كان طالب يكلمك — المساعد ساكت معاه 12 ساعة.\nترجّعه دلوقتي: .assistant resume 201099998888");
+  const notes = b.to(ME).length;
+  await b.send("هكلمك كمان 5 دقايق", { chat: CLIENT, fromMe: true });
+  assert.equal(b.to(ME).length, notes, "once per takeover");
+  assert.equal(require("../src/services/assistant").waiting(b.s).length, 0);
+
+  // A chat with someone who isn't a client: quiet, but no note.
+  const FRIEND = "201022223333@s.whatsapp.net";
+  await b.send("تمام يا صاحبي", { chat: FRIEND, fromMe: true });
+  assert.equal(b.to(ME).length, notes);
+  t.mock.timers.reset();
+});
+
+test("outside working hours the client is told when to expect the call; the AI's [HUMAN] works the same; .assistant takeover sets the quiet time", async (t) => {
+  const at = (day, hhmm) => Date.parse(`${day}T${hhmm}:00+03:00`);
+  t.mock.timers.enable({ apis: ["Date"], now: at("2026-10-08", "20:30") }); // Thursday evening; Friday off
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  b.answers.push("[HUMAN]");
+  await b.send("بص أنا شفت الإعلان بتاعكم وعجبني جداً بس محتاج أتفاهم مع حضرتك في كذا تفصيلة قبل ما أقرر", { from: CLIENT });
+  assert.equal(b.calls.length, 1, "a long message: the AI decides");
+  assert.match(b.last(CLIENT), /^حاضر 🙏 بلغت أحمد وهيكلمك في أقرب وقت\.\nإحنا دلوقتي برة مواعيد الشغل، هيكلمك السبت، 10 أكتوبر في 11:00 ص\./);
+  assert.doesNotMatch(b.last(CLIENT), /HUMAN/);
+  assert.match(b.last(ME), /^📞 \*منى \(\+201099998888\) عايز يكلمك\*/);
+
+  await b.send(".assistant takeover 6");
+  assert.match(b.last(ME), /stays quiet in that chat for 6 hour/);
+  const assistant = require("../src/services/assistant");
+  assert.equal(assistant.takeoverMs(b.s), 6 * 3600 * 1000);
+  await b.send(".assistant takeover 100");
+  assert.match(b.last(ME), /Hours: 1 to 72/);
+
+  assert.equal(assistant.asksForHuman("كلمني لو سمحت"), true);
+  assert.equal(assistant.asksForHuman("Can I talk to a human?"), true);
+  assert.equal(assistant.asksForHuman("ممكن اتصل بيا بكرة"), true, "a call");
+  assert.equal(assistant.asksForHuman("بكام سعر المتر في الشقة دي؟"), false);
+  assert.equal(assistant.asksForHuman("الموظفين في الكمبوند محترمين؟"), false, "staff in general isn't asking for one");
+  assert.equal(assistant.asksForHuman("I'm an agent too, do you share commission?"), false);
   t.mock.timers.reset();
 });
