@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-23 clients' notices kept reaching a member after their sudo was removed | Fixed in 3.43.1: notices, reminders and the rotation only use members who are still the owner or sudo |
 | **Found in a later review:** B-22 the customer assistant answered every private chat and could relay links | Fixed in 3.36.0: personal chats are left alone (`[IGNORE]`, `.assistant ignore`), links removed unless trusted |
 | **Found in a later review:** B-21 clients' details shown in groups with outsiders | Fixed in 3.30.1: client commands work only in a private chat with the bot or a group of staff only |
 
@@ -92,6 +93,7 @@ How this was verified:
 | B-20 | Low | Bot | `.export` wrote text from strangers (WhatsApp names, notes, lead-ads answers) into CSV cells that Excel could run as formulas (found in the 3.20.1 review of the new code; fixed) |
 | B-21 | Medium | Bot | Client commands showed clients' names, phone numbers, budgets and notes in whatever group they were typed in, including groups with clients or other brokers (found in the 3.30.1 review; fixed) |
 | B-22 | Medium | Bot | The customer assistant sent every private message from a non-staff number to the AI provider and saved the sender as a client (family and friends of an agent using their own number included); a client could also try to make it repeat a payment or phishing link (found in the 3.36.0 review; fixed) |
+| B-23 | Medium | Bot | A team member whose sudo was removed kept getting the notices of clients assigned to them (names, numbers, what they wrote, handoffs, self-booked viewings and their reminders), and the rotation kept giving them new clients (found in the 3.43.1 review; fixed) |
 
 ---
 
@@ -320,6 +322,20 @@ Locations only (values intentionally omitted):
   - **`.assistant ignore <number>`:** that number is never sent to the AI (local "0100…" numbers are normalised). `.assistant ignored` lists them, staff-only chats only.
   - **Links:** every link or bare domain in an answer is removed, except Google Maps links (listing pins) and links that appear in the agent's own office info or profile. The prompt also forbids links.
 - **Tests:** `test/assistant.test.js` ("personal messages …").
+
+### B-23 — Notices kept reaching a removed team member (found in the 3.43.1 review)
+- **Where:** everything that notifies "the client's member" (`lead.assignee`):
+  - the `#12` and written-request notices, and the self-booking notice;
+  - the assistant's handoffs, "عايز يكلمك" and its 2-hour reminders;
+  - self-booked viewings, whose reminders went to the chat stored at booking time;
+  - the `.team autoassign` rotation (3.43.0), which kept the member list it was given.
+
+  Removing someone's sudo (`.sudo del`) took away their commands but not these messages. They carry clients' names, numbers and what they wrote. The rotation would also keep giving that person new clients.
+- **Fix:**
+  - `rotation.notifyJid(app, lead)` decides who hears about a client: the assigned member only while they are still the owner or a sudo user, else the owner. Every notice above uses it.
+  - Self-booked viewings check the same before each reminder.
+  - The rotation skips members who are no longer on the team, and `.team autoassign` says when nobody in the list is left.
+- **Tests:** `test/rotation.test.js` ("someone whose sudo is removed …").
 
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).

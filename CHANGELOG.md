@@ -2,6 +2,34 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.43.1 — 2026-10-10
+
+A review of the code added since 3.36.0 (3.37–3.43). `npm audit` reports no vulnerabilities in the bot's dependencies.
+
+### Security — a removed team member kept getting clients' notices (B-23)
+- **The problem:** when you removed someone's sudo, clients assigned to them still sent them messages. This covered:
+  - notices from `.lead assign` and from the new rotation;
+  - `#12` and request notices;
+  - the assistant's handoffs and "عايز يكلمك";
+  - self-booked viewings and their reminders.
+
+  Those carry clients' names, numbers and what they wrote. The rotation would also keep giving them new clients.
+- **Now:**
+  - a client's notices go to their member only while that member is still the owner or a sudo user, else to the owner;
+  - self-booked viewing reminders check the same before each reminder;
+  - the rotation skips anyone no longer on the team, and `.team autoassign` says when nobody in the list is left.
+
+### Checked
+- 1 test (371 in total). After Ahmed's sudo is removed, it checks that:
+  - his client's question, viewing reminder and handoff all reach the owner, and nothing more reaches Ahmed;
+  - new clients go to Mona only;
+  - the rotation shows when no member is left.
+- Also reviewed, no change needed:
+  - `.blast msg` (pictures re-encoded, kept only by a random file name, deleted at the end or on stop);
+  - rent receipts (recorded payments only, private chats);
+  - the assistant's FAQ, `[BOOK]`/`[HUMAN]` tags and handover (staff-only notices, links still stripped);
+  - the shared self-booking offer.
+
 ## 3.43.0 — 2026-10-10
 
 ### Added — new clients handed to the team in turn
