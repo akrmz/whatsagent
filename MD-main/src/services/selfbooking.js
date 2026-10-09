@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const leads = require("./leads");
+const rotation = require("./rotation");
 const viewings = require("./viewings");
 const catalog = require("./catalogmenu");
 const { zoneNow } = require("./gcschedule");
@@ -279,6 +280,7 @@ async function handle(ctx, now = Date.now()) {
       ctx.sender,
       now,
     );
+    if (rotation.assignNext(ctx.state, client.id, now)) client = leads.get(ctx.state, client.id); // the team member whose turn it is
   }
   const agent = agentOf(ctx, client);
   const v = viewings.add(ctx.state, { lead: client.id, listing: listing.id, at, chat: agent, by: agent, notifyClient: Boolean(client.phone), self: true }, now);

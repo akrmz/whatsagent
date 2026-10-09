@@ -2,6 +2,7 @@
 
 const re = require("./realestate");
 const leads = require("./leads");
+const rotation = require("./rotation");
 const projects = require("./projects");
 const requests = require("./requests");
 const listingview = require("./listingview");
@@ -619,6 +620,12 @@ async function handle(ctx, now = Date.now()) {
     try {
       lead = leads.add(ctx.state, { name: (ctx.senderName || "").slice(0, 60) || undefined, phone, source: "واتساب", notes: `تواصل مع المساعد: ${redactPhones(text).slice(0, 120)}` }, ctx.sender, now);
       count(ctx.state, ctx.config.bot.timezone, "newClients", now);
+      // A team in turn (.team autoassign): the member whose turn it is gets the client, and a note.
+      const member = rotation.assignNext(ctx.state, lead.id, now);
+      if (member) {
+        lead = leads.get(ctx.state, lead.id);
+        await ctx.sock.sendMessage(member, { text: `🧑‍💼 عميل جديد ليك: ${lead.name || "عميل"} (+${phone}) — المساعد بيرد عليه، ولو احتاجك هيبلغك.\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
+      }
     } catch (err) {
       ctx.log.warn({ err: err.message }, "assistant: client not saved");
     }

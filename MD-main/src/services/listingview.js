@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const re = require("./realestate");
 const english = require("./english");
 const leads = require("./leads");
+const rotation = require("./rotation");
 const { limiterFor } = require("../core/ratelimit");
 
 // Inquiry capture is triggered by strangers, so it is limited (per bot):
@@ -80,13 +81,14 @@ async function captureInquiry(ctx, listing) {
       return null;
     }
     sameQuestion(ctx.state, `${lead.id}|${listing.id}`);
+    if (rotation.assignNext(ctx.state, lead.id)) lead = leads.get(ctx.state, lead.id); // the team member whose turn it is
     re.count(ctx.state, listing.id, "inquiries");
   }
   const owner = ctx.config.owners.numbers[0];
   if (owner && notifyOwner(ctx.state, String(lead.id))) {
     const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
     await ctx.sock
-      .sendMessage(`${owner}@s.whatsapp.net`, { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}\n${ctx.prefix}lead ${lead.id}` })
+      .sendMessage(rotation.notifyJid(ctx.config, lead), { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}\n${ctx.prefix}lead ${lead.id}` })
       .catch(() => {});
   }
   return { lead, isNew: !existing };

@@ -4,6 +4,7 @@ const re = require("../../services/realestate");
 const campaigns = require("../../services/campaigns");
 const ownerReport = require("../../services/ownerreport");
 const booking = require("../../services/selfbooking");
+const rotation = require("../../services/rotation");
 const autoreply = require("../../services/autoreply");
 const autolistings = require("../../services/autolistings");
 const statuspost = require("../../services/statuspost");
@@ -60,6 +61,7 @@ module.exports = {
       `${on(a.catalog)} قائمة العقارات للعملاء ("عقارات") — ${p}agent catalog on|off`,
       `${on(a.assistant && ctx.app.ai)} المساعد الذكي يرد على أسئلة العملاء${a.assistant && !ctx.app.ai ? " (محتاج مفتاح AI: .setai)" : ""} — ${p}assistant on|off`,
       `${on(a.booking)} حجز المعاينة بنفسه ("معاينة")${a.booking ? ` — ${booking.describe(booking.settings(s))}` : ""} — ${p}agent booking on|off`,
+      `${on(rotation.settings(s).on)} توزيع العملاء الجدد على الفريق بالدور${rotation.settings(s).on ? ` (${rotation.settings(s).members.length} أعضاء)` : ""} — ${p}team autoassign @… | off`,
       `${on(ar.greet)} ترحيب بأول تواصل — ${p}greet on <الرسالة> | off`,
       `${on(ar.away)} رد خارج مواعيد العمل — ${p}awaymsg on <الرسالة> | off`,
       "",
