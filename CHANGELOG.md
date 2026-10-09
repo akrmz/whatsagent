@@ -2,6 +2,34 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.45.0 — 2026-10-10
+
+### Added — owners who want to sell or rent out
+- **`.agent sellers on`**: someone who writes in a private chat that they want to sell or rent out their property is asked for the details and photos ("عايز أبيع شقتي في التجمع", "عندي شقة عايز أبيعها", "عايز أأجر شقتي", "شقتي للبيع").
+  - **Collecting:** for 20 minutes after their last message, their texts and up to 8 photos are kept as an offer. Each message is read on its own, like `.listing add`: type, area, size, rooms, floor, finishing, price. "شقتي/فيلتي/محلي…" gives the type when it isn't written.
+  - **What you get:** "🏷️ مالك عايز يبيع/يأجّر" with what they wrote and a link to the chat. When the details arrive, they're thanked once and you get a summary.
+- **`.sellers`** lists the offers waiting; `.sellers 3` shows everything they wrote.
+  - **`.sellers add 3`** (missing details after it, e.g. `النوع: محل`) makes it a listing with their photos, and the person is saved as its private owner, so `.listing ask` and owner reports work for it.
+  - **`.sellers del 3`** dismisses it and deletes its photos.
+  - Nothing reaches the catalogue until you add it, and their chat never becomes the listing's public notes.
+- **Who counts as a seller:**
+  - only short messages that say *they* want to sell or rent out;
+  - not "اعرض" (also "show me") or "أجرها كام" (the rent of a listing);
+  - not buyers' questions ("عندك شقة للبيع؟");
+  - private chats only, never staff;
+  - limits: 8 messages per 10 minutes each, and 20 new offers an hour.
+
+### Fixed
+- "عندي شقة عايز أبيعها" was taken as a buyer's request by `.agent requests` and answered with listings to buy. Sellers are no longer read as buyers.
+
+### Checked
+- 2 tests (375 in total). They cover:
+  - off by default, the ask and your notice, the details and their summary, quiet follow-ups, and a photo;
+  - the list, the details, refused in a mixed group;
+  - the listing made (fields, owner, no public notes, photo moved), and no second add;
+  - renting out (deal and type from "شقتي"), a missing type asked for and then added, dismissing;
+  - a buyer, staff and a group not taken as sellers, and the request reader no longer seeing a seller as a buyer.
+
 ## 3.44.0 — 2026-10-10
 
 ### Added — bringing back quiet clients
