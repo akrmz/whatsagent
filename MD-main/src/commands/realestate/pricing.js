@@ -4,6 +4,8 @@ const re = require("../../services/realestate");
 const leads = require("../../services/leads");
 const market = require("../../services/market");
 const marketImage = require("../../services/marketimage");
+const compareImage = require("../../services/compareimage");
+const { limiterFor } = require("../../core/ratelimit");
 const calc = require("../../services/recalc");
 const offer = require("../../services/offer");
 const img = require("../../services/reimages");
@@ -147,16 +149,22 @@ module.exports = [
     name: "compare",
     aliases: ["qarn", "moqarna", "vs"],
     category: "realestate",
-    description: "مقارنة العقارات — 2 to 4 listings side by side: price, size, price per m², rooms, baths, floor, finishing and status, with the best value marked, and the distance between two listings when both have a location.",
-    usage: "<listing> <listing> [listing] [listing]",
-    examples: [".compare 3 7", ".compare 3 7 9"],
+    description: "مقارنة العقارات — 2 to 4 listings side by side: price, size, price per m², rooms, baths, floor, finishing and status, with the best value marked, and the distance between two listings when both have a location. \"image\" makes it a picture to send a client (2 or 3 listings: photos, price, size, price per m², rooms, payment plan and features, with your contact).",
+    usage: "<listing> <listing> [listing] [listing] [image]",
+    examples: [".compare 3 7", ".compare 3 7 9", ".compare 3 7 9 image"],
     cooldown: 3,
     async run(ctx) {
       const ids = [...new Set(ctx.args.map(idOf).filter(Boolean))];
-      if (ids.length < 2 || ids.length > 4) return ctx.reply(`Write 2 to 4 listing numbers: ${ctx.prefix}compare 3 7`);
+      const asImage = ctx.args.some((w) => /^(image|picture|صورة|صوره)$/i.test(w));
+      if (ids.length < 2 || ids.length > (asImage ? compareImage.MAX : 4)) return ctx.reply(asImage ? `A picture compares 2 or 3 listings: ${ctx.prefix}compare 3 7 12 image` : `Write 2 to 4 listing numbers: ${ctx.prefix}compare 3 7`);
       const missing = ids.filter((id) => !re.get(ctx.state, id));
       if (missing.length) return ctx.reply(`There is no listing ${missing.map((id) => `#${id}`).join(", ")}.`);
-      return ctx.reply(compareText(ctx, ids.map((id) => re.get(ctx.state, id))));
+      const list = ids.map((id) => re.get(ctx.state, id));
+      if (!asImage) return ctx.reply(compareText(ctx, list));
+      // A picture to send a client; drawing costs more than text, so clients get a few.
+      if (!ctx.isSudoOrOwner && !limiterFor(ctx.state, "compare-image", { max: 3, windowMs: 10 * 60 * 1000 })(ctx.sender)) return ctx.reply("You can make 3 comparison pictures every 10 minutes. The text version: " + `${ctx.prefix}compare ${ids.join(" ")}`);
+      await ctx.react("🎨");
+      return ctx.reply({ image: await compareImage.render(ctx.state, ctx.config, list), caption: `مقارنة ${list.map((l) => `#${l.id}`).join(" · ")} — للتفاصيل والصور أرسل رقم العقار (مثلاً #${list[0].id})` });
     },
   },
   {
