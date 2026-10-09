@@ -2,6 +2,27 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.48.0 — 2026-10-10
+
+### Added — unit features (what chalets, villas and apartments are chosen for)
+- **Eleven features:** صف أول، فيو بحر، فيو لاجون، حمام سباحة، جاردن، روف، استلام فوري، ناصية، جراج، مفروش، أسانسير.
+  - **Reading them:** they are read from a listing's post in their usual spellings (بيسين، جنينة/حديقة، اطلالة على البحر، على البحر مباشرة، first row, sea view, private pool …). Not from look-alikes: "الدور الأول" isn't صف أول, "2 حمام" isn't a pool, a compound named الروفي isn't a roof.
+  - **The card:** they're shown as "⭐ صف أول · فيو بحر", and in English on the English card.
+  - **Older listings:** listings saved before have their features read from their notes, so nothing needs re-entering.
+  - **Editing:** `.listing edit 12 المميزات: جراج` adds features to the ones a listing has.
+- **Clients' must-haves:** "عايز شاليه صف أول على البحر" saves them on the client, shown as "شاليه في الساحل (صف أول، فيو بحر)". The client then matches only units with all of them, everywhere clients are matched (`.listing match`, campaigns, requests, revive, the menu, the assistant). Written requests and the assistant's `[WANTS features=…]` save them too.
+- **Search:** feature words in `.listings` (`.listings شاليه صف أول`, `.listings فيو بحر`) filter to units that have them all, then the rest of the words search the location.
+- Feature words no longer run into a location written in the same sentence ("في مراسي صف أول" → مراسي).
+
+### Fixed
+- The assistant saving a client's wishes compared lists by reference, so the same features would have been noted again on every answer.
+
+### Checked
+- 2 tests (382 in total). They cover:
+  - spellings in Arabic and English, look-alikes ignored, the location stopping before features, the Arabic and English cards, and older listings read from notes;
+  - a client's must-haves (only the first-row sea-view chalet matches, the second-row and unknown ones don't), and the search filters;
+  - `.listing edit` adding features (and the new match), a written request answered and saved by a must-have, and the assistant's wishes.
+
 ## 3.47.0 — 2026-10-10
 
 ### Added — down payments and instalments (resale units sold in instalments)
