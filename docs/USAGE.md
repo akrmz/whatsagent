@@ -350,6 +350,11 @@ Unpaid months are counted from the month a rental was added to the bot. A contra
 
 A small client tracker for the owner and sudo users. Clients' details are never shown to anyone else.
 
+**Where they can be seen:** the client commands (`.lead`, `.leads`, `.viewing(s)`, `.deals`, `.blast`, `.rental(s)`, `.feed`, `.export`, `.digest`) work in your private chat with the bot, or in a group where **every** member is the owner, a sudo user or the bot (a team group). In any other group they answer with a 🔒 note and show nothing.
+- `.listing add/edit` and `.project` there say how many clients a listing suits, without names.
+- `.listing match`, `.listing ask` and `.offer` for a named client are refused.
+- A morning summary set in a team group is held, with a note, on days someone else is in the group.
+
 **Save a client** with labelled lines (or forward the client's **contact card** to the bot and reply to it with `.lead add`: the name and number are filled in):
 ```
 .lead add

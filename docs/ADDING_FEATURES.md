@@ -88,6 +88,7 @@ What you get for free:
 | `permission` | no (`user`) | Minimum level: `user`, `groupAdmin`, `sudo`, `owner`. Enforced centrally; do not re-check in `run`. `groupAdmin` also makes the command group-only. |
 | `groupOnly` / `privateOnly` | no | Where it may be used. |
 | `botAdmin` | no | The bot must be an admin of the group (kicking, deleting, changing group settings). |
+| `clientData` | no | The reply shows clients' names, numbers or notes: it only runs in the sender's own chat with the bot or a group whose members are all owner/sudo/the bot (else a 🔒 note). For a command that only sometimes shows them, use `await ctx.isStaffOnlyChat()` in `run` instead. |
 | `cooldown` | no | Seconds between uses per user. Default `DEFAULT_COOLDOWN_SECONDS`. |
 | `requires` | no | Capabilities needed: `ffmpeg`, `ytdlp`, `ai`, `font`, `newsApi`, `openWeather`, `tenor`, `telegramBot`, `removeBg`, `remini`, `githubRepo`. If one is missing, the command is disabled and hidden at startup. |
 | `externalService` | no | Shown in `.help <command>` so users know their data leaves the bot. |

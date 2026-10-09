@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-21 clients' details shown in groups with outsiders | Fixed in 3.30.1: client commands work only in a private chat with the bot or a group of staff only |
 
 Residual risks that remain by design: the bot still relies on an unofficial WhatsApp library (ban risk); some fun commands call free third-party APIs that can change or disappear; features that upload images (`.tourl`, `.remini`, image effects) put pictures on public hosts (this is stated in `.help`); `libsignal` is installed from GitHub (pinned to a commit in the lockfile).
 
@@ -88,6 +89,7 @@ How this was verified:
 | P-10 | Low | Pairing | Promotional messages sent to every user who pairs |
 | R-04 | Low | Bot | Assorted correctness bugs that hide errors (`.warnings`, `.move`, catch-block `ReferenceError`, retry cache cleared per message) |
 | B-20 | Low | Bot | `.export` wrote text from strangers (WhatsApp names, notes, lead-ads answers) into CSV cells that Excel could run as formulas (found in the 3.20.1 review of the new code; fixed) |
+| B-21 | Medium | Bot | Client commands showed clients' names, phone numbers, budgets and notes in whatever group they were typed in, including groups with clients or other brokers (found in the 3.30.1 review; fixed) |
 
 ---
 
@@ -297,6 +299,14 @@ Locations only (values intentionally omitted):
 ### B-20 — CSV formula injection in `.export` (found in the 3.20.1 review)
 - **Where:** `commands/realestate/marketing.js` (`cell`). Clients saved automatically from `#12` questions and written requests carry their WhatsApp name and message, and lead-ads imports carry form answers, all chosen by strangers. A value such as `=HYPERLINK("http://…","…")` or `+cmd|…` was written as is, and Excel would evaluate it when the agent opened the export.
 - **Fix:** A text cell starting with `=`, `+`, `-`, `@`, a tab or a return gets a leading `'` (phone numbers like `+2010…` and plain numbers are left as they are). `.import` removes that apostrophe, so an export imports back unchanged. Tested in `test/exportsafety.test.js`.
+
+### B-21 — Clients' details shown in groups with outsiders (found in the 3.30.1 review)
+- **Where:** the client commands (`commands/realestate/leads.js`, `viewings.js`, `deals.js`, `campaign.js`, `rentals.js`, `feed.js`, `.export`, `.digest`) and the client lines in `.listing` / `.project` / `.offer`. They checked who typed the command (owner or sudo) but not who could read the answer. Typed in a broker group or a group with clients, a client card showed the name, phone number, budget and notes to every member. A morning summary turned on in a team group kept being posted there after an outsider joined. Listings' owners have been private since 3.13 (shown only in the sender's own chat); clients had no such rule.
+- **Fix:**
+  - **Where client data is allowed:** commands marked `clientData` run only in the sender's own chat with the bot (or the bot's note-to-self), or in a group whose members are **all** the owner, sudo users or the bot. The dispatcher checks this once (`ctx.isStaffOnlyChat`, `permissions.allStaff`), and a group whose members can't be read counts as mixed.
+  - **Mixed commands:** `.listing add/edit` and `.project` say how many clients a listing suits without naming them. `.listing match`, `.listing ask` (owners' answers come back to that chat) and `.offer` for a named client are refused.
+  - **Morning summary:** it checks the group again each day and sends a short "held" note instead of the summary when someone else is in it.
+- **Tests:** `test/clientdata.test.js`.
 
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).

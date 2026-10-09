@@ -2,6 +2,32 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.30.1 — 2026-10-10
+
+A review of the code added since 3.20.1 (3.21–3.30). `npm audit` reports no vulnerabilities in the bot's dependencies.
+
+### Security — clients' details in groups (B-21)
+- **The problem:** client commands checked who typed them (owner or sudo) but not who would read the answer. Typed in a broker group or a group with clients, `.lead 5` showed the client's name, number, budget and notes to every member. A morning summary set in a team group kept going there after someone else joined.
+- **Now — where they work:** the client commands work in your private chat with the bot, or in a group whose members are **all** the owner, sudo users or the bot.
+  - The commands: `.lead`, `.leads`, `.viewing`, `.viewings`, `.deals`, `.blast`, `.rental`, `.rentals`, `.feed`, `.export`, `.digest`.
+  - In any other group they reply with a 🔒 note and show nothing.
+  - A group whose members can't be read counts as mixed.
+- **Now — mixed commands:**
+  - `.listing add/edit` and `.project` say how many clients a listing suits, without names.
+  - `.listing match`, `.listing ask` (owners' answers come back to that chat) and `.offer` for a named client are refused there.
+- **Now — morning summary:** it checks the group every day and sends a short "held" note instead of the summary while someone else is in it.
+- **What changes for you:** a team group with only you and your sudo users works as before. If you used client commands in a group with other people, use your private chat with the bot instead.
+- For command authors: a new `clientData: true` command flag, checked once by the dispatcher (`ctx.isStaffOnlyChat()`, `permissions.allStaff`).
+
+### Checked
+- 3 tests (346 in total): every client command refused in a mixed group (also for sudo users and outsiders), allowed in a team group and private chats; counts without names in `.listing`/`.project`; `match`, `ask` and client offers refused; the morning summary held after someone joins; unreadable members count as outsiders.
+- Also reviewed, no change needed:
+  - the client menu: per-client step limit, the open-menu cap, and listings only;
+  - project codes: the same flood limits as `#12`;
+  - client merges: sudo only, and a number can't be shared;
+  - owner reports: counts only, numbers masked, private chat only, and the owner opt-out;
+  - the campaign loop: pacing and caps for every kind.
+
 ## 3.30.0 — 2026-10-10
 
 ### Added — weekly reports to owners
