@@ -37,12 +37,12 @@ module.exports = {
   aliases: ["mosaed", "customerbot", "salesbot"],
   category: "realestate",
   description:
-    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
+    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
   usage: "on | off | info <text>|clear | test <question> | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
-  externalService: "the configured AI provider (clients' messages, with phone numbers masked, and your public catalogue are sent)",
+  externalService: "the configured AI provider (clients' messages, with phone numbers masked, and your public catalogue are sent); Gemini or OpenAI for voice notes (the audio is sent)",
   async run(ctx) {
     const sub = (ctx.args[0] || "").toLowerCase();
     const rest = ctx.text.replace(/^\s*\S+\s*/, "");

@@ -157,3 +157,75 @@ test("limits, failures, commands and the staff preview", async (t) => {
   assert.equal(b.calls.length, 7, "off: no more answers");
   t.mock.timers.reset();
 });
+
+const { buildContext } = require("../src/core/context");
+const assistant = require("../src/services/assistant");
+
+test("voice notes: written out, then answered like text; long ones, music, no speech and failures are left to the agent", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-10T09:00:00Z") });
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  const heard = [];
+  const transcripts = [];
+  b.app.media = {
+    label: "Test media",
+    async transcribe(buffer, { mimetype }) {
+      heard.push({ bytes: buffer.length, mimetype });
+      const next = transcripts.shift();
+      if (next instanceof Error) throw next;
+      return next;
+    },
+  };
+  let n = 0;
+  const voice = (audio = {}) => {
+    const ctx = buildContext(b.app, b.sock, {
+      key: { id: `V${++n}`, remoteJid: CLIENT, fromMe: false },
+      pushName: "منى",
+      message: { audioMessage: { ptt: true, seconds: 8, mimetype: "audio/ogg; codecs=opus", fileLength: 4000, ...audio } },
+    });
+    ctx.download = async () => Buffer.alloc(4000);
+    return assistant.handle(ctx);
+  };
+
+  transcripts.push("عندك شقة في التجمع؟ ده رقمي 01099998888");
+  b.answers.push("أيوه، عندي #1 في التجمع الخامس بـ 3.2 مليون 👍");
+  assert.equal(await voice(), true);
+  assert.deepEqual(heard, [{ bytes: 4000, mimetype: "audio/ogg; codecs=opus" }]);
+  assert.equal(b.calls.at(-1).text, "🎤 عندك شقة في التجمع؟ ده رقمي [رقم]", "marked as a voice note, the number masked");
+  assert.match(b.calls.at(-1).system, /A message starting with 🎤 is a voice note written out automatically/);
+  assert.equal(b.last(CLIENT), "أيوه، عندي #1 في التجمع الخامس بـ 3.2 مليون 👍");
+  const lead = leads.byPhone(b.s, "201099998888");
+  assert.match(lead.history.map((h) => h.text).join("\n"), /🎤 رسالة صوتية: عندك شقة في التجمع؟ ده رقمي \[رقم\]/);
+
+  transcripts.push("عايز أكلم أحمد بخصوص السعر");
+  b.answers.push("أكيد، أحمد هيكلمك 🙏 [HANDOFF]");
+  await voice();
+  assert.match(b.last(ME), /قال \(رسالة صوتية\): "عايز أكلم أحمد بخصوص السعر"/);
+
+  const asked = heard.length;
+  assert.equal(await voice({ seconds: 300 }), false, "over 2 minutes: left to the agent");
+  assert.equal(await voice({ ptt: false }), false, "an audio file, not a voice note");
+  assert.equal(heard.length, asked, "neither was sent for transcription");
+  t.mock.timers.setTime(Date.now() + 61 * 1000);
+  transcripts.push("[no speech]");
+  assert.equal(await voice(), false);
+  transcripts.push(new Error("provider down"));
+  assert.equal(await voice(), false);
+  b.app.media = null;
+  assert.equal(await voice(), false, "no Gemini or OpenAI key: nothing to transcribe with");
+  t.mock.timers.reset();
+});
+
+test("the agent answering by voice note (or photo) from the phone takes over too; a command typed there doesn't", async () => {
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  const d = createDispatcher(b.app);
+  await d.handleMessage(b.sock, { key: { id: "AGENTCMD", remoteJid: CLIENT, fromMe: true }, message: { conversation: ".listings" } });
+  assert.equal(assistant.pausedUntil(b.s, "201099998888"), 0, "a command isn't a reply to the client");
+  await d.handleMessage(b.sock, { key: { id: "AGENTVOICE", remoteJid: CLIENT, fromMe: true }, message: { audioMessage: { ptt: true, seconds: 20, mimetype: "audio/ogg; codecs=opus" } } });
+  assert.ok(assistant.pausedUntil(b.s, "201099998888") > Date.now(), "a voice reply from the phone");
+  await b.send("طيب", { from: CLIENT });
+  assert.equal(b.calls.length, 0);
+});

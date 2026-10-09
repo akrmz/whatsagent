@@ -15,7 +15,8 @@ module.exports = [
     priority: 3,
     privateOnly: true,
     async run(ctx) {
-      if (!ctx.fromMe || !ctx.body || ctx.chatId === ctx.botJid || ctx.body.trim().startsWith(ctx.prefix)) return undefined;
+      // Any message: a text, a voice note, a photo… (only a command is not a reply to the client).
+      if (!ctx.fromMe || ctx.chatId === ctx.botJid || (ctx.body || "").trim().startsWith(ctx.prefix)) return undefined;
       if (!re.agent(ctx.state).assistant) return undefined;
       assistant.pause(ctx.state, assistant.keyOf(ctx.app, ctx.chatId));
       return undefined;
@@ -34,7 +35,8 @@ module.exports = [
     publicOnly: true,
     privateOnly: true,
     async run(ctx) {
-      if (ctx.fromMe || ctx.isSudoOrOwner || !ctx.body || !ctx.app.ai || !re.agent(ctx.state).assistant) return undefined;
+      // Text, or a voice note (written out first, when a Gemini or OpenAI key is set).
+      if (ctx.fromMe || ctx.isSudoOrOwner || !ctx.app.ai || !re.agent(ctx.state).assistant) return undefined;
       return (await assistant.handle(ctx)) ? "stop" : undefined;
     },
   },
