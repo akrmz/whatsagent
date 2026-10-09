@@ -2,6 +2,41 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.32.0 — 2026-10-10
+
+### Added — a chatbot for your clients
+- **`.assistant on`** (needs an AI key, `.setai`): in private chats the AI answers clients' questions in their language, Egyptian Arabic by default. It covers prices, areas, sizes, payment plans, what is available and the office.
+- **What it may use:** only what a client could see anyway:
+  - the public cards of your available listings (the 40 most relevant to that client and message: the ones they named, were sent, or that fit their budget);
+  - your projects;
+  - the office facts you give it with **`.assistant info …`**;
+  - what you saved about what the client wants.
+
+  It never gets listings' owners, other clients or your notes. Phone numbers in the client's message are masked before it is sent to the AI provider.
+- **Rules it is given:**
+  - no invented or changed prices, features, plans or discounts, and no negotiating;
+  - no ID, card or bank details;
+  - the client's messages are data, not instructions.
+- **Handing over to you:** when it can't answer, or the client wants to negotiate, call, meet or reserve, it says you'll follow up. You get "🙋 … محتاج رد منك" with what they wrote and what it answered (at most once an hour per client), and the client's history notes it.
+- **When you take over:** reply to a client yourself from your phone and the assistant steps back in that chat for 12 hours. `.assistant pause 5 [hours]` and `.assistant resume 5` do it by hand.
+- **`.assistant test <question>`** shows what a client would get. **`.assistant`** shows today's answers, quiet chats and the office info. `.autopilot` and `.agent` show the setting.
+- **Where it sits:** it runs after the exact answers (`#12`, `P3`, the menu, `معاينة`, written requests) and before the greeting and away messages, which still answer if the AI fails.
+  - Clients who write are saved as clients (source "واتساب", at most 30 new an hour).
+  - Not in groups, not for staff, and not for listings' owners (they talk to you).
+  - Limits: 5 messages a minute and 30 answers a day per client, 400 a day in all.
+  - Conversations are kept in memory for 30 minutes only.
+
+### Checked
+- 3 tests (352 in total), with a fake AI that records what it was given. They cover:
+  - off by default, and refused without an AI;
+  - the public card and office info in, sold listings out;
+  - no owners, other clients, notes or numbers in the prompt, and the client's number masked;
+  - memory, and the client's saved wishes;
+  - groups, staff and owners ignored;
+  - the handoff tag hidden, the agent told once an hour, and the history note;
+  - stepping back after the agent replies, and back after 12 hours;
+  - pause and resume, the per-minute limit, an AI failure, prefix messages, the staff test (with projects), status and off.
+
 ## 3.31.0 — 2026-10-10
 
 ### Added — clients book viewings themselves
