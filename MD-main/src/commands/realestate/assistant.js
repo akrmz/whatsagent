@@ -28,6 +28,7 @@ const HELP = (p) =>
     "🤖 *Customer assistant · المساعد*",
     `${p}assistant on | off — answer clients' questions in private chats with the AI, from your catalogue`,
     `${p}assistant info <text> — office facts it may use (address, hours, how you work) · ${p}assistant info clear`,
+    `${p}assistant faq add <question> | <answer> — your own answers to common questions · ${p}assistant faq`,
     `${p}assistant test <question> — see what a client would get`,
     `${p}assistant pause 5 [hours] · ${p}assistant resume 5 — stop or restart it for one client`,
     `${p}assistant inbox — clients waiting for your reply (reminded once after 2 hours) · ${p}assistant done 5`,
@@ -43,8 +44,8 @@ module.exports = {
   aliases: ["mosaed", "customerbot", "salesbot"],
   category: "realestate",
   description:
-    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings and projects it recommends, offers free viewing times when a client wants to visit (with self-booking on), saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
-  usage: "on | off | info <text>|clear | test <question> | stats | takeover [hours] | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
+    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects, office information and your own answers to common questions (.assistant faq) only, in the client's language (English cards for English speakers), never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings and projects it recommends, offers free viewing times when a client wants to visit (with self-booking on), saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
+  usage: "on | off | info <text>|clear | faq [add <question> | <answer> | del <n>] | test <question> | stats | takeover [hours] | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
@@ -81,6 +82,21 @@ module.exports = {
         handoff && "🙋 and you'd be told to follow up",
       ].filter(Boolean);
       return ctx.reply(`🧪 *A client would get:*\n\n${text}${extra.length ? `\n\n${extra.join("\n")}` : ""}`);
+    }
+    if (sub === "faq" || sub === "اسئلة" || sub === "أسئلة") {
+      // Your own answers to the questions clients ask most (it uses your wording).
+      const action = (ctx.args[1] || "").toLowerCase();
+      if (action === "add") {
+        const list = assistant.addFaq(ctx.state, rest.replace(/^\s*add\s*/i, ""));
+        return ctx.reply(`✅ Question ${list.length} saved. The assistant answers it with your words.\n${p}assistant faq — the list · ${p}assistant test <the question> — try it`);
+      }
+      if (action === "del" || action === "delete" || action === "remove") {
+        const list = assistant.delFaq(ctx.state, Number(re.latinDigits(ctx.args[2] || "")));
+        return ctx.reply(`🗑️ Deleted. ${list.length} question(s) left.`);
+      }
+      const list = assistant.faq(ctx.state);
+      if (!list.length) return ctx.reply(`No questions yet. Add the ones clients ask most:\n${p}assistant faq add بتاخدوا عمولة كام؟ | 2.5% من المشتري بعد التعاقد\n${p}assistant faq add فيه تمويل عقاري؟ | أيوه، بنساعدك مع البنوك في التمويل لحد 80%`);
+      return ctx.reply([`❓ *Your answers* (${list.length}/25)`, "", ...list.map((f, i) => `${i + 1}. ${f.q}\n   ↳ ${f.a}`), "", `${p}assistant faq add <question> | <answer> · ${p}assistant faq del <number>`].join("\n"));
     }
     if (sub === "takeover") {
       // How long it stays quiet in a chat once you write to the client yourself.

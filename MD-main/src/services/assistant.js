@@ -45,6 +45,30 @@ function setInfo(state, text) {
 }
 const info = (state) => store(state).data.info || "";
 
+// ---- the agent's own questions and answers (.assistant faq) ---------------------------------
+
+const MAX_FAQ = 25;
+const MAX_FAQ_Q = 200;
+const MAX_FAQ_A = 400;
+const faq = (state) => store(state).data.faq || [];
+
+/** "question | answer" (or the question on the first line, the answer below). @returns the list */
+function addFaq(state, text) {
+  const t = String(text || "").trim();
+  const [q, ...rest] = t.includes("|") ? t.split("|") : t.split("\n");
+  const question = String(q || "").trim();
+  const answerText = rest.join(t.includes("|") ? "|" : "\n").trim();
+  if (question.length < 3 || answerText.length < 2) throw new UserError("Write the question, then | and the answer: .assistant faq add بتاخدوا عمولة كام؟ | 2.5% من المشتري بعد التعاقد");
+  if (question.length > MAX_FAQ_Q || answerText.length > MAX_FAQ_A) throw new UserError(`A question is up to ${MAX_FAQ_Q} characters and an answer up to ${MAX_FAQ_A}.`);
+  if (faq(state).length >= MAX_FAQ) throw new UserError(`At most ${MAX_FAQ} questions. Delete one first: .assistant faq del <number>`);
+  return store(state).update((d) => (d.faq = [...(d.faq || []), { q: question, a: answerText }]));
+}
+function delFaq(state, n) {
+  const list = faq(state);
+  if (!(Number.isInteger(n) && n >= 1 && n <= list.length)) throw new UserError(`There is no question ${n} (.assistant faq lists them).`);
+  return store(state).update((d) => (d.faq = list.filter((_, i) => i !== n - 1)));
+}
+
 // ---- stepping back while the agent talks to the client ------------------------------------
 
 /** The key for a chat: the phone number when known (a client may write from a LID too). */
@@ -212,6 +236,14 @@ function startAssistantLoop(app) {
 
 // ---- what the AI is given ------------------------------------------------------------------
 
+/** The agent's own text on one line (not masked). */
+const own = (text) =>
+  String(text || "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .join(" · ");
+
 const flat = (text) =>
   redactPhones(String(text || ""))
     .split("\n")
@@ -271,7 +303,7 @@ function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now() } 
     `You are the WhatsApp assistant of ${agentName}, a real-estate broker in Egypt. You are chatting with a client in a private WhatsApp chat.`,
     "",
     "Rules:",
-    `1. Answer ONLY from the CATALOG, PROJECTS and OFFICE INFO below. If the answer is not there, say you will check with ${a.name || "the agent"} and get back to them, and add the tag [HANDOFF] at the end.`,
+    `1. Answer ONLY from the CATALOG, PROJECTS, OFFICE INFO and FAQ below. If the answer is not there, say you will check with ${a.name || "the agent"} and get back to them, and add the tag [HANDOFF] at the end.`,
     "2. Never invent or change prices, sizes, availability, payment plans, discounts or features. Prices are asking prices. Do not negotiate or promise a discount.",
     `3. If the client wants to negotiate, make an offer, meet, reserve or buy, or complains, say ${a.name || "the agent"} will contact them soon and add [HANDOFF]. (Asking for a person or a call: rule 14.)`,
     "4. Reply in the client's language (Egyptian Arabic by default), short (at most 6 lines), friendly, plain WhatsApp text without headings. Refer to listings by number (#12) and projects by code (P3).",
@@ -282,7 +314,7 @@ function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now() } 
     "9. To send the client a listing's card with its photo, add [SHOW #12] (a project's card: [SHOW P3]) — when they ask to see one or you recommend one; at most 2 per reply, only from the CATALOG and PROJECTS.",
     "10. When the client says what they are looking for, add [WANTS type=شقة; deal=بيع; area=التجمع الخامس; rooms=3; min=2000000; max=3500000] with only what they said (leave out what they didn't say). Type, deal (بيع or إيجار) and area in Arabic; amounts as full numbers.",
     "11. If the message is clearly personal or has nothing to do with property or the office (family, friends, another business, a wrong number), reply with exactly [IGNORE] and nothing else. When in doubt, answer normally.",
-    "12. Never write links or website addresses, except the map links in the CATALOG and those in OFFICE INFO.",
+    "12. Never write links or website addresses, except the map links in the CATALOG and those in OFFICE INFO or the FAQ.",
     a.booking
       ? "13. When the client wants to visit or see a listing in person, add [BOOK #12]: the free viewing times are sent to them right after your reply, so don't propose times yourself."
       : `13. When the client wants to visit a listing, say ${a.name || "the agent"} will arrange it and add [HANDOFF].`,
@@ -292,7 +324,10 @@ function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now() } 
     a.phone ? `The agent's public contact: ${[a.name, a.phone].filter(Boolean).join(" ")}` : null,
     client.length ? `CLIENT (from the agent's notes): ${client.join("; ")}` : lead ? "CLIENT: a saved client; what they want isn't known yet (you may ask: type, area, budget)." : "CLIENT: new, nothing known yet.",
     "",
-    `OFFICE INFO:\n${info(state) ? flat(info(state)) : "(none)"}`,
+    // The agent's own words (office number included): not masked, unlike listing notes.
+    `OFFICE INFO:\n${info(state) ? own(info(state)) : "(none)"}`,
+    "",
+    `FAQ (the agent's own answers: when the client asks one of these, answer with it, in the client's language):\n${faq(state).map((f, i) => `${i + 1}. Q: ${own(f.q)}\n   A: ${own(f.a)}`).join("\n") || "(none)"}`,
     "",
     `CATALOG (available listings, ${lines.length} of ${total} shown, most relevant first):\n${lines.join("\n") || "(empty)"}`,
     "",
@@ -311,8 +346,8 @@ const MAPS = /^(?:https?:\/\/)?(?:www\.)?(?:google\.[a-z.]{2,8}\/maps|maps\.goog
 function trustedLink(state, link) {
   if (MAPS.test(link)) return true;
   const a = re.agent(state);
-  const own = `${info(state)}\n${a.name || ""}\n${a.company || ""}\n${a.phone || ""}`.toLowerCase();
-  return own.includes(link.toLowerCase().replace(/[.,،؛;:!?)]+$/, ""));
+  const mine = `${info(state)}\n${faq(state).map((f) => `${f.q}\n${f.a}`).join("\n")}\n${a.name || ""}\n${a.company || ""}\n${a.phone || ""}`.toLowerCase();
+  return mine.includes(link.toLowerCase().replace(/[.,،؛;:!?)]+$/, ""));
 }
 
 const SHOW = /\[\s*SHOW\s*(#|P)?\s*(\d{1,5})\s*\]/gi;
@@ -422,6 +457,13 @@ async function transcribe(ctx, media) {
     : null;
   const text = String((await ctx.app.media.transcribe(buffer, { mimetype: media.mimetype, toMp3 })) || "").trim();
   return !text || /^\[no speech\]$/i.test(text) ? null : text.slice(0, MAX_INPUT);
+}
+
+/** Mostly Latin letters: the client writes in English (or another Latin-script language). */
+function isEnglish(text) {
+  const latin = (String(text).match(/[A-Za-z]/g) || []).length;
+  const arabic = (String(text).match(/[؀-ۿ]/g) || []).length;
+  return latin >= 3 && latin > arabic * 2;
 }
 
 // ---- the client asks for a person ----------------------------------------------------------
@@ -584,11 +626,12 @@ async function handle(ctx, now = Date.now()) {
   if (voice && lead) leads.note(ctx.state, lead.id, "client", `🎤 رسالة صوتية: ${redactPhones(text).slice(0, 300)}`, now);
   await ctx.reply(result.text);
   // Listing cards it recommended (with the first photo), noted as sent so campaigns don't repeat them.
+  const lang = isEnglish(text) ? "en" : "ar"; // a client writing in English gets English cards
   for (const l of result.show) {
-    await listingview.show(ctx, l);
+    await listingview.show(ctx, l, { lang });
     if (lead) leads.markSent(ctx.state, lead.id, l.id, "assistant", `أُرسل له العقار #${l.id} (المساعد)`, now);
   }
-  for (const p of result.projects) await ctx.reply(projects.card(p, re.agent(ctx.state)));
+  for (const p of result.projects) await ctx.reply(lang === "en" ? projects.cardEn(p, re.agent(ctx.state)) : projects.card(p, re.agent(ctx.state)));
   // The client wants to visit: the free viewing times (they pick one with a number).
   const booked = result.book ? await require("./selfbooking").offerTimes(ctx, result.book, now) : false;
   if (saveWants(ctx.state, lead, result.wants, now)) count(ctx.state, ctx.config.bot.timezone, "wishes", now);
@@ -613,4 +656,4 @@ async function handle(ctx, now = Date.now()) {
   return true;
 }
 
-module.exports = { handle, answer, stats, count, asksForHuman, humanReply, humanAsked, holdForHuman, setTakeoverHours, takeoverMs, parseWants, saveWants, isIgnored, setIgnored, ignoredList, trustedLink, markWaiting, clearWaiting, waiting, waitingLine, remindDue, startAssistantLoop, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };
+module.exports = { handle, answer, stats, count, faq, addFaq, delFaq, isEnglish, asksForHuman, humanReply, humanAsked, holdForHuman, setTakeoverHours, takeoverMs, parseWants, saveWants, isIgnored, setIgnored, ignoredList, trustedLink, markWaiting, clearWaiting, waiting, waitingLine, remindDue, startAssistantLoop, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };
