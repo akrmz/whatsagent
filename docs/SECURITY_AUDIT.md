@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-22 the customer assistant answered every private chat and could relay links | Fixed in 3.36.0: personal chats are left alone (`[IGNORE]`, `.assistant ignore`), links removed unless trusted |
 | **Found in a later review:** B-21 clients' details shown in groups with outsiders | Fixed in 3.30.1: client commands work only in a private chat with the bot or a group of staff only |
 
 Residual risks that remain by design: the bot still relies on an unofficial WhatsApp library (ban risk); some fun commands call free third-party APIs that can change or disappear; features that upload images (`.tourl`, `.remini`, image effects) put pictures on public hosts (this is stated in `.help`); `libsignal` is installed from GitHub (pinned to a commit in the lockfile).
@@ -90,6 +91,7 @@ How this was verified:
 | R-04 | Low | Bot | Assorted correctness bugs that hide errors (`.warnings`, `.move`, catch-block `ReferenceError`, retry cache cleared per message) |
 | B-20 | Low | Bot | `.export` wrote text from strangers (WhatsApp names, notes, lead-ads answers) into CSV cells that Excel could run as formulas (found in the 3.20.1 review of the new code; fixed) |
 | B-21 | Medium | Bot | Client commands showed clients' names, phone numbers, budgets and notes in whatever group they were typed in, including groups with clients or other brokers (found in the 3.30.1 review; fixed) |
+| B-22 | Medium | Bot | The customer assistant sent every private message from a non-staff number to the AI provider and saved the sender as a client (family and friends of an agent using their own number included); a client could also try to make it repeat a payment or phishing link (found in the 3.36.0 review; fixed) |
 
 ---
 
@@ -307,6 +309,17 @@ Locations only (values intentionally omitted):
   - **Mixed commands:** `.listing add/edit` and `.project` say how many clients a listing suits without naming them. `.listing match`, `.listing ask` (owners' answers come back to that chat) and `.offer` for a named client are refused.
   - **Morning summary:** it checks the group again each day and sends a short "held" note instead of the summary when someone else is in it.
 - **Tests:** `test/clientdata.test.js`.
+
+### B-22 — The customer assistant answered every private chat and could relay links (found in the 3.36.0 review)
+- **Where:** `services/assistant.js` (3.32–3.35).
+  - **Personal chats:** with `.assistant on`, every private text or voice note from a number that isn't staff or a listing's owner went to the AI provider. The sender was saved as a client, and an AI reply went out. Agents often run the bot on their own WhatsApp, so messages from family, friends and suppliers were affected: sent to a third party, answered by a bot, and added to the client list.
+  - **Planted links:** the answer was the AI's text as is. A client could try to talk it into writing a link ("pay the deposit at …"), which the client then receives under the agent's name. The client can only target themselves, but a screenshot of it is a scam aid.
+- **Fix:**
+  - **Personal messages:** the AI is told to answer `[IGNORE]` for a clearly personal or unrelated message. The bot then sends nothing and saves nothing, and the greeting and away messages still apply.
+  - **Saving clients:** a sender is saved as a client only after a real answer.
+  - **`.assistant ignore <number>`:** that number is never sent to the AI (local "0100…" numbers are normalised). `.assistant ignored` lists them, staff-only chats only.
+  - **Links:** every link or bare domain in an answer is removed, except Google Maps links (listing pins) and links that appear in the agent's own office info or profile. The prompt also forbids links.
+- **Tests:** `test/assistant.test.js` ("personal messages …").
 
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).

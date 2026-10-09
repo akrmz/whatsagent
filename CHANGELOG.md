@@ -2,6 +2,27 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.36.0 — 2026-10-10
+
+A review of the customer assistant (3.32–3.35), the newest part that strangers can reach.
+
+### Security — the assistant and personal chats, and planted links (B-22)
+- **The problem:**
+  - **Personal chats:** with `.assistant on`, every private message from a number that isn't staff went to the AI provider, got an AI reply and was saved as a client. Agents often run the bot on their own WhatsApp, so this included family, friends and suppliers.
+  - **Planted links:** a client could also try to make it write a link, such as "pay the deposit here", that then comes from your number.
+- **Now — personal messages:** a clearly personal or unrelated message gets no answer and isn't saved (the AI answers `[IGNORE]`; when in doubt it answers normally). The greeting and away messages still apply as before.
+  - A sender is saved as a client only after a real answer.
+- **Now — `.assistant ignore 0100…`:** numbers it never answers, and their messages aren't sent to the AI at all. Local numbers are normalised. `.assistant ignored` lists them (private or staff-only chats), and `.assistant unignore 0100…` undoes it.
+- **Now — links:** links and bare web addresses are removed from answers. Google Maps links (listing pins) and links that appear in your office info or profile are kept. The prompt also forbids links.
+
+### Checked
+- 1 test (358 in total). It covers:
+  - a personal message: no answer, no client, and the fallback still possible;
+  - an ignored number never reaching the AI, and the list refused in a mixed group;
+  - unignore;
+  - a planted payment link and bare domain removed, with the map link and the office's own site kept;
+  - a property conversation still saved.
+
 ## 3.35.0 — 2026-10-10
 
 ### Added — no handed-over client is forgotten
