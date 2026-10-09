@@ -3,6 +3,7 @@
 const re = require("../../services/realestate");
 const leads = require("../../services/leads");
 const market = require("../../services/market");
+const marketImage = require("../../services/marketimage");
 const calc = require("../../services/recalc");
 const offer = require("../../services/offer");
 const img = require("../../services/reimages");
@@ -106,9 +107,9 @@ module.exports = [
     aliases: ["prices", "areastats", "souq", "pricing"],
     category: "realestate",
     description:
-      "أسعار السوق من كتالوجك — price per m² from your own listings (including reserved and sold): by area and type, the median and the usual range, with the same filters as .listings. \".market 12\" compares a listing with similar ones and suggests the price range that puts it mid-market. Owner and sudo users.",
-    usage: "[filters] | <listing number>",
-    examples: [".market", ".market التجمع", ".market شقة بيع زايد", ".market 12"],
+      "أسعار السوق من كتالوجك — price per m² from your own listings (including reserved and sold): by area and type, the median and the usual range, with the same filters as .listings. \".market 12\" compares a listing with similar ones and suggests the price range that puts it mid-market. \"image\" makes a picture to post (1080×1350) for each unit type — apartments, villas, chalets …: the price per m² by area as bars, with your contact. Owner and sudo users.",
+    usage: "[filters] | <listing number> | image [filters]",
+    examples: [".market", ".market التجمع", ".market شقة بيع زايد", ".market 12", ".market image", ".market image شاليه", ".market image إيجار"],
     permission: "sudo",
     cooldown: 3,
     async run(ctx) {
@@ -117,6 +118,15 @@ module.exports = [
         const l = re.get(ctx.state, one);
         if (!l) return ctx.reply(`There is no listing #${one}.`);
         return ctx.reply(listingVsMarket(ctx, l));
+      }
+      if (/^(image|picture|post|صورة|صوره|بوست)$/i.test(ctx.args[0] || "")) {
+        // ".market image [filters]": a picture to post for each unit type (apartments, villas, chalets …).
+        await ctx.react("🎨");
+        const query = ctx.text.replace(/^\s*\S+\s*/, "");
+        const pics = await marketImage.render(ctx.state, query, ctx.config.bot.timezone);
+        if (!pics.length) return ctx.reply(`Not enough figures for a picture yet: it needs at least ${marketImage.MIN_PRICED} listings with a price and a size in the same area${query ? ` (for "${query}")` : ""}.`);
+        for (const p of pics) await ctx.reply({ image: p.image, caption: p.caption });
+        return undefined;
       }
       const r = market.report(ctx.state, ctx.text);
       const groups = r.groups.filter((g) => g.priced);
