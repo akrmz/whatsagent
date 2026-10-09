@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.49.0 — 2026-10-10
+
+### Added — what your listings are missing
+- **`.listings check`** (owner and sudo users) lists the available listings missing details or not updated recently, the most incomplete first.
+  - **What it checks:** photos, a price, a size, an area, rooms (for apartments, villas, chalets and the like; not land, shops or offices), a map pin, an owner number, or 30+ days without an update.
+  - **Order:** photos and the price weigh most.
+  - **Each listing shows** what it lacks and the command for its biggest gap (`.listing photo 12`, `.listing edit 12 السعر: …`, `.listing loc 12`, `.listing ask 12` for an old listing with an owner number).
+  - When nothing is missing, it says so.
+- **The Saturday morning summary** adds one line: how many listings miss photos, a price, a size or an area ("🧹 عقارات ناقصها بيانات … — .listings check").
+- Clients' matches, campaigns, `.market` and its pictures, and the assistant all work from these details. That's why the check exists.
+
+### Checked
+- 2 tests (384 in total). They cover:
+  - the gaps of a bare apartment, a shop (no rooms needed) and an old but complete chalet, in the right order with their fixes, sold listings left out, the message, clients refused, and all complete;
+  - the Saturday summary line (not on other days).
+
 ## 3.48.0 — 2026-10-10
 
 ### Added — unit features (what chalets, villas and apartments are chosen for)
