@@ -107,6 +107,7 @@ function card(l, a) {
     `💰 *${d.price}*${l.price >= 1e5 ? ` (${d.priceShort})` : ""}`,
     cut && `📉 Was ${d.cur} ${re.group(cut.was)} — ${cut.pct}% off`,
     l.down && l.deal !== "إيجار" && `💳 ${d.cur} ${re.group(l.down)} down${l.price ? ` (${Math.round((l.down / l.price) * 100)}%)` : ""}${l.years ? `, the rest over ${l.years} years${l.price ? ` ≈ ${d.cur} ${re.group(Math.round((l.price - l.down) / (l.years * 12)))} a month` : ""}` : ""}`,
+    re.featuresOf(l).length ? `⭐ ${re.featuresOf(l).map((f) => re.FEATURE_EN[f] || f).join(" · ")}` : null,
     [d.specs, d.floor].filter(Boolean).join("  •  ") || null,
     ppm,
     l.notes && !hasArabic(l.notes) && `📝 ${l.notes}`,

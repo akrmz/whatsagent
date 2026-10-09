@@ -277,6 +277,8 @@ module.exports = [
         const changes = await shortLinkGeo(ctx, re.parseListingText(text, ctx.config.owners.numbers[0]), text);
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
         const before = { ...re.get(ctx.state, id) };
+        // Features named in an edit are added to the ones it has ("مميزات: جراج" adds a garage).
+        if (changes.features) changes.features = [...new Set([...re.featuresOf(before), ...changes.features])];
         const l = re.update(ctx.state, id, changes);
         return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}${priceDropLine(ctx, before, l, await ctx.isStaffOnlyChat())}`);
       }

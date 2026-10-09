@@ -141,7 +141,7 @@ const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(Strin
 const FINISHING = ["ألترا سوبر لوكس", "الترا سوبر لوكس", "سوبر لوكس", "نص تشطيب", "نصف تشطيب", "على المحارة", "علي المحارة", "تشطيب كامل", "متشطب", "بدون تشطيب", "لوكس", "fully finished", "semi finished", "core and shell"];
 const ARABIC_COUNTS = { غرفتين: ["rooms", 2], غرفتان: ["rooms", 2], أوضتين: ["rooms", 2], اوضتين: ["rooms", 2], حمامين: ["baths", 2], حمامان: ["baths", 2] };
 // Words that end a location written in a sentence ("في التجمع الخامس 150 متر …").
-const LOCATION_STOP = /\s(?:\d|معايا|معاي|معي|ومعايا|ومعي|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
+const LOCATION_STOP = /\s(?:\d|معايا|معاي|معي|ومعايا|ومعي|صف|الصف|بحمام|حمام سباحة|بيسين|ببيسين|جاردن|بجاردن|جنينة|بجنينة|حديقة|بحديقة|روف|بروف|ناصية|كورنر|مفروش|مفروشة|مفروشه|جراج|بجراج|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
 
 /**
  * Details written as a sentence, the way most broker posts are:
@@ -238,6 +238,8 @@ function parseListingText(text, ownerNumber) {
     if (rest.length) out.notes = rest.join("\n").slice(0, 600);
   }
   Object.assign(out, planFields(out));
+  const features = featuresIn(all);
+  if (features.length) out.features = features;
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k];
   return out;
 }
@@ -262,6 +264,36 @@ function planLine(l, cur) {
   const monthly = l.price && l.years ? ` ≈ ${money(Math.round((l.price - l.down) / (l.years * 12)), cur)} شهرياً` : "";
   return `💳 مقدم ${money(l.down, cur)}${pct}${l.years ? ` · الباقي على ${l.years} ${l.years > 10 || l.years < 3 ? "سنة" : "سنين"}${monthly}` : ""}`;
 }
+
+// ---- features: what chalets, villas and apartments are chosen for ---------------------------
+// [name, English, how it is written]. A client who asks for one gets only units that have it.
+
+const FEATURES = [
+  ["صف أول", "first row", /(?<![\p{L}])(?:ال)?صف\s*(?:ال)?(?:أول|اول)(?![\p{L}])|first\s*row/iu],
+  ["فيو بحر", "sea view", /(?:فيو|اطلالة|إطلالة|view)\s*(?:على\s*)?(?:ال)?بحر|على\s*(?:ال)?بحر\s*(?:مباشرة|مباشر)|sea\s*view/iu],
+  ["فيو لاجون", "lagoon view", /لاجون|lagoon/iu],
+  ["حمام سباحة", "private pool", /حمام\s*سباح[ةه]|(?<![\p{L}])ب?بيسين|(?<![\p{L}])pool/iu],
+  ["جاردن", "garden", /جاردن|جنين[ةه]|حديق[ةه]|garden/iu],
+  ["روف", "roof", /(?<![\p{L}])(?:ب|وب|و)?روف(?![\p{L}])|(?<![\p{L}])roof/iu],
+  ["استلام فوري", "ready to move", /استلام\s*فور[يى]|جاهز[ةه]?\s*(?:لل)?(?:سكن|استلام)|ready\s*to\s*move/iu],
+  ["ناصية", "corner", /ناصي[ةه]|كورنر|corner/iu],
+  ["جراج", "garage", /جراج|باركينج|garage|parking/iu],
+  ["مفروش", "furnished", /(?<![\p{L}])مفروش[ةه]?(?![\p{L}])|(?<![\p{L}])furnished/iu],
+  ["أسانسير", "elevator", /أسانسير|اسانسير|مصعد|elevator|(?<![\p{L}])lift/iu],
+];
+const FEATURE_EN = Object.fromEntries(FEATURES.map(([ar, en]) => [ar, en]));
+
+/** The features named in a text, in a fixed order ("شاليه صف أول فيو بحر" → صف أول، فيو بحر). */
+const featuresIn = (text) => {
+  const t = latinDigits(String(text || ""));
+  return FEATURES.filter(([, , re]) => re.test(t)).map(([name]) => name);
+};
+
+/** A listing's features: saved ones, else read from its notes and location (listings saved before features existed). */
+const featuresOf = (l) => (Array.isArray(l.features) ? l.features : featuresIn(`${l.notes || ""} ${l.location || ""}`));
+
+/** The text without its feature words (for searching the rest by location). */
+const stripFeatures = (text) => FEATURES.reduce((t, [, , re]) => t.replace(new RegExp(re.source, "giu"), " "), String(text));
 
 /** Is this "المالك: …" (the private owner line)? */
 const isOwnerLine = (line) => LABEL_OF.get(String(line).replace(/^(?:[\s•▪◾🔹🔸*\-–—✅]|️)+/u, "").match(/^([^:：]{1,25})\s*[:：]/)?.[1].trim().toLowerCase()) === "owner";
@@ -302,7 +334,9 @@ function cleanFields(raw) {
     notes: str(r.notes, 600),
     down: num(r.down, 1000, 1e10),
     years: num(r.years, 0.5, 15),
+    features: featuresIn(Array.isArray(r.features) ? r.features.join(" ") : String(r.features || "")),
   };
+  if (!out.features.length) delete out.features;
   Object.assign(out, planFields(out));
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
@@ -425,6 +459,7 @@ function card(l, a) {
     cut && `📉 كان ${money(cut.was, cur)} — خصم ${cut.pct}%`,
     l.deal !== "إيجار" && planLine(l, cur),
     specs || null,
+    featuresOf(l).length ? `⭐ ${featuresOf(l).join(" · ")}` : null,
     l.finishing && `✨ التشطيب: ${l.finishing}`,
     ppm,
     l.notes && `📝 ${l.notes}`,
@@ -472,6 +507,9 @@ function search(state, query, pool = all(state)) {
     f.rooms = Number(r[1]);
     q = q.replace(r[0], " ");
   }
+  // Features ("صف أول", "حمام سباحة") are filters too, then out of the location words.
+  f.features = featuresIn(q);
+  q = stripFeatures(q);
   // Take out the type and deal words that were used as filters (whole words only, as above).
   q = stripTypeWords(q);
   const words = q.replace(/[^\p{L}\p{N}\s-]/gu, " ").split(/\s+/).filter((w) => w.length > 1);
@@ -482,6 +520,7 @@ function search(state, query, pool = all(state)) {
     if (f.min && !(l.price >= f.min)) return false;
     if (f.max && !(l.price <= f.max)) return false;
     if (f.rooms && l.rooms !== f.rooms) return false;
+    if (f.features.length && !f.features.every((x) => featuresOf(l).includes(x))) return false;
     if (f.plan && !l.down) return false;
     if (f.downMax && !(l.down <= f.downMax)) return false;
     const where = `${l.location || ""} ${l.notes || ""}`.toLowerCase();
@@ -510,7 +549,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, typeIn, typesIn, dealIn, stripTypeWords,
+  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, addFeedback, stale,
   STATUS_AR, MAX_PHOTOS,
 };

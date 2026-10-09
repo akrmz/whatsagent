@@ -136,6 +136,9 @@ function parseLeadText(text, ownerNumber) {
     if (out.min === undefined && out.max === undefined) Object.assign(out, budgetIn(budgetText));
   }
   if (notes.length) out.notes = notes.join("\n").slice(0, 500);
+  // Must-haves: "عايز شاليه صف أول فيو بحر" → only units with both.
+  const features = re.featuresIn(all);
+  if (features.length) out.features = features;
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
 }
@@ -355,10 +358,12 @@ const locationWords = (s) => re.latinDigits(String(s || "")).toLowerCase().split
 function fits(lead, listing) {
   if (listing.status !== "available") return null;
   // A client without any wishes yet (e.g. saved from a contact card) matches nothing, not everything.
-  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax) return null;
+  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax && !lead.features?.length) return null;
   if (lead.deal && listing.deal && lead.deal !== listing.deal) return null;
   if (lead.type && listing.type && lead.type !== listing.type) return null;
   if (lead.rooms && listing.rooms && listing.rooms < lead.rooms) return null;
+  // Must-haves the client named (صف أول، حمام سباحة …): the unit has them all.
+  if (lead.features?.length && !lead.features.every((f) => re.featuresOf(listing).includes(f))) return null;
   // A buyer with a down payment ("معايا مقدم مليون") fits a unit sold in instalments whose down
   // payment they can make, whatever its full price; with a budget too, either way fits.
   const downOk = Boolean(lead.downMax && listing.down && listing.down <= lead.downMax * 1.1);
@@ -400,7 +405,7 @@ const budgetText = (l, cur) => {
 const phoneText = (p) => (p ? `+${p}` : null);
 
 function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = {}) {
-  const wants = [lead.type, lead.deal && `لل${lead.deal}`, lead.rooms && `${lead.rooms} غرف`, lead.location && `في ${lead.location}`].filter(Boolean).join(" ");
+  const wants = [lead.type, lead.deal && `لل${lead.deal}`, lead.rooms && `${lead.rooms} غرف`, lead.location && `في ${lead.location}`, lead.features?.length && `(${lead.features.join("، ")})`].filter(Boolean).join(" ");
   const lines = [
     `👤 *${lead.name || "عميل"}* — #${lead.id}`,
     lead.phone && `📞 ${phoneText(lead.phone)}`,
