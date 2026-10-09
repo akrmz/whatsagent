@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.46.0 — 2026-10-10
+
+### Added — market prices as pictures to post
+- **`.market image`** makes a ready-to-post picture (1080×1350: Facebook, Instagram or WhatsApp status) **for each unit type**. Apartments, villas and chalets are different markets in different areas (chalets on the coast, villas and apartments in the city), so they are never mixed in one chart.
+  - **On each picture:** the price per m² by area as bars, highest first, with how many listings each comes from ("عرضين", "3 عروض"). Also the month, "للاسترشاد، مش تقييم رسمي", and your name, phone and company.
+  - **Limits:** up to 8 areas per type, each from at least 2 listings with a price and a size (one listing isn't a market), and up to 4 types, the ones with most listings first. The caption repeats the figures as text.
+  - **Filters:** sale listings unless you add `إيجار` (monthly rent per m²); `.market image شاليه` for chalets only, and the other `.market` filters work too.
+- The pictures were rendered and looked at: Arabic right to left, counts beside each area, bars centred when there are few areas.
+
+### Checked
+- 2 tests (377 in total). They cover:
+  - one chart per type, with sale and rent kept apart, single-listing areas left out, highest first, and a stable order;
+  - a chalets-only chart, a rent chart, and the Arabic counts;
+  - a 1080×1350 JPEG per type with its caption, the rent caption, and too few figures.
+
 ## 3.45.0 — 2026-10-10
 
 ### Added — owners who want to sell or rent out
