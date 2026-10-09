@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-24 strangers could fill the disk with seller-offer photos | Fixed in 3.49.1: at most 100 waiting offers and 400 photos, expired after 30 days |
 | **Found in a later review:** B-23 clients' notices kept reaching a member after their sudo was removed | Fixed in 3.43.1: notices, reminders and the rotation only use members who are still the owner or sudo |
 | **Found in a later review:** B-22 the customer assistant answered every private chat and could relay links | Fixed in 3.36.0: personal chats are left alone (`[IGNORE]`, `.assistant ignore`), links removed unless trusted |
 | **Found in a later review:** B-21 clients' details shown in groups with outsiders | Fixed in 3.30.1: client commands work only in a private chat with the bot or a group of staff only |
@@ -94,6 +95,7 @@ How this was verified:
 | B-21 | Medium | Bot | Client commands showed clients' names, phone numbers, budgets and notes in whatever group they were typed in, including groups with clients or other brokers (found in the 3.30.1 review; fixed) |
 | B-22 | Medium | Bot | The customer assistant sent every private message from a non-staff number to the AI provider and saved the sender as a client (family and friends of an agent using their own number included); a client could also try to make it repeat a payment or phishing link (found in the 3.36.0 review; fixed) |
 | B-23 | Medium | Bot | A team member whose sudo was removed kept getting the notices of clients assigned to them (names, numbers, what they wrote, handoffs, self-booked viewings and their reminders), and the rotation kept giving them new clients (found in the 3.43.1 review; fixed) |
+| B-24 | Medium | Bot | Seller intake (3.45) let anyone start an offer and send photos; offers waiting for the agent were never trimmed or expired, so new numbers could keep adding about 160 photos an hour until the disk filled (found in the 3.49.1 review; fixed) |
 
 ---
 
@@ -336,6 +338,17 @@ Locations only (values intentionally omitted):
   - Self-booked viewings check the same before each reminder.
   - The rotation skips members who are no longer on the team, and `.team autoassign` says when nobody in the list is left.
 - **Tests:** `test/rotation.test.js` ("someone whose sudo is removed …").
+
+### B-24 — Strangers could fill the disk with seller-offer photos (found in the 3.49.1 review)
+- **Where:** `services/sellers.js` (3.45.0).
+  - **What anyone could do:** with `.agent sellers on`, anyone who writes "عايز أبيع شقتي" starts an offer, then sends up to 8 photos.
+  - **The limits were per number and per hour** (8 messages per 10 minutes, 20 new offers an hour), not on what is kept. Offers waiting for the agent were only trimmed after being added or dismissed, and never expired.
+  - **The result:** sustained abuse from many numbers could store about 160 re-encoded photos an hour, every hour.
+- **Fix:**
+  - at most 100 offers wait for the agent, and a new number isn't collected beyond that;
+  - at most 400 photos are kept for all waiting offers together;
+  - a waiting offer untouched for 30 days expires and its photos are deleted (checked when a new offer starts and when `.sellers` is opened).
+- **Tests:** `test/sellers.test.js` ("what strangers can store is bounded …").
 
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).

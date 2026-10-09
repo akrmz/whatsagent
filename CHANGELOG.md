@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.49.1 — 2026-10-10
+
+A review of the code added since 3.43.1 (3.44–3.49). `npm audit` reports no vulnerabilities in the bot's dependencies.
+
+### Security — seller-offer photos were unbounded (B-24)
+- **The problem:** seller intake lets anyone start an offer and send photos. Offers waiting for you were never trimmed or expired, so fake offers from many numbers could keep adding photos until the server's disk filled.
+- **Now:**
+  - at most 100 offers wait for you (more aren't collected until you add or dismiss some);
+  - at most 400 photos are kept across them;
+  - an offer untouched for 30 days expires and its photos are deleted, also checked whenever you open `.sellers`.
+
+### Checked
+- 1 test (385 in total): a full waiting list refusing a new offer, expiry after 30 days deleting the photos and freeing room, and the overall photo cap.
+- Also reviewed, no change needed:
+  - `.leads revive` (stopped and won clients left out, paced, re-checked at sending);
+  - several scheduled `.blast msg` messages;
+  - `.market image` (aggregates only);
+  - the down-payment and feature parsing (simple patterns, values range-checked);
+  - `.listings check` (staff only).
+
 ## 3.49.0 — 2026-10-10
 
 ### Added — what your listings are missing
