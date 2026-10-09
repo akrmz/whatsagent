@@ -34,6 +34,7 @@ function detect(text) {
   const t = String(text || "").trim();
   if (t.length < 6 || t.length > 300 || t.split("\n").length > 4) return null;
   if (!asks(t)) return null;
+  if (require("./sellers").isSellerIntent(t)) return null; // "عندي شقة عايز أبيعها" is a seller, not a buyer
   const f = leads.parseLeadText(t);
   if (!f.type) return null;
   const wish = {};
