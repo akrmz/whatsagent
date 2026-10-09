@@ -98,6 +98,7 @@ module.exports = [
   },
   {
     name: "export",
+    clientData: true,
     aliases: ["csv", "excel"],
     category: "realestate",
     description: "تصدير إلى Excel — your listings or clients as a CSV file that opens in Excel or Google Sheets (Arabic included). Owner and sudo users.",

@@ -85,6 +85,15 @@ function isDue(entry, timeZone, now) {
   return entry.last !== day && minutes >= at && minutes <= at + LATE_LIMIT_MIN;
 }
 
+const HELD = "🔒 ملخص الصباح متوقف هنا: الجروب فيه أعضاء مش من الفريق (المالك والـ sudo). شغّله في الشات الخاص مع البوت: .digest on 08:30";
+
+/** True for a private chat, or a group whose members are all staff (see permissions.allStaff). */
+async function staffOnlyGroup(app, chat) {
+  if (!chat.endsWith("@g.us")) return true;
+  const meta = await app.groups.get(app.sock, chat).catch(() => null);
+  return Boolean(meta) && app.permissions.allStaff(meta.participants || [], [app.sock.user?.id, app.sock.user?.lid].filter(Boolean));
+}
+
 async function runDue(app, now = Date.now()) {
   if (!app.sock || app.health.state !== "open") return 0;
   const s = store(app.state);
@@ -94,7 +103,9 @@ async function runDue(app, now = Date.now()) {
     if (!isDue(entry, zone, now)) continue;
     s.update(() => (entry.last = zoneNow(zone, now).day));
     try {
-      await app.sock.sendMessage(chat, { text: build(app.state, zone, now) });
+      // A group that is no longer staff only (someone else joined) gets a note, not clients' details.
+      const text = (await staffOnlyGroup(app, chat)) ? build(app.state, zone, now) : HELD;
+      await app.sock.sendMessage(chat, { text });
       sent++;
     } catch (err) {
       app.log.warn({ err: err.message }, "could not send the daily digest");

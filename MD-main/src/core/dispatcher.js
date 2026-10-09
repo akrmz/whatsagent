@@ -14,7 +14,7 @@ const { suggest } = require("../services/help");
  * The one place where every incoming message is processed:
  *   1. "pre" listeners (moderation, autoread, antidelete, PM blocker)  — everyone
  *   2. ban check
- *   3. command → mode, chat-type, permission, bot-admin and cooldown checks → run
+ *   3. command → mode, chat-type, permission, bot-admin, client-data and cooldown checks → run
  *      no command → "post" listeners (games, chatbot, mention reply, antitag)
  * Commands never re-implement these checks themselves.
  */
@@ -24,6 +24,9 @@ const DENIED = {
   sudo: "❌ This command is only for the bot owner and sudo users.",
   groupAdmin: "❌ Only group admins can use this command.",
 };
+// Commands marked `clientData` show clients' names, numbers or notes: only where no outsider reads them.
+const CLIENT_DATA_HERE = (p, name) =>
+  `🔒 ${p}${name} shows clients' details (names, numbers, notes). Use it in your private chat with the bot, or in a group where every member is the owner or a sudo user.`;
 
 // Network failures from Node itself (DNS, resets) mean "the external service is down", not a bug.
 const NETWORK_CODES = new Set(["ENOTFOUND", "EAI_AGAIN", "ECONNRESET", "ECONNREFUSED", "ETIMEDOUT", "EHOSTUNREACH", "ENETUNREACH", "EPIPE"]);
@@ -111,6 +114,7 @@ function createDispatcher(app) {
     if (!allowed) return ctx.reply(DENIED[command.permission] || DENIED.owner);
 
     if (command.botAdmin && !(await ctx.isBotAdmin())) return ctx.reply("Please make the bot a group admin first.");
+    if (command.clientData && !(await ctx.isStaffOnlyChat())) return ctx.reply(CLIENT_DATA_HERE(p, command.name));
 
     if (overRateLimit(ctx)) {
       if (noticeOnce(`rate|${ctx.sender}`)) await ctx.reply("🐢 You are sending commands too fast. Wait a minute, please.");

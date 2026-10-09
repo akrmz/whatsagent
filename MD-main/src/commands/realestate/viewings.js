@@ -14,6 +14,7 @@ const idOf = (s) => {
 module.exports = [
   {
     name: "viewing",
+    clientData: true,
     aliases: ["moaayna", "visit", "showing"],
     category: "realestate",
     description:
@@ -74,6 +75,7 @@ module.exports = [
   },
   {
     name: "viewings",
+    clientData: true,
     aliases: ["appointments", "mawaeed"],
     category: "realestate",
     description: "المعاينات القادمة — upcoming viewings, soonest first (today's past ones too, with their outcome), the ones still without an outcome, and \"ics\": a calendar file of the upcoming ones for Google Calendar or your phone. Owner and sudo users.",

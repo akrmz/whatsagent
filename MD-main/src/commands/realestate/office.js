@@ -103,6 +103,7 @@ module.exports = [
   },
   {
     name: "digest",
+    clientData: true,
     aliases: ["summary-day", "dailybrief", "molakhas"],
     category: "realestate",
     description: "ملخص اليوم — a morning summary in this chat at the time you choose: today's viewings and follow-ups, new clients, who replied to what you sent and who went quiet after it, clients without contact for a week, rent due and late, contracts ending soon, and the catalogue. Owner and sudo users.",

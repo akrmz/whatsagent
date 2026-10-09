@@ -108,6 +108,18 @@ function buildContext(app, sock, msg) {
       const meta = await ctx.groupMetadata();
       return app.permissions.isAdminIn(meta?.participants || [], sender);
     },
+    /**
+     * Whether clients' details (names, numbers, notes) may be shown here: the sender's own chat
+     * with the bot (or the bot's note-to-self), or a group whose members are all staff.
+     */
+    isStaffOnlyChat() {
+      if (!isGroupChat) return Promise.resolve(chatId === sender || chatId === botJid);
+      memo.staffOnly ||= ctx
+        .groupMetadata()
+        .then((meta) => Boolean(meta) && app.permissions.allStaff(meta.participants || [], [sock.user?.id, sock.user?.lid].filter(Boolean)))
+        .catch(() => false); // can't tell: treat it as a mixed group
+      return memo.staffOnly;
+    },
     async isBotAdmin() {
       if (!isGroupChat) return false;
       const meta = await ctx.groupMetadata();

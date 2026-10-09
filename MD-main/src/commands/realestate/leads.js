@@ -12,7 +12,7 @@ const projects = require("../../services/projects");
 const campaigns = require("../../services/campaigns");
 const viewings = require("../../services/viewings");
 
-const base = { category: "realestate", permission: "sudo", cooldown: 2 };
+const base = { category: "realestate", permission: "sudo", clientData: true, cooldown: 2 };
 const idOf = (s) => {
   const n = Number(re.latinDigits(String(s || "")).replace(/^#/, ""));
   return Number.isInteger(n) && n > 0 ? n : null;

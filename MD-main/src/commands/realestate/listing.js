@@ -54,12 +54,15 @@ function autoblast(ctx, listing) {
   }
 }
 
-/** "🎯 Fits 2 of your clients: #3 Ahmed, #7 Mona" (management replies only: client names are private). */
-function clientsLine(ctx, listing) {
+/**
+ * "🎯 Fits 2 of your clients: #3 Ahmed, #7 Mona" (management replies only). The names only where
+ * no outsider reads them (ctx.isStaffOnlyChat); elsewhere just how many.
+ */
+function clientsLine(ctx, listing, showNames) {
   const m = leads.matchingLeads(ctx.state, listing);
   if (!m.length) return "";
-  const names = m.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ");
-  return `\n\n🎯 يناسب ${m.length} من عملائك: ${names}${m.length > 5 ? " …" : ""}\n${ctx.prefix}listing match ${listing.id}`;
+  const names = showNames ? `: ${m.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ")}${m.length > 5 ? " …" : ""}` : "";
+  return `\n\n🎯 يناسب ${m.length} من عملائك${names}\n${ctx.prefix}listing match ${listing.id}${showNames ? "" : " (in your private chat with the bot)"}`;
 }
 
 const STATUS_WORDS = {
@@ -128,7 +131,7 @@ function sendPin(ctx, l) {
 }
 
 /** After a price cut: the clients whose budget the listing fits now but didn't before. */
-function priceDropLine(ctx, before, after) {
+function priceDropLine(ctx, before, after, showNames) {
   if (!before.price || !after.price || after.price >= before.price) return "";
   const pct = Math.round((1 - after.price / before.price) * 100);
   const fitsNow = leads.matchingLeads(ctx.state, after).filter(({ lead, fit }) => {
@@ -136,8 +139,8 @@ function priceDropLine(ctx, before, after) {
     const was = leads.fits(lead, before);
     return !was || was.over; // didn't match at all, or was over budget, before the cut
   });
-  const names = fitsNow.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ");
-  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك: ${names}${fitsNow.length > 5 ? " …" : ""}` : ""}\n📣 بلّغ كل العملاء المناسبين بالسعر الجديد: ${ctx.prefix}blast ${after.id} drop`;
+  const names = showNames ? `: ${fitsNow.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ")}${fitsNow.length > 5 ? " …" : ""}` : "";
+  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك${names}` : ""}\n📣 بلّغ كل العملاء المناسبين بالسعر الجديد: ${ctx.prefix}blast ${after.id} drop`;
 }
 
 /**
@@ -218,12 +221,14 @@ module.exports = [
         const l = re.add(ctx.state, fields, ctx.sender);
         const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
         const autoLine = dup ? "" : autoblast(ctx, l);
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l)}${autoLine}${dupLine}`);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l, await ctx.isStaffOnlyChat())}${autoLine}${dupLine}`);
       }
       if (sub === "ask") {
         // ".listing ask 12 15 18": ask each owner whether it's still available (at most 5 at once).
         const ids = [...new Set(ctx.args.slice(1).map(idOf).filter(Boolean))];
         if (!ids.length) throw new UserError(`Which listings? ${ctx.prefix}listing ask 12 [15 18 …]`);
+        // The owners' answers (with their name and number) come back to this chat.
+        if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 Owners' answers name them and their number, and come back to the chat you ask from: use ${ctx.prefix}listing ask in your private chat with the bot, or in a group of staff only.`);
         if (ids.length > owners.MAX_AT_ONCE) throw new UserError(`At most ${owners.MAX_AT_ONCE} at once, so the owners aren't messaged in a burst.`);
         const done = [];
         const skipped = [];
@@ -273,7 +278,7 @@ module.exports = [
         if (!Object.keys(changes).length) throw new UserError(`Write the fields to change, e.g. ${ctx.prefix}listing edit ${id} السعر: 3.4 مليون`);
         const before = { ...re.get(ctx.state, id) };
         const l = re.update(ctx.state, id, changes);
-        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}${priceDropLine(ctx, before, l)}`);
+        return ctx.reply(`✏️ Updated #${id}: ${Object.keys(changes).join(", ")}\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}${priceDropLine(ctx, before, l, await ctx.isStaffOnlyChat())}`);
       }
       if (SET_LOC.test(sub)) {
         if (/^(del|delete|remove|off|حذف)$/.test(String(ctx.args[2] || "").toLowerCase())) {
@@ -289,6 +294,7 @@ module.exports = [
         return ctx.reply(`📍 Location saved for #${id}${geo.label ? ` (${geo.label})` : ""}.\n🗺️ ${places.mapsUrl(geo)}\n\nClients near it: reply to their location with ${ctx.prefix}listings near · the pin: ${ctx.prefix}listing ${id} map`);
       }
       if (sub === "match" || sub === "clients") {
+        if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 The clients for #${id} are private: use ${ctx.prefix}listing match ${id} in your private chat with the bot, or in a group of staff only.`);
         const m = leads.matchingLeads(ctx.state, re.get(ctx.state, id));
         if (!m.length) return ctx.reply(`No saved client matches #${id} yet (${ctx.prefix}leads).`);
         const cur = re.agent(ctx.state).currency;

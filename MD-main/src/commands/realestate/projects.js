@@ -12,10 +12,12 @@ const idOf = (s) => {
 };
 const textOrQuoted = (ctx, own) => own.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
-/** "🎯 يناسب: #3 أحمد، #7 منى" (management replies only: client names are private). */
-function clientsLine(ctx, p) {
+/** "🎯 يناسب: #3 أحمد، #7 منى" (management replies only; the names only where no outsider reads them). */
+async function clientsLine(ctx, p) {
   const m = leads.all(ctx.state).filter((l) => !["won", "lost"].includes(l.status) && projects.suits(p, l));
-  return m.length ? `\n\n🎯 يناسب ${m.length} من عملائك: ${m.slice(0, 5).map((l) => `#${l.id} ${l.name || ""}`.trim()).join("، ")}${m.length > 5 ? " …" : ""}` : "";
+  if (!m.length) return "";
+  if (!(await ctx.isStaffOnlyChat())) return `\n\n🎯 يناسب ${m.length} من عملائك (الأسماء في الشات الخاص مع البوت)`;
+  return `\n\n🎯 يناسب ${m.length} من عملائك: ${m.slice(0, 5).map((l) => `#${l.id} ${l.name || ""}`.trim()).join("، ")}${m.length > 5 ? " …" : ""}`;
 }
 
 const HELP = (p) =>
@@ -45,7 +47,7 @@ module.exports = [
         const p = projects.get(ctx.state, direct);
         if (!p) return ctx.reply(`There is no project P${direct}.`);
         if (/^(en|english|eng|انجليزي|إنجليزي)$/.test(arg)) return ctx.reply(projects.cardEn(p, a));
-        return ctx.reply(projects.card(p, a) + (ctx.isSudoOrOwner ? clientsLine(ctx, p) : ""));
+        return ctx.reply(projects.card(p, a) + (ctx.isSudoOrOwner ? await clientsLine(ctx, p) : ""));
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));
       if (!ctx.isSudoOrOwner) return ctx.reply(`Only the owner and sudo users manage projects. Anyone can view them: ${ctx.prefix}projects · ${ctx.prefix}project <number>`);
@@ -53,7 +55,7 @@ module.exports = [
       if (sub === "add" || sub === "new") {
         const p = projects.add(ctx.state, projects.parseProjectText(textOrQuoted(ctx, ctx.text.replace(/^\S+\s*/, ""))), ctx.sender);
         const missing = [!p.price && "يبدأ من", p.down === undefined && "المقدم", !p.years && "التقسيط", !p.delivery && "الاستلام"].filter(Boolean);
-        return ctx.reply(`✅ Saved as *P${p.id}*\n\n${projects.card(p, a)}${missing.length ? `\n\n⚠️ Missing: ${missing.join("، ")} — ${ctx.prefix}project edit ${p.id} …` : ""}${clientsLine(ctx, p)}`);
+        return ctx.reply(`✅ Saved as *P${p.id}*\n\n${projects.card(p, a)}${missing.length ? `\n\n⚠️ Missing: ${missing.join("، ")} — ${ctx.prefix}project edit ${p.id} …` : ""}${await clientsLine(ctx, p)}`);
       }
       const id = idOf(arg);
       if (!id || !projects.get(ctx.state, id)) throw new UserError(id ? `There is no project P${id}.` : HELP(ctx.prefix));

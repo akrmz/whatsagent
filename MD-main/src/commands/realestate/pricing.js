@@ -162,6 +162,7 @@ module.exports = [
     async run(ctx) {
       if (!ctx.args.length) return ctx.reply(`Usage: ${ctx.prefix}offer <listing> [#client] [down % years frequency] [send]\ne.g. ${ctx.prefix}offer 12 #5 10% 8 quarterly`);
       const { listing, lead, planText, send } = parseOffer(ctx);
+      if (lead && !(await ctx.isStaffOnlyChat())) throw new UserError(`🔒 An offer for a client names them: use it in your private chat with the bot, or in a group of staff only. Without the client: ${ctx.prefix}offer ${listing.id}`);
       if (!listing.price) throw new UserError(`#${listing.id} has no price yet: ${ctx.prefix}listing edit ${listing.id} السعر: 3.5 مليون`);
       if (planText && listing.deal === "إيجار") throw new UserError("Payment plans are for listings for sale.");
       let plan;

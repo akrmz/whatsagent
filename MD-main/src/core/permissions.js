@@ -59,7 +59,16 @@ function createPermissions({ owners, identity, getSudoList }) {
     return false;
   }
 
-  return { isOwner, isSudo, levelOf, isAdminIn, allows };
+  /**
+   * True if every member of a group is the owner, a sudo user, or the bot itself (`self`):
+   * a team group, where clients' details may be shown. Unknown members count as outsiders.
+   */
+  function allStaff(participants, self = []) {
+    const me = new Set(self.flatMap((j) => identity.aliases(j)));
+    return participants.length > 0 && participants.every((p) => participantIds(p).some((id) => me.has(id) || isOwner(id) || isSudo(id)));
+  }
+
+  return { isOwner, isSudo, levelOf, isAdminIn, allows, allStaff };
 }
 
 module.exports = { createPermissions, LEVELS };

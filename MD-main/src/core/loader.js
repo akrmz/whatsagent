@@ -53,7 +53,7 @@ function validateCommand(def, capabilities) {
   if (typeof def.description !== "string" || !def.description) problems.push("description is required");
   if (def.usage !== undefined && typeof def.usage !== "string") problems.push("usage must be a string");
   if (!PERMISSIONS.includes(def.permission ?? "user")) problems.push(`permission must be one of ${PERMISSIONS.join(", ")}`);
-  for (const flag of ["groupOnly", "privateOnly", "botAdmin", "hidden"]) {
+  for (const flag of ["groupOnly", "privateOnly", "botAdmin", "hidden", "clientData"]) {
     if (def[flag] !== undefined && typeof def[flag] !== "boolean") problems.push(`${flag} must be true or false`);
   }
   if (def.groupOnly && def.privateOnly) problems.push("groupOnly and privateOnly cannot both be true");
@@ -108,6 +108,7 @@ function loadCommands(dirInput, { capabilities = {}, log } = {}) {
         groupOnly: false,
         privateOnly: false,
         botAdmin: false,
+        clientData: false,
         hidden: false,
         requires: [],
         ...def,

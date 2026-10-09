@@ -29,6 +29,7 @@ function list(ctx) {
 module.exports = [
   {
     name: "blast",
+    clientData: true,
     aliases: ["tarweej", "sendmatch", "hamla3qar"],
     category: "realestate",
     description:

@@ -75,6 +75,7 @@ module.exports = [
   },
   {
     name: "feed",
+    clientData: true,
     aliases: ["brokerfeed", "souk"],
     category: "realestate",
     description:

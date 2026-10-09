@@ -10,6 +10,7 @@ const dayOf = (t, timeZone) => new Intl.DateTimeFormat("ar-EG-u-nu-latn", { day:
 
 module.exports = {
   name: "deals",
+  clientData: true,
   aliases: ["sales", "safaqat", "revenue"],
   category: "realestate",
   description:

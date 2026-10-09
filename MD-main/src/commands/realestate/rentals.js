@@ -101,6 +101,7 @@ const HELP = (p) =>
 module.exports = [
   {
     name: "rental",
+    clientData: true,
     aliases: ["tenant", "ijar", "lease"],
     category: "realestate",
     description:
@@ -195,6 +196,7 @@ module.exports = [
   },
   {
     name: "rentals",
+    clientData: true,
     aliases: ["tenants", "ijarat", "leases"],
     category: "realestate",
     description: "الإيجارات هذا الشهر — your rentals: paid, due and late this month, the amount collected, unpaid earlier months, and contracts ending within 60 days. Owner and sudo users.",
