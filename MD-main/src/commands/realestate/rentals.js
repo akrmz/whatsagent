@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const rentals = require("../../services/rentals");
+const receipt = require("../../services/receipt");
 const { zoneNow } = require("../../services/gcschedule");
 const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
@@ -95,6 +96,7 @@ const HELP = (p) =>
     `${p}rentals — this month: paid, due, late; contracts ending`,
     `${p}rental 3 — details · ${p}rental paid 3 [month] [amount] · ${p}rental unpaid 3 <month>`,
     `${p}rental remind 3 — remind the tenant now · ${p}rental auto 3 on|off — on the due day and while late`,
+    `${p}rental receipt 3 [month] [send] — a rent receipt (image) for a recorded payment, optionally sent to the tenant`,
     `${p}rental renew 3 [المدة: سنة] [الإيجار: 17 ألف] · ${p}rental edit 3 <lines> · ${p}rental del 3`,
   ].join("\n");
 
@@ -105,9 +107,9 @@ module.exports = [
     aliases: ["tenant", "ijar", "lease"],
     category: "realestate",
     description:
-      "إدارة الإيجارات — the rentals you manage: tenant, monthly rent and due day, contract dates and deposit; record payments, see who is late and which months are unpaid, remind the tenant (now, or automatically on the due day and every 3 days while late, 10:00–21:00), and renew. The morning summary lists rent due and late, and contracts ending within 60 days. Owner and sudo users.",
-    usage: "add <lines> | <id> | paid <id> [month] [amount] | unpaid <id> <month> | remind <id> | auto <id> on|off | renew <id> [lines] | edit <id> <lines> | del <id>",
-    examples: [".rental add\nالعقار: 12\nالمستأجر: أحمد\nالموبايل: 01001234567\nالإيجار: 15 ألف\nيوم الاستحقاق: 5\nمن: 2026-01-01\nالمدة: سنة", ".rental paid 3", ".rental paid 3 سبتمبر", ".rental remind 3", ".rentals"],
+      "إدارة الإيجارات — the rentals you manage: tenant, monthly rent and due day, contract dates and deposit; record payments, see who is late and which months are unpaid, remind the tenant (now, or automatically on the due day and every 3 days while late, 10:00–21:00), give a rent receipt for a recorded payment (an image, optionally sent to the tenant), and renew. The morning summary lists rent due and late, and contracts ending within 60 days. Owner and sudo users.",
+    usage: "add <lines> | <id> | paid <id> [month] [amount] | receipt <id> [month] [send] | unpaid <id> <month> | remind <id> | auto <id> on|off | renew <id> [lines] | edit <id> <lines> | del <id>",
+    examples: [".rental add\nالعقار: 12\nالمستأجر: أحمد\nالموبايل: 01001234567\nالإيجار: 15 ألف\nيوم الاستحقاق: 5\nمن: 2026-01-01\nالمدة: سنة", ".rental paid 3", ".rental paid 3 سبتمبر", ".rental receipt 3", ".rental receipt 3 سبتمبر send", ".rental remind 3", ".rentals"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -144,7 +146,23 @@ module.exports = [
         if (month < rentals.monthOf(r.start) || month > rentals.monthOf(r.end)) throw new UserError(`${month} is outside #${id}'s contract (${r.start} → ${r.end}).`);
         rentals.pay(ctx.state, id, month, amount, ctx.sender);
         const s = rentals.standing(rentals.get(ctx.state, id), day);
-        return ctx.reply(`✅ #${id} ${r.tenant}: ${rentals.arMonth(month)} paid (${re.money(amount || r.rent, cur(ctx))}).${s.arrears.length ? `\n⚠️ Still unpaid: ${s.arrears.join(", ")}` : ""}`);
+        return ctx.reply(`✅ #${id} ${r.tenant}: ${rentals.arMonth(month)} paid (${re.money(amount || r.rent, cur(ctx))}).${s.arrears.length ? `\n⚠️ Still unpaid: ${s.arrears.join(", ")}` : ""}\n🧾 Receipt: ${ctx.prefix}rental receipt ${id} ${month}${r.phone ? ` · to the tenant: ${ctx.prefix}rental receipt ${id} ${month} send` : ""}`);
+      }
+      if (sub === "receipt" || sub === "ايصال" || sub === "إيصال") {
+        // ".rental receipt 3 [month] [send]": only for a payment recorded with ".rental paid".
+        const rest = ctx.args.slice(2);
+        const send = rest.some((w) => /^(send|ابعت|ارسل|أرسل)$/i.test(w));
+        const monthWord = rest.find((w) => !/^(send|ابعت|ارسل|أرسل)$/i.test(w));
+        const mk = monthWord ? monthArg(monthWord, day) : receipt.lastPaid(r);
+        if (monthWord && !mk) throw new UserError(`Which month? ${ctx.prefix}rental receipt ${id} 2026-09 (or سبتمبر)`);
+        if (!mk || !r.payments?.[mk]) throw new UserError(`No payment is recorded for #${id}${mk ? ` in ${rentals.arMonth(mk)}` : ""}. Record it first: ${ctx.prefix}rental paid ${id}${mk ? ` ${mk}` : ""}`);
+        const tz = ctx.config.bot.timezone;
+        const image = await receipt.render(ctx.state, r, mk, tz);
+        const text = receipt.caption(ctx.state, r, mk, tz);
+        if (!send) return ctx.reply({ image, caption: `${text}\n\nSend it to the tenant: ${ctx.prefix}rental receipt ${id} ${mk} send` });
+        if (!r.phone) throw new UserError(`#${id} has no tenant number: ${ctx.prefix}rental edit ${id} الموبايل: 0100…`);
+        await ctx.sock.sendMessage(`${r.phone}@s.whatsapp.net`, { image, caption: `${text}\n\nشكراً لك 🙏` });
+        return ctx.reply(`📤 Receipt ${receipt.number(r, mk)} sent to ${r.tenant} (+${r.phone}).`);
       }
       if (sub === "unpaid" || sub === "undo") {
         const mk = monthArg(ctx.args[2], day);
