@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.44.0 — 2026-10-10
+
+### Added — bringing back quiet clients
+- **`.leads revive`** finds clients quiet for 30+ days (no message from them and nothing sent to them), or marked lost.
+  - **Who qualifies:** clients with a number, who haven't said "وقف" and aren't won, and who have a listing that is **new since they were last in touch**, within their budget, and never sent to them.
+  - **Preview:** who they are (longest quiet first, up to 100), which listing each would get, and the message ("من فترة كنت بتدور على … نزل عندي جديد ممكن يعجبك", the listing line, "أرسل #12", your name, the "وقف" line).
+- **`.leads revive go`** sends each their listing, with its photo, through the campaign queue (the same gaps, hours and daily cap).
+  - The match is checked again at sending time: a listing sold or sent meanwhile, or a client who wrote, was contacted or won since, is skipped.
+  - Each is noted as sent ("إعادة تواصل: …"), so replies show in the morning summary and the same listing isn't offered again. They count as contacted, so they're not "quiet" for another 30 days.
+
+### Changed
+- Several **scheduled** `.blast msg` messages can now wait side by side (an Eid greeting and a New Year one, scheduled weeks ahead). Only one message sends at a time; a second one sending now is refused with a hint to schedule it.
+
+### Checked
+- 2 tests (373 in total). They cover:
+  - who qualifies (old listings, over-budget ones, recent, stopped and won clients left out), the preview and the message;
+  - nothing sent before go, then sending with the note;
+  - a sold listing skipped, the summary, and nobody left after;
+  - two scheduled greetings plus one sending now, with a second sending now refused.
+
 ## 3.43.1 — 2026-10-10
 
 A review of the code added since 3.36.0 (3.37–3.43). `npm audit` reports no vulnerabilities in the bot's dependencies.
