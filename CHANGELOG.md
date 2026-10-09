@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.50.0 — 2026-10-10
+
+### Added — comparisons as a picture to send a client
+- **`.compare 3 7 12 image`** draws 2 or 3 listings side by side as one picture (1080×1350).
+  - **For each listing:** its first photo (or a placeholder with its type), number, type and area.
+  - **Then a row each for:**
+    - the price (with the currency in the label) and the size;
+    - the price per m², with the best value marked in green ("أفضل سعر للمتر");
+    - rooms and bathrooms;
+    - how it's paid ("مقدم 2 مليون + 5 سنين" from 3.47, or "كاش");
+    - its features (from 3.48, up to 4 over two lines).
+  - Your contact is at the bottom, and the caption tells the client to send a number for details.
+- **Who can use it:** anyone, like `.compare`, but drawing costs more than text, so clients can make 3 every 10 minutes (you and your team aren't limited). The text comparison still takes up to 4 listings.
+- The picture was rendered and looked at: right-to-left columns next to the labels, "م" instead of "م²" (the superscript flips beside Arabic), and words instead of emoji in the drawing (the server's font may not have them).
+
+### Checked
+- 2 tests (387 in total). They cover:
+  - the rows (prices, the best price per m², rooms, cash or plan, features over two lines);
+  - a 1080×1350 JPEG with its caption, 4 refused for a picture but fine for text, and a client's limit.
+
 ## 3.49.1 — 2026-10-10
 
 A review of the code added since 3.43.1 (3.44–3.49). `npm audit` reports no vulnerabilities in the bot's dependencies.
