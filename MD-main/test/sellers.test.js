@@ -110,3 +110,42 @@ test("renting out, a missing type, dismissing; buyers, staff and groups aren't s
   assert.equal(requests.detect("عندي شقة عايز أبيعها"), null, "a seller isn't answered as a buyer either");
   t.mock.timers.reset();
 });
+
+test("what strangers can store is bounded: 100 waiting offers, 400 photos, and 30 days (B-24)", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T12:00:00+03:00") });
+  const b = bot();
+  re.setAgent(b.s, "sellers", "on");
+  const items = b.s.store("sellers", { seq: 0, items: {} });
+  const fill = (n, extra = {}) =>
+    items.update((d) => {
+      for (let i = 0; i < n; i++) {
+        const id = ++d.seq;
+        d.items[id] = { id, phone: `2010000${String(id).padStart(5, "0")}`, deal: "بيع", text: "", fields: {}, photos: 0, at: Date.now(), updated: Date.now(), openUntil: 0, status: "new", ...extra };
+      }
+    });
+
+  fill(100);
+  await b.send("عايز أبيع شقتي في التجمع", { from: OWNER });
+  assert.equal(b.to(OWNER).length, 0, "100 offers already wait for the agent: a new one isn't collected");
+
+  // 30 days later the waiting offers expire (their photos with them), and new ones are taken again.
+  const dir = sellers.photoFile(b.app.config, 1, 1);
+  fs.mkdirSync(require("node:path").dirname(dir), { recursive: true });
+  fs.writeFileSync(dir, Buffer.from([0xff, 0xd8]));
+  t.mock.timers.setTime(Date.now() + 31 * 24 * 3600 * 1000);
+  await b.send("عايز أبيع شقتي في التجمع", { from: OWNER });
+  assert.match(b.last(OWNER), /^أهلاً 👋 تمام، نقدر نسوّق عقارك/);
+  assert.equal(sellers.get(b.s, 1).status, "expired");
+  assert.equal(fs.existsSync(dir), false, "an expired offer's photos are deleted");
+
+  // Photos of all waiting offers together are capped.
+  fill(50, { photos: 8 });
+  assert.equal(sellers.storedPhotos(b.s), 400);
+  const jpeg = await sharp({ create: { width: 20, height: 20, channels: 3, background: "#fff" } }).jpeg().toBuffer();
+  const ctx = buildContext(b.app, b.sock, { key: { id: "CAP1", remoteJid: OWNER, fromMe: false }, message: { imageMessage: { mimetype: "image/jpeg", fileLength: jpeg.length } } });
+  ctx.download = async () => jpeg;
+  const open = sellers.list(b.s, "new").find((o) => o.phone === "201088887777");
+  assert.equal(await sellers.handle(ctx), true);
+  assert.equal(sellers.get(b.s, open.id).photos, 0, "no more photos stored");
+  t.mock.timers.reset();
+});

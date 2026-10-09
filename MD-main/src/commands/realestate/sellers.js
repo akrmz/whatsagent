@@ -57,6 +57,7 @@ module.exports = {
       const o = sellers.dismiss(ctx.state, ctx.config, idOf(arg));
       return ctx.reply(`🗑️ Offer #${o.id} dismissed${o.photos ? " (its photos deleted)" : ""}.`);
     }
+    sellers.expire(ctx.state, ctx.config); // offers untouched for 30 days go, with their photos
     const open = sellers.list(ctx.state, "new");
     const on = re.agent(ctx.state).sellers;
     if (!open.length) return ctx.reply(`No owner offers waiting.${on ? "" : `\nTurn on collecting them: ${p}agent sellers on (owners who write "عايز أبيع شقتي" are asked for the details and photos)`}`);

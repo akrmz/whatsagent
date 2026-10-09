@@ -21,6 +21,10 @@ const OPEN_FOR = 20 * 60 * 1000; // details and photos are collected for 20 minu
 const MAX_TEXT = 1500;
 const MAX_PHOTOS = 8;
 const MAX_KEPT = 300;
+// Strangers can start offers and send photos: what waits for the agent is bounded (B-24).
+const MAX_OPEN = 100; // offers waiting for the agent
+const MAX_STORED_PHOTOS = 400; // photos of all waiting offers together
+const EXPIRE_AFTER = 30 * 24 * 3600 * 1000; // a waiting offer untouched this long is dropped, photos too
 
 // "أبيع / أأجر …", or "my flat … for sale/rent". Not "اعرض" (also "show me") nor "أجرها" (also "its rent").
 const SELL_VERB = /(?<![\p{L}])(?:ابيع|أبيع|ابيعها|أبيعها|ابيعه|أبيعه|نبيع|هبيع|اأجر|أأجر|اأجرها|أأجرها|أأجره|هأجر|sell my|rent out my)(?![\p{L}])/iu;
@@ -54,6 +58,17 @@ const list = (state, status = "new") => Object.values(store(state).data.items).f
 const photoDir = (config, id) => path.join(config.paths.data, "sellers", String(Number(id)));
 const photoFile = (config, id, n) => path.join(photoDir(config, id), `${Number(n)}.jpg`);
 const dropPhotos = (config, id) => fs.rmSync(photoDir(config, id), { recursive: true, force: true });
+
+/** Photos kept for all waiting offers. */
+const storedPhotos = (state) => list(state, "new").reduce((n, o) => n + (o.photos || 0), 0);
+
+/** Waiting offers nobody touched for 30 days are dropped, with their photos. @returns {number} dropped */
+function expire(state, config, now = Date.now()) {
+  const old = list(state, "new").filter((o) => now - o.updated > EXPIRE_AFTER);
+  for (const o of old) dropPhotos(config, o.id);
+  if (old.length) store(state).update((d) => old.forEach((o) => Object.assign(d.items[o.id], { status: "expired", updated: now })));
+  return old.length;
+}
 
 /** The open offer of this number (still collecting), or null. */
 const openFor = (state, phone, now = Date.now()) => Object.values(store(state).data.items).find((o) => o.phone === phone && o.status === "new" && o.openUntil > now) || null;
@@ -119,6 +134,7 @@ async function handle(ctx, now = Date.now()) {
   if (media) {
     if (!flood(ctx.state, phone)) return true;
     if (open.photos >= MAX_PHOTOS) return true;
+    if (storedPhotos(ctx.state) >= MAX_STORED_PHOTOS) return true; // the agent has enough to look at already
     const jpeg = await img.toListingJpeg(await ctx.download(media, 15 * 1024 * 1024));
     const n = open.photos + 1; // taken before the update: `open` is the stored object itself
     fs.mkdirSync(photoDir(ctx.config, open.id), { recursive: true, mode: 0o700 });
@@ -132,7 +148,11 @@ async function handle(ctx, now = Date.now()) {
 
   if (isSellerIntent(text)) {
     if (!flood(ctx.state, phone)) return true;
-    if (!open && !newOffers(ctx.state)) return false; // a burst of new numbers: not collected
+    if (!open) {
+      expire(ctx.state, ctx.config, now);
+      if (!newOffers(ctx.state)) return false; // a burst of new numbers: not collected
+      if (list(ctx.state, "new").length >= MAX_OPEN && !list(ctx.state, "new").some((o) => o.phone === phone)) return false; // too many waiting: not collected
+    }
     const o = upsert(ctx.state, { phone, name: (ctx.senderName || "").slice(0, 60) || undefined, deal: RENT.test(text) ? "إيجار" : "بيع", text }, now);
     await ctx.reply(ASK(a));
     if (!open) {
@@ -182,4 +202,4 @@ function dismiss(state, config, id) {
   return o;
 }
 
-module.exports = { handle, isSellerIntent, get, list, summary, toListing, dismiss, photoFile, OPEN_FOR };
+module.exports = { handle, isSellerIntent, get, list, summary, toListing, dismiss, expire, storedPhotos, photoFile, OPEN_FOR, MAX_OPEN, MAX_STORED_PHOTOS, EXPIRE_AFTER };
