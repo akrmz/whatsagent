@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.33.0 — 2026-10-10
+
+### Added — the assistant understands voice notes
+- **Clients' voice notes** (up to 2 minutes) in private chats are written out, then answered like text by `.assistant`. This needs a Gemini or OpenAI key, the same as `.transcribe`. With OpenAI, ffmpeg prepares the audio.
+  - The transcript reaches the AI marked 🎤, with phone numbers masked. The AI is told it may contain mistakes and to ask again if unclear.
+  - The transcript is noted in the client's history ("🎤 رسالة صوتية: …"), so you can read what they said.
+  - A handoff notice says "قال (رسالة صوتية)" with the transcript.
+- **Left for you to hear:** longer voice notes, audio files (not voice notes), silence, a failed transcription, or no Gemini/OpenAI key. The usual greeting and away messages still apply.
+- **Cost:** the per-minute and per-day limits are checked before anything is transcribed. A transcription counts as one answer.
+
+### Fixed
+- **Taking over by voice:** replying to a client with a voice note or a photo from your phone now also makes the assistant step back for 12 hours. Before, only a typed reply did, and agents often answer by voice.
+
+### Checked
+- 2 tests (354 in total). They cover:
+  - the transcript answered, marked, masked and noted, and the handoff wording;
+  - long, non-voice, silent and failed voice notes, and no transcription key;
+  - the agent's voice reply taking over, and a command typed in the client's chat not taking over.
+
 ## 3.32.0 — 2026-10-10
 
 ### Added — a chatbot for your clients
