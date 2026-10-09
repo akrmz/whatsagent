@@ -254,7 +254,9 @@ module.exports = [
           return ctx.reply(`📊 *Report for the owner of #${id}* — preview, not sent yet:\n\n${preview}\n\n${next}`);
         }
         if (!l.owner?.phone) throw new UserError(`#${id} has no owner number. Add it: ${ctx.prefix}listing edit ${id} المالك: الاسم 0100…`);
-        if (!(await ownerReport.send(ctx, l))) throw new UserError(`The owner of #${id} already got a report today. Try again tomorrow.`);
+        const sent = await ownerReport.send(ctx, l);
+        if (sent === "off") throw new UserError(`The owner of #${id} asked not to get reports ("وقف التقارير"). They can turn them back on by sending: اشتراك التقارير`);
+        if (sent === "recent") throw new UserError(`The owner of #${id} already got a report today. Try again tomorrow.`);
         return ctx.reply(`📤 Sent the marketing report for #${id} to ${l.owner.name || "the owner"} (+${l.owner.phone}).`);
       }
 

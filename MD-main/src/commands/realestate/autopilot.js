@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const campaigns = require("../../services/campaigns");
+const ownerReport = require("../../services/ownerreport");
 const autoreply = require("../../services/autoreply");
 const autolistings = require("../../services/autolistings");
 const statuspost = require("../../services/statuspost");
@@ -21,7 +22,7 @@ module.exports = {
   aliases: ["reauto", "taliqai"],
   category: "realestate",
   description:
-    "لوحة الأتمتة — every automatic real-estate feature on one screen: what's on (auto-capture, request answers, the client menu, automatic campaigns, follow-ups, greetings, away replies, status posts, listing of the day, the morning summary, rent and viewing reminders, watched groups), today's campaign messages against the daily cap, running and waiting campaigns, and what is waiting to be sent, with the command to switch each. Owner and sudo users.",
+    "لوحة الأتمتة — every automatic real-estate feature on one screen: what's on (auto-capture, request answers, the client menu, automatic campaigns, follow-ups, weekly owner reports, greetings, away replies, status posts, listing of the day, the morning summary, rent and viewing reminders, watched groups), today's campaign messages against the daily cap, running and waiting campaigns, and what is waiting to be sent, with the command to switch each. Owner and sudo users.",
   examples: [".autopilot"],
   permission: "sudo",
   cooldown: 3,
@@ -47,6 +48,7 @@ module.exports = {
     const watched = Object.keys(feed.groups(s)).length;
     const welcomeWaiting = campaigns.welcomeTargets(s).length;
     const nudgeWaiting = campaigns.nudgeTargets(s, now).length;
+    const ownersWaiting = ownerReport.weeklyTargets(s, now).length;
 
     const lines = [
       "🤖 *الأتمتة — كل اللي البوت بيعمله لوحده*",
@@ -61,6 +63,7 @@ module.exports = {
       "*الرسائل اللي البوت بيبدأها*",
       `${on(a.autoblast)} حملة تلقائية لكل عقار جديد — ${p}agent autoblast on|off`,
       `${on(a.nudge)} متابعة اللي ما ردوش (3–14 يوم)${nudgeWaiting ? ` — ${nudgeWaiting} مستحق` : ""} — ${p}agent nudge on|off`,
+      `${on(a.ownerreports)} تقرير أسبوعي لملاك العقارات (السبت)${a.ownerreports ? ` — ${ownersWaiting} مستحق` : ""} — ${p}agent ownerreports on|off`,
       `👋 عملاء جدد بدون ترحيب: ${welcomeWaiting}${welcomeWaiting ? ` — ${p}leads welcome` : ""}`,
       `📣 رسائل الحملات النهارده: ${sentToday} من ${set.perDay} · ${set.from}–${set.to} — ${p}blast limit · ${p}blast hours`,
       ...(running.length

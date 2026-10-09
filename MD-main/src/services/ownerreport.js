@@ -6,17 +6,55 @@ const { RESULTS } = require("./viewings");
 const { redactPhones } = require("./phones");
 
 /**
- * The marketing report a listing's owner gets (.listing report 12 [send]): how long it has
- * been offered, how many clients it went to, views and inquiries, viewings and what the
- * viewers said, and how its price per m² compares with similar listings. Counts only: no
- * client names or numbers (viewing notes are the agent's words, with phone numbers masked).
+ * The marketing report a listing's owner gets (.listing report 12 [send], and weekly with
+ * ".agent ownerreports on"): how long it has been offered, how many clients it went to, views
+ * and inquiries, viewings and what the viewers said, and how its price per m² compares with
+ * similar listings. Counts only: no client names or numbers (viewing notes are the agent's
+ * words, with phone numbers masked). An owner who sends "وقف التقارير" gets no more reports.
+ *   DATA_DIR/owner-prefs.json { noReports: { [phone]: since } }
  */
 
 const DAY = 86400000;
-const RESEND_AFTER = 20 * 3600 * 1000; // one report per listing a day
+const RESEND_AFTER = 20 * 3600 * 1000; // one report per listing a day, when sent by hand
+const WEEKLY_EVERY = 6 * DAY; // the weekly ones skip a listing reported in the last 6 days
+const WEEKLY_MIN_AGE = 3 * DAY; // and listings added in the last 3 days (nothing to say yet)
+const WEEKLY_MAX = 30;
 const MAX_NOTES = 5;
+const STOP_LINE = "لو مش حابب توصلك التقارير دي ابعت: وقف التقارير";
 
-/** "أعلى من متوسط 8 عقارات مشابهة بـ 12%" — sale listings with enough similar ones only. */
+const prefs = (state) => state.store("owner-prefs", { noReports: {} });
+const reportsOff = (state, phone) => Boolean(prefs(state).data.noReports[phone]);
+
+function setReports(state, phone, on, now = Date.now()) {
+  prefs(state).update((d) => {
+    if (on) delete d.noReports[phone];
+    else d.noReports[phone] = now;
+  });
+}
+
+const REPORTS_STOP = /^(?:وقف|توقف|ايقاف|إيقاف|الغاء|إلغاء)\s*(?:ال)?تقارير$/;
+const REPORTS_START = /^(?:اشتراك|اشترك|تشغيل)\s*(?:ال)?تقارير$/;
+/** "وقف التقارير" → "stop", "اشتراك التقارير" → "start", else null. */
+function reportsWord(text) {
+  const w = String(text || "").trim().replace(/[.!؟?]+$/, "");
+  return REPORTS_STOP.test(w) ? "stop" : REPORTS_START.test(w) ? "start" : null;
+}
+
+/**
+ * An owner's "وقف التقارير" / "اشتراك التقارير" (private chat). Only numbers that own a
+ * listing are answered. @returns {Promise<boolean>} true if it was handled
+ */
+async function handleWord(ctx, phone, now = Date.now()) {
+  const word = reportsWord(ctx.body);
+  if (!word || !re.all(ctx.state).some((l) => l.owner?.phone === phone)) return false;
+  const stop = word === "stop";
+  if (reportsOff(ctx.state, phone) === stop) return true; // nothing changes: no reply
+  setReports(ctx.state, phone, !stop, now);
+  await ctx.reply(stop ? "✅ تمام، مش هتوصلك تقارير تاني. لو حبيت ترجعها ابعت: اشتراك التقارير" : "✅ تمام، هتوصلك تقارير التسويق تاني. لإيقافها ابعت: وقف التقارير");
+  return true;
+}
+
+/** "أعلى من المتوسط بـ 12%" — sale listings with enough similar ones only. */
 function marketLine(state, l, cur) {
   if (l.deal === "إيجار") return null;
   const m = market.compareToMarket(state, l);
@@ -57,6 +95,7 @@ function text(state, l, now = Date.now()) {
   ].filter(Boolean);
 
   const what = `${l.type || "العقار"}${l.location ? ` في ${l.location}` : ""} (#${l.id})`;
+  const vsMarket = marketLine(state, l, cur);
   return [
     l.owner?.name ? `أهلاً ${l.owner.name} 👋` : "أهلاً 👋",
     `📊 تقرير تسويق ${what} لحد النهارده:`,
@@ -67,23 +106,52 @@ function text(state, l, now = Date.now()) {
     "",
     ...(activity.length ? activity : ["📣 لسه بادئين التسويق، وهنبعتلك التحديثات أول بأول."]),
     notes.length ? `\n💬 آراء اللي عاينوا:\n${notes.join("\n")}` : null,
-    marketLine(state, l, cur) ? `\n${marketLine(state, l, cur)}` : null,
+    vsMarket ? `\n${vsMarket}` : null,
     "",
     "لو فيه أي تغيير في السعر أو الحالة ابعتهولي هنا 🙏",
     re.contactLine(a) || null,
+    `\n${STOP_LINE}`,
   ]
     .filter((x) => x !== null)
     .join("\n")
     .replace(/\n{3,}/g, "\n\n");
 }
 
-/** Sends the report to the owner. Throws (as a message for the agent) when it can't be sent. */
-async function send(ctx, l, now = Date.now()) {
-  if (!l.owner?.phone) throw new Error(`#${l.id} has no owner number`);
-  if (l.reportedAt && now - l.reportedAt < RESEND_AFTER) return false;
-  await ctx.sock.sendMessage(`${l.owner.phone}@s.whatsapp.net`, { text: text(ctx.state, l, now) });
-  re.update(ctx.state, l.id, { reportedAt: now }, l.updated); // a report isn't an update of the listing
-  return true;
+/** Sends the report to the owner and notes when. `sock`: app.sock or ctx.sock. */
+async function deliver({ sock, state }, l, now = Date.now()) {
+  await sock.sendMessage(`${l.owner.phone}@s.whatsapp.net`, { text: text(state, l, now) });
+  re.update(state, l.id, { reportedAt: now }, l.updated); // a report isn't an update of the listing
 }
 
-module.exports = { text, send, RESEND_AFTER };
+/** By hand (.listing report 12 send). @returns {Promise<"sent"|"off"|"recent">} */
+async function send(ctx, l, now = Date.now()) {
+  if (!l.owner?.phone) throw new Error(`#${l.id} has no owner number`);
+  if (reportsOff(ctx.state, l.owner.phone)) return "off";
+  if (l.reportedAt && now - l.reportedAt < RESEND_AFTER) return "recent";
+  await deliver(ctx, l, now);
+  return "sent";
+}
+
+const hasNews = (l) => {
+  const s = l.stats || {};
+  return Boolean(s.sent || s.views || s.inquiries || s.posted || s.booked || l.feedback?.length);
+};
+
+/** Whether this listing's owner should get the weekly report now. */
+const weeklyDue = (state, l, now = Date.now()) =>
+  l.status === "available" &&
+  Boolean(l.owner?.phone) &&
+  !reportsOff(state, l.owner.phone) &&
+  now - l.created >= WEEKLY_MIN_AGE &&
+  !(l.reportedAt && now - l.reportedAt < WEEKLY_EVERY) &&
+  hasNews(l);
+
+/** The listings whose owners get this week's report (the oldest listings first, at most 30). */
+const weeklyTargets = (state, now = Date.now()) =>
+  re
+    .all(state)
+    .filter((l) => weeklyDue(state, l, now))
+    .sort((a, b) => a.id - b.id)
+    .slice(0, WEEKLY_MAX);
+
+module.exports = { text, send, deliver, weeklyDue, weeklyTargets, reportsOff, setReports, reportsWord, handleWord, RESEND_AFTER, STOP_LINE };

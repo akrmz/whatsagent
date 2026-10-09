@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const re = require("./realestate");
 const leads = require("./leads");
 const requests = require("./requests");
+const ownerReport = require("./ownerreport");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 const { UserError } = require("../core/errors");
@@ -88,7 +89,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -149,14 +150,36 @@ function planNudges(app, now = Date.now()) {
   const { day, minutes } = zoneNow(app.config.bot.timezone, now);
   if (s.data.nudgeDay === day || minutes < parseClock(settings(app.state).from)) return null;
   s.update((d) => (d.nudgeDay = day));
-  const queue = nudgeTargets(app.state, now).map((l) => l.id);
-  if (!queue.length || running(app.state).some((c) => c.kind === "nudge") || running(app.state).length >= MAX_RUNNING) return null;
+  return queueAuto(app, "nudge", nudgeTargets(app.state, now).map((l) => l.id), now);
+}
+
+/** An automatic campaign (by the bot, reported to the owner) — unless one of its kind is running. */
+function queueAuto(app, kind, queue, now) {
+  if (!queue.length || running(app.state).some((c) => c.kind === kind) || running(app.state).length >= MAX_RUNNING) return null;
   const owner = app.config.owners.numbers[0];
-  return s.update((d) => {
+  return store(app.state).update((d) => {
     const id = ++d.seq;
-    d.items[id] = { id, kind: "nudge", queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by: "bot", chat: owner ? `${owner}@s.whatsapp.net` : null, created: now };
+    d.items[id] = { id, kind, queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by: "bot", chat: owner ? `${owner}@s.whatsapp.net` : null, created: now };
     return d.items[id];
   });
+}
+
+// ---- weekly reports to listings' owners (.agent ownerreports on) --------------------------
+
+const weekday = (timeZone, now) => new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now));
+
+/**
+ * On Saturdays, from the start of the sending hours, queue a marketing report to the owner of
+ * each available listing with something to report (see ownerreport.weeklyTargets).
+ */
+function planOwnerReports(app, now = Date.now()) {
+  if (!re.agent(app.state).ownerreports) return null;
+  const s = store(app.state);
+  const tz = app.config.bot.timezone;
+  const { day, minutes } = zoneNow(tz, now);
+  if (weekday(tz, now) !== "Sat" || s.data.ownersDay === day || minutes < parseClock(settings(app.state).from)) return null;
+  s.update((d) => (d.ownersDay = day));
+  return queueAuto(app, "owners", ownerReport.weeklyTargets(app.state, now).map((l) => l.id), now);
 }
 
 function startWelcome(state, { by, chat }, now = Date.now()) {
@@ -193,6 +216,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   if (s.data.day.date !== day) s.update((d) => (d.day = { date: day, count: 0 }));
   if (minutes < parseClock(set.from) || minutes >= parseClock(set.to)) return "hours";
   planNudges(app, now);
+  planOwnerReports(app, now);
   if (s.data.day.count >= set.perDay) return "cap";
   if (now < (s.data.next || 0)) return "gap";
   // The oldest running campaign that is due (an automatic one waits 30 minutes for photos).
@@ -207,14 +231,49 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   };
   const welcome = c.kind === "welcome";
   const nudge = c.kind === "nudge";
-  const listing = welcome || nudge ? null : re.get(app.state, c.listing);
-  if (!welcome && !nudge && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
+  const owners = c.kind === "owners";
+  const listing = welcome || nudge || owners ? null : re.get(app.state, c.listing);
+  if (c.listing && (!listing || listing.status !== "available")) return finish("stopped", `⏹️ أُوقفت: العقار #${c.listing} لم يعد متاحاً.`);
   if (c.mode === "drop" && !re.discount(listing, now)) return finish("stopped", `⏹️ أُوقفت: سعر #${c.listing} لم يعد مخفّضاً.`);
   if (!c.queue.length) return finish("done");
 
-  const leadId = c.queue[0];
+  const nextId = c.queue[0];
   s.update((d) => d.items[c.id].queue.shift());
-  const lead = leads.get(app.state, leadId);
+  const skip = async () => {
+    s.update((d) => d.items[c.id].skipped++);
+    if (!get(app.state, c.id).queue.length) return finish("done");
+    return "skipped";
+  };
+  /** One message: sent or failed, counted towards the day, then a random gap so the timing isn't mechanical. */
+  const attempt = async (target, phone, deliver) => {
+    let outcome = "sent";
+    try {
+      const jid = `${phone}@s.whatsapp.net`;
+      const [found] = (await app.sock.onWhatsApp?.(jid).catch(() => null)) || [];
+      if (found && !found.exists) throw new Error("not on WhatsApp");
+      await deliver(jid);
+      s.update((d) => d.items[c.id].sent.push(target));
+    } catch (err) {
+      outcome = "failed";
+      app.log.warn({ campaign: c.id, target, err: err.message }, "campaign message not sent");
+      s.update((d) => d.items[c.id].failed.push(target));
+    }
+    s.update((d) => {
+      d.day.count++;
+      d.next = now + Math.round((set.gapMin + rand() * (set.gapMax - set.gapMin)) * 1000);
+    });
+    if (!get(app.state, c.id).queue.length) await finish("done");
+    return outcome;
+  };
+
+  if (owners) {
+    // A weekly owner report: skipped if the listing was sold, reported or switched off meanwhile.
+    const l = re.get(app.state, nextId);
+    if (!l || !ownerReport.weeklyDue(app.state, l, now)) return skip();
+    return attempt(l.id, l.owner.phone, () => ownerReport.deliver(app, l, now));
+  }
+
+  const lead = leads.get(app.state, nextId);
   // Skipped: gone, no number, said stop, or (since it was queued) already got this listing / was contacted.
   const stale = welcome
     ? lead && (lead.status !== "new" || lead.welcomedAt || lead.lastSentAt)
@@ -223,17 +282,9 @@ async function tick(app, now = Date.now(), rand = Math.random) {
       : c.mode === "drop"
       ? lead && lead.dropNotified?.[listing.id] === listing.price
       : lead && (lead.sentListings || []).includes(listing.id);
-  if (!lead || !lead.phone || lead.optedOut || stale) {
-    s.update((d) => d.items[c.id].skipped++);
-    if (!get(app.state, c.id).queue.length) return finish("done");
-    return "skipped";
-  }
+  if (!lead || !lead.phone || lead.optedOut || stale) return skip();
 
-  let outcome = "sent";
-  try {
-    const jid = `${lead.phone}@s.whatsapp.net`;
-    const [found] = (await app.sock.onWhatsApp?.(jid).catch(() => null)) || [];
-    if (found && !found.exists) throw new Error("not on WhatsApp");
+  return attempt(lead.id, lead.phone, async (jid) => {
     if (welcome) {
       await app.sock.sendMessage(jid, { text: welcomeText(app.state, lead) });
       leads.markWelcomed(app.state, lead.id, c.by, now);
@@ -247,19 +298,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
       leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له ${c.mode === "drop" ? "تخفيض سعر " : ""}العقار #${listing.id} (حملة #${c.id})`, now);
       if (c.mode === "drop") leads.update(app.state, lead.id, { dropNotified: { ...(lead.dropNotified || {}), [listing.id]: listing.price } }, now);
     }
-    s.update((d) => d.items[c.id].sent.push(lead.id));
-  } catch (err) {
-    outcome = "failed";
-    app.log.warn({ campaign: c.id, lead: lead.id, err: err.message }, "campaign message not sent");
-    s.update((d) => d.items[c.id].failed.push(lead.id));
-  }
-  // Every attempt counts towards the day and waits a random gap, so the timing isn't mechanical.
-  s.update((d) => {
-    d.day.count++;
-    d.next = now + Math.round((set.gapMin + rand() * (set.gapMax - set.gapMin)) * 1000);
   });
-  if (!get(app.state, c.id).queue.length) await finish("done");
-  return outcome;
 }
 
 function startCampaignLoop(app) {
@@ -279,4 +318,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };

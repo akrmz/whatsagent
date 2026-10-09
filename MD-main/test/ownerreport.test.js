@@ -104,3 +104,68 @@ test(".listing report: a new listing with no activity yet, and one without an ow
   await b.send(".listing report 9");
   assert.match(b.text(), /There is no listing #9/);
 });
+
+const campaigns = require("../src/services/campaigns");
+const ownerReport = require("../src/services/ownerreport");
+const at = (day, hhmm) => Date.parse(`${day}T${hhmm}:00+03:00`);
+
+test(".agent ownerreports on: on Saturdays from the sending hours, one paced report per owner with news; owners can stop them", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: at("2026-10-01", "12:00") });
+  const b = bot();
+  const s = b.s;
+  const owner = (n, extra = {}) => re.add(s, { type: "شقة", deal: "بيع", location: "التجمع", price: 3e6, owner: { name: `مالك ${n}`, phone: `20100000000${n}` }, ...extra }, ME);
+  const busy = (id) => re.count(s, id, "sent");
+  owner(1); busy(1); // #1: due
+  owner(2); // #2: nothing to report
+  owner(3); busy(3); re.update(s, 3, { status: "sold" }); // #3: sold
+  owner(4); busy(4); // #4: reported 2 days before
+  owner(5); busy(5); // #5: its owner said stop
+  re.add(s, { type: "شقة", deal: "بيع", location: "التجمع", price: 3e6 }, ME); busy(6); // #6: no owner number
+  t.mock.timers.setTime(at("2026-10-09", "20:00"));
+  owner(7); busy(7); // #7: added the day before: too new
+  re.update(s, 4, { reportedAt: at("2026-10-08", "12:00") }, re.get(s, 4).updated);
+
+  await b.send("وقف التقارير", { from: "201000000005@s.whatsapp.net" });
+  assert.equal(b.text(), "✅ تمام، مش هتوصلك تقارير تاني. لو حبيت ترجعها ابعت: اشتراك التقارير");
+  const n = b.sock.sent.length;
+  await b.send("وقف التقارير", { from: "201000000005@s.whatsapp.net" });
+  assert.equal(b.sock.sent.length, n, "a repeat gets no reply");
+  await b.send(".listing report 5 send");
+  assert.match(b.text(), /asked not to get reports/);
+  assert.equal(b.sentTo("201000000005@s.whatsapp.net").length, 1, "only the confirmation");
+
+  assert.deepEqual(ownerReport.weeklyTargets(s, at("2026-10-10", "10:00")).map((l) => l.id), [1]);
+  assert.equal(await campaigns.tick(b.app, at("2026-10-10", "10:30"), () => 0), "idle", "off by default");
+  await b.send(".agent ownerreports on");
+  assert.match(b.text(), /ownerreports: on/);
+  await b.send(".autopilot");
+  assert.match(b.text(), /✅ تقرير أسبوعي لملاك العقارات \(السبت\) — 1 مستحق/);
+
+  assert.equal(await campaigns.tick(b.app, at("2026-10-09", "11:00"), () => 0), "idle", "Fridays: nothing");
+  assert.equal(await campaigns.tick(b.app, at("2026-10-10", "09:30"), () => 0), "hours", "Saturday, before the sending hours");
+  assert.equal(await campaigns.tick(b.app, at("2026-10-10", "10:00"), () => 0), "sent");
+  const report = b.sentTo("201000000001@s.whatsapp.net");
+  assert.equal(report.length, 1);
+  assert.match(report[0].content.text, /^أهلاً مالك 1 👋\n📊 تقرير تسويق شقة في التجمع \(#1\)[\s\S]*📣 اتبعت لـ 1 عميل مناسب[\s\S]*\n\nلو مش حابب توصلك التقارير دي ابعت: وقف التقارير$/);
+  assert.equal(re.get(s, 1).reportedAt, at("2026-10-10", "10:00"));
+  assert.match(b.sentTo(ME).at(-1).content.text, /^📣 تقارير الملاك #\d+: ✅ 1 أُرسلت من 1/, "the owner is told when it's done");
+  for (const p of ["201000000002", "201000000003", "201000000004", "201000000005", "201000000007"]) assert.equal(b.sentTo(`${p}@s.whatsapp.net`).filter((m) => /تقرير تسويق/.test(m.content.text || "")).length, 0, p);
+
+  assert.equal(await campaigns.tick(b.app, at("2026-10-10", "15:00"), () => 0), "idle", "once on the day");
+  await b.send("اشتراك التقارير", { from: "201000000005@s.whatsapp.net" });
+  assert.match(b.text(), /هتوصلك تقارير التسويق تاني/);
+  assert.equal(await campaigns.tick(b.app, at("2026-10-17", "10:00"), () => 0), "sent", "next Saturday");
+  assert.deepEqual(campaigns.running(s).flatMap((c) => c.queue), [4, 5, 7], "#1 again, then the others now due");
+  t.mock.timers.reset();
+});
+
+test("'وقف التقارير' from someone who owns no listing is not answered as an owner", async () => {
+  const b = bot();
+  await b.send("وقف التقارير", { from: CLIENT });
+  assert.doesNotMatch(b.sock.sent.at(-1)?.content.text || "", /التقارير/);
+  assert.equal(ownerReport.reportsOff(b.s, "201099998888"), false);
+  assert.equal(ownerReport.reportsWord("وقف التقارير."), "stop");
+  assert.equal(ownerReport.reportsWord("ايقاف تقارير"), "stop");
+  assert.equal(ownerReport.reportsWord("اشتراك التقارير"), "start");
+  assert.equal(ownerReport.reportsWord("وقف"), null, "a plain وقف is the clients' offers opt-out");
+});
