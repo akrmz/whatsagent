@@ -2,6 +2,32 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.40.0 — 2026-10-10
+
+### Improved — the customer assistant
+- **Books viewings:** with self-booking on, a client who wants to visit a listing gets the free viewing times right after the assistant's answer (the AI adds `[BOOK #12]`). They book by replying with a number, exactly as with "معاينة 12": confirmation, reminders, and you're told. With self-booking off, the AI is told to hand such a client to you instead. Only available listings can be offered.
+- **Project cards:** `[SHOW P3]` sends a project's card, next to listing cards (2 cards per answer in all). Unknown codes are skipped.
+- **Knows the date and time:** the prompt carries "now" in your time zone, so "today", "tomorrow" and "are you open now?" (with your office hours in `.assistant info`) are answered correctly.
+- **Handoffs come with context:** "🙋 … محتاج رد منك" now includes up to 3 earlier exchanges ("💬 قبلها"), oldest first, so you can answer without asking the client to repeat.
+- **`.assistant stats`:** what it did today, in the last 7 days and in the last 30. It shows:
+  - answers, voice notes, cards sent, viewing times offered;
+  - wishes saved on client cards, new clients saved;
+  - clients handed over to you, and personal messages left alone;
+  - plus how many clients it talked to today and how many are waiting for you.
+
+  Counts only, per day, kept 31 days.
+- `.assistant test` shows project cards and viewing times too.
+- The self-booking "offer the times" step is now shared (`selfbooking.offerTimes`), so the assistant and "معاينة" behave the same.
+
+### Checked
+- 1 test (365 in total). It covers:
+  - `[BOOK]` ignored with self-booking off and the handoff rule in the prompt;
+  - with self-booking on: the times offered after the answer and a booking by number;
+  - a project card, with an unknown project skipped;
+  - "now" in the prompt;
+  - the earlier exchanges in the handoff;
+  - stats for today, the week and the month as days pass.
+
 ## 3.39.0 — 2026-10-10
 
 ### Added — rent receipts
