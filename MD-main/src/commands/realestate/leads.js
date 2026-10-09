@@ -52,6 +52,41 @@ async function welcome(ctx, go) {
   );
 }
 
+/**
+ * ".leads revive": quiet (30+ days) or lost clients with a listing that is new since and fits
+ * them — who, and with what; "go" sends each their listing, paced like campaigns.
+ */
+function revive(ctx, go) {
+  if (go) {
+    const c = campaigns.startRevive(ctx.state, { by: ctx.sender, chat: ctx.chatId });
+    const e = campaigns.estimate(ctx.state, c.total);
+    return ctx.reply(`▶️ Bringing back ${c.total} client(s) (#${c.id}), each with their new listing.\n⏱️ About ${e.minutes} min${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done; replies show in the morning summary.\n${ctx.prefix}campaigns · ${ctx.prefix}blast stop ${c.id}`);
+  }
+  const list = campaigns.reviveTargets(ctx.state);
+  if (!list.length) return ctx.reply("Nobody to bring back right now: no client quiet for 30+ days (or lost) has a new listing that fits them. New listings make new chances: try again after adding some.");
+  const days = (l) => Math.floor((Date.now() - campaigns.lastTouch(l)) / 86400000);
+  const first = list[0];
+  return ctx.reply(
+    [
+      `🔁 *Bring back quiet clients* (${list.length})`,
+      "Quiet 30+ days or lost, with a new listing that fits them (within budget, never sent):",
+      "",
+      ...list.slice(0, 15).map(({ lead, listing }) => `▫️ #${lead.id} ${lead.name || ""}${lead.status === "lost" ? " (❌ lost)" : ""} — quiet ${days(lead)} d → #${listing.id} ${listing.type || ""} ${re.shortAr(listing.price || 0)}`.replace(/\s+/g, " ")),
+      list.length > 15 ? `… and ${list.length - 15} more` : null,
+      "",
+      `#${first.lead.id} reads:`,
+      "┈┈┈┈┈┈┈┈",
+      campaigns.reviveText(ctx.state, first.lead, first.listing),
+      "┈┈┈┈┈┈┈┈",
+      "(sent with the listing's photo)",
+      "",
+      `Send: ${ctx.prefix}leads revive go`,
+    ]
+      .filter((x) => x !== null)
+      .join("\n"),
+  );
+}
+
 /** ".leads dupes": clients that look like the same person, with the merge command for each. */
 function dupes(ctx) {
   const groups = leads.duplicates(ctx.state);
@@ -79,6 +114,7 @@ const HELP = (p) =>
     `${p}lead merge 3 9 — fold a duplicate (#9) into #3 · ${p}leads dupes — find duplicates`,
     `${p}lead assign 5 @colleague | me | none — for teams · ${p}leads mine`,
     `${p}leads [status | words] — the list · ${p}leads hot — who to call first`,
+    `${p}leads revive — quiet or lost clients with a new listing that fits them (then go)`,
     "",
     `Statuses: ${Object.entries(leads.STATUS).map(([k, s]) => `${k} (${s.ar})`).join(", ")}`,
   ].join("\n");
@@ -221,13 +257,14 @@ module.exports = [
     ...base,
     name: "leads",
     aliases: ["clients", "customers", "pipeline"],
-    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. \"hot\" ranks who to call first: stage, a viewing coming up, a recent message, a follow-up due, listings in their budget, minus going quiet. Owner and sudo users.",
-    usage: "[status | words | hot | welcome [go] | dupes]",
-    examples: [".leads", ".leads hot", ".leads welcome", ".leads welcome go", ".leads dupes", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
+    description: "قائمة العملاء — your clients: the pipeline (how many in each stage) and the latest ones; filter by a status (new, viewing …), \"mine\" (assigned to you), or search by name, number, area or notes. \"hot\" ranks who to call first: stage, a viewing coming up, a recent message, a follow-up due, listings in their budget, minus going quiet. \"revive\" brings back clients quiet for 30+ days (or lost) by sending each a new listing that fits them. Owner and sudo users.",
+    usage: "[status | words | hot | welcome [go] | revive [go] | dupes]",
+    examples: [".leads", ".leads hot", ".leads welcome", ".leads welcome go", ".leads revive", ".leads revive go", ".leads dupes", ".leads viewing", ".leads mine", ".leads التجمع", ".leads 0100"],
     async run(ctx) {
       const [w, go] = ctx.text.trim().toLowerCase().split(/\s+/);
       if (/^(welcome|ترحيب|رحب)$/.test(w || "")) return welcome(ctx, /^(go|start|ابدأ|ابدا)$/.test(go || ""));
       if (/^(dupes|duplicates|مكرر|المكرر)$/.test(w || "")) return dupes(ctx);
+      if (/^(revive|back|winback|رجوع|احياء|إحياء)$/.test(w || "")) return revive(ctx, /^(go|start|ابدأ|ابدا)$/.test(go || ""));
       if (/^(hot|ساخن|الأهم|الاهم|top)$/i.test(ctx.text.trim())) {
         const list = hotleads.hot(ctx.state, 10);
         if (!list.length) return ctx.reply(`No active client to rank yet (${ctx.prefix}leads).`);

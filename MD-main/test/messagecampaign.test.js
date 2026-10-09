@@ -148,3 +148,22 @@ test("ready greetings fill {name} and {agent}; a message can wait for a date and
   assert.match(b.last(), /from a minute to 60 days/, "20/09 has passed this year: next year is too far");
   t.mock.timers.reset();
 });
+
+test("several scheduled messages can wait side by side; only one sends at a time", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: at("2026-10-10", "12:00") });
+  const b = bot();
+  await b.send(".blast msg عيد");
+  await b.send(".blast msg go 20/10 09:00");
+  assert.match(b.last(), /^🕒 Message #\d+ to 2 client\(s\) is scheduled/);
+  await b.send(".blast msg سنة جديدة");
+  await b.send(".blast msg go 1/11 09:00");
+  assert.match(b.last(), /^🕒 Message #\d+ to 2 client\(s\) is scheduled/, "a second scheduled one is fine");
+  await b.send(".blast msg\nعندنا وحدات جديدة");
+  await b.send(".blast msg go");
+  assert.match(b.last(), /^▶️ Message #\d+ started/, "and one sending now");
+  await b.send(".blast msg\nرسالة تانية");
+  await b.send(".blast msg go");
+  assert.match(b.last(), /already being sent[\s\S]*schedule this one/, "but not two sending now");
+  assert.equal(campaigns.running(b.s).filter((c) => c.kind === "message").length, 3);
+  t.mock.timers.reset();
+});

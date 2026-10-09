@@ -90,7 +90,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "revive" ? `إعادة تواصل #${c.id} مع العملاء القدام` : c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -165,6 +165,69 @@ function queueAuto(app, kind, queue, now) {
   });
 }
 
+// ---- bringing back clients who went quiet (.leads revive) ----------------------------------
+
+const REVIVE_AFTER = 30 * DAY_MS; // no contact either way for 30 days (or marked lost that long ago)
+const REVIVE_MAX = 100;
+
+/** When the client was last in touch: their last message or what was last sent, else when they were saved. */
+const lastTouch = (l) => Math.max(l.lastMsgAt || 0, l.lastSentAt || 0, l.created || 0);
+
+/**
+ * The best listing for a quiet client that is new since they were last in touch: available,
+ * within their budget, and never sent to them. @returns {object|null} the listing
+ */
+function freshMatch(state, lead) {
+  const since = lastTouch(lead);
+  const sent = new Set(lead.sentListings || []);
+  return (
+    leads
+      .matchingListings(state, lead)
+      .filter(({ listing, fit }) => !fit.over && !sent.has(listing.id) && (listing.created || 0) > since)
+      .map(({ listing }) => listing)[0] || null
+  );
+}
+
+/** Quiet or lost clients (not won) with a number, who haven't said stop, and a fresh match; longest quiet first. */
+const reviveTargets = (state, now = Date.now()) =>
+  leads
+    .all(state)
+    .filter((l) => l.status !== "won" && l.phone && !l.optedOut && now - lastTouch(l) >= REVIVE_AFTER)
+    .map((lead) => ({ lead, listing: freshMatch(state, lead) }))
+    .filter((x) => x.listing)
+    .sort((a, b) => lastTouch(a.lead) - lastTouch(b.lead))
+    .slice(0, REVIVE_MAX);
+
+/** The message: they were looking for X; here is something new; how to see it; how to stop. */
+function reviveText(state, lead, listing) {
+  const a = re.agent(state);
+  const wish = requests.describe({ type: lead.type || "عقار", deal: lead.deal, location: lead.location, rooms: lead.rooms, min: lead.min, max: lead.max }, a.currency);
+  return [
+    lead.name ? `أهلاً ${lead.name} 👋` : "أهلاً 👋",
+    `من فترة كنت بتدور على ${wish}. نزل عندي جديد ممكن يعجبك:`,
+    "",
+    `🏠 ${re.line(listing, a.currency)}`,
+    `للتفاصيل والصور أرسل: #${listing.id}`,
+    a.name ? `\n${a.name}${a.company ? ` — ${a.company}` : ""}` : null,
+    "",
+    OPT_OUT_LINE,
+  ]
+    .filter((x) => x !== null)
+    .join("\n");
+}
+
+function startRevive(state, { by, chat }, now = Date.now()) {
+  if (running(state).some((c) => c.kind === "revive")) throw new UserError("Clients are already being brought back (.campaigns).");
+  if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
+  const queue = reviveTargets(state, now).map((x) => x.lead.id);
+  if (!queue.length) throw new UserError("Nobody to bring back: no quiet or lost client has a new listing that fits them.");
+  return store(state).update((d) => {
+    const id = ++d.seq;
+    d.items[id] = { id, kind: "revive", queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    return d.items[id];
+  });
+}
+
 // ---- a message to clients: occasions and announcements (.blast msg) -----------------------
 
 const MAX_MESSAGE = 1000;
@@ -225,7 +288,9 @@ const messageText = (lead, text, agent = {}) =>
 function startMessage(state, { by, chat, text, image, audience, startAt }, now = Date.now()) {
   const t = String(text || "").trim();
   if (t.length < 2 || t.length > MAX_MESSAGE) throw new UserError(`The message is 2 to ${MAX_MESSAGE} characters.`);
-  if (running(state).some((c) => c.kind === "message")) throw new UserError("A message to clients is already being sent (.campaigns). Wait for it, or stop it.");
+  // One message sending at a time; scheduled ones (an Eid greeting weeks ahead) can wait side by side.
+  const sendingNow = (c) => c.kind === "message" && !(c.startAt > now);
+  if (!(startAt > now) && running(state).some(sendingNow)) throw new UserError("A message to clients is already being sent (.campaigns). Wait for it, or stop it — or schedule this one: .blast msg go <date> <time>.");
   if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
   const queue = messageTargets(state, audience).map((l) => l.id);
   if (!queue.length) throw new UserError("No client matches (with a number, and who hasn't said stop).");
@@ -359,6 +424,18 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   }
 
   const lead = leads.get(app.state, nextId);
+  // Bringing back a quiet client: the fresh match is found again now (sold or sent meanwhile → skipped,
+  // as is a client who wrote, was contacted or won since it was queued).
+  if (c.kind === "revive") {
+    const fresh = lead && lead.phone && !lead.optedOut && lead.status !== "won" && now - lastTouch(lead) >= REVIVE_AFTER ? freshMatch(app.state, lead) : null;
+    if (!fresh) return skip();
+    return attempt(lead.id, lead.phone, async (jid) => {
+      const text = reviveText(app.state, lead, fresh);
+      const [photo] = re.photos(app.config, fresh);
+      await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
+      leads.markSent(app.state, lead.id, fresh.id, c.by, `إعادة تواصل: أُرسل له العقار #${fresh.id} (حملة #${c.id})`, now);
+    });
+  }
   // Skipped: gone, no number, said stop, or (since it was queued) already got this listing / was contacted.
   const stale = welcome
     ? lead && (lead.status !== "new" || lead.welcomedAt || lead.lastSentAt)
@@ -411,4 +488,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, startMessage, occasion, OCCASIONS, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, startMessage, startRevive, reviveTargets, reviveText, freshMatch, lastTouch, REVIVE_AFTER, occasion, OCCASIONS, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
