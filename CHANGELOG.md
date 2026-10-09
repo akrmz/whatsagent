@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.39.0 — 2026-10-10
+
+### Added — rent receipts
+- **`.rental receipt 3 [month] [send]`** makes a rent receipt as an image (1080×1350). It shows:
+  - the receipt number (R3-202610; the same month always gets the same number), and your name and company;
+  - who paid, the amount, the month, the unit, and the date it was received;
+  - for a part payment, what is left of the month's rent;
+  - a signature line, and your contact.
+
+  The caption says the same in text.
+- **Only for recorded payments:** a receipt is made only for a payment recorded with `.rental paid`, either the latest one or the month given. A month that wasn't paid gets none, so a receipt can't be made for money that wasn't recorded.
+- **Sending:** with `send` it goes to the tenant on WhatsApp ("شكراً لك 🙏"). Without it, you get it to check or forward. `.rental paid` now suggests the receipt.
+- Codes inside the Arabic lines (R1-202610, #12) keep their order. Like the other rental commands, it works only in your private chat with the bot or a staff-only group.
+
+### Checked
+- 2 tests (364 in total). They cover:
+  - no receipt before a payment, and the suggestion after `.rental paid`;
+  - the image (a 1080×1350 JPEG) and its caption, and nothing sent without `send`;
+  - an unpaid month refused, sending to the tenant, and a mixed group refused;
+  - a part payment with what is left, and no tenant number.
+- The receipt was rendered and looked at (Arabic right-to-left, numbers and codes in order).
+
 ## 3.38.0 — 2026-10-10
 
 ### Added — ready greetings, and messages that wait for their day
