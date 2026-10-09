@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.43.0 — 2026-10-10
+
+### Added — new clients handed to the team in turn
+- **`.team autoassign @Ahmed @Mona me`**: for an office with several brokers. A new client who arrives by themselves is assigned to the next member in the list: a `#12` question, a written request, the customer assistant, or a self-booked viewing.
+- **What the member gets:** the client's notices go to them instead of the owner:
+  - the 🔔 new-client and request notices;
+  - the self-booked viewing and its reminders;
+  - the assistant's handoffs and "عايز يكلمك";
+  - for a new assistant client, "🧑‍💼 عميل جديد ليك".
+- **What stays the same:** a client already assigned keeps their member. Clients added by hand or imported aren't touched. The history notes "أُسند تلقائياً إلى @…".
+- **Managing it:**
+  - members must be the owner or sudo users, and "me" takes a turn too;
+  - `.team autoassign` shows the rotation and whose turn is next;
+  - `off` stops it, and notices go back to the owner;
+  - `.autopilot` shows it.
+
+### Checked
+- 2 tests (370 in total). They cover:
+  - off at first, and a non-member refused;
+  - a `#12` question, a written request and a self-booked viewing going to Ahmed, Mona, then Ahmed, with each notice and the viewing reminder going to that member;
+  - an assigned client keeping their member, a hand-added client untouched, the history note, next in turn and `.autopilot`;
+  - off sending to the owner again;
+  - the assistant's new clients in turn (with "me"), and the member told.
+
 ## 3.42.0 — 2026-10-10
 
 ### Added — your own answers, and English cards
