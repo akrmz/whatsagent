@@ -20,29 +20,41 @@ function setMembers(state, members) {
 }
 const turnOff = (state) => store(state).update((d) => Object.assign(d, { on: false }));
 
-/** The member whose turn it is (without moving the turn), or null. */
-function nextMember(state) {
-  const s = store(state).data;
-  return s.on && s.members.length ? s.members[s.next % s.members.length] : null;
+/** Still on the team: the owner or a sudo user (someone whose sudo was removed is not). */
+const isStaff = (app, jid) => Boolean(jid) && (app.permissions.isOwner(jid) || app.permissions.isSudo(jid));
+const ownerJid = (config) => `${config.owners.numbers[0]}@s.whatsapp.net`;
+
+/** The member whose turn it is (without moving the turn), skipping anyone no longer on the team; or null. */
+function nextMember(app) {
+  const s = store(app.state).data;
+  if (!s.on || !s.members.length) return null;
+  for (let i = 0; i < s.members.length; i++) {
+    const m = s.members[(s.next + i) % s.members.length];
+    if (isStaff(app, m)) return m;
+  }
+  return null;
 }
 
 /**
  * Gives a new client to the member whose turn it is. A client already assigned keeps their
  * member. @returns {string|null} the member's jid
  */
-function assignNext(state, leadId, now = Date.now()) {
-  const lead = leads.get(state, leadId);
+function assignNext(app, leadId, now = Date.now()) {
+  const lead = leads.get(app.state, leadId);
   if (!lead) return null;
   if (lead.assignee) return lead.assignee;
-  const member = nextMember(state);
+  const member = nextMember(app);
   if (!member) return null;
-  store(state).update((d) => (d.next = (d.next + 1) % d.members.length));
-  leads.update(state, leadId, { assignee: member }, now);
-  leads.note(state, leadId, "bot", `أُسند تلقائياً إلى @${member.split("@")[0]}`, now);
+  store(app.state).update((d) => (d.next = (d.members.indexOf(member) + 1) % d.members.length));
+  leads.update(app.state, leadId, { assignee: member }, now);
+  leads.note(app.state, leadId, "bot", `أُسند تلقائياً إلى @${member.split("@")[0]}`, now);
   return member;
 }
 
-/** Who hears about a client: their assigned member, else the owner. */
-const notifyJid = (config, lead) => lead?.assignee || `${config.owners.numbers[0]}@s.whatsapp.net`;
+/**
+ * Who hears about a client: their assigned member while still on the team, else the owner —
+ * so removing someone's sudo also stops clients' details reaching them.
+ */
+const notifyJid = (app, lead) => (isStaff(app, lead?.assignee) ? lead.assignee : ownerJid(app.config));
 
-module.exports = { settings, setMembers, turnOff, nextMember, assignNext, notifyJid };
+module.exports = { settings, setMembers, turnOff, nextMember, assignNext, notifyJid, isStaff };

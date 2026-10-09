@@ -222,7 +222,7 @@ async function remindDue(app, now = Date.now()) {
   for (const w of waiting(app.state, now).filter((x) => !x.reminded && now - x.at >= REMIND_AFTER)) {
     store(app.state).update((d) => d.waiting[w.key] && (d.waiting[w.key].reminded = now));
     const lead = w.lead ? leads.get(app.state, w.lead) : null;
-    const agent = lead?.assignee || `${app.config.owners.numbers[0]}@s.whatsapp.net`;
+    const agent = rotation.notifyJid(app, lead);
     await app.sock.sendMessage(agent, { text: `⏰ *لسه مستني ردك*\n${waitingLine(w, now, app.config.bot.prefix)}\n\nكل اللي مستنيين: ${app.config.bot.prefix}assistant inbox` }).catch(() => {});
     sent++;
   }
@@ -518,7 +518,7 @@ async function requestHuman(ctx, { key, lead, phone, text, voice, now }) {
   await ctx.reply(humanReply(ctx.state, tz, now));
   if (lead) leads.note(ctx.state, lead.id, "assistant", `طلب يكلم حد (المساعد): ${redactPhones(text).slice(0, 150)}`, now);
   if (!humanNotice(ctx.state, key)) return;
-  const agent = lead?.assignee || `${ctx.config.owners.numbers[0]}@s.whatsapp.net`;
+  const agent = rotation.notifyJid(ctx.app, lead);
   const who = `${lead?.name || ctx.senderName || "عميل"}${phone ? ` (+${phone})` : ""}`;
   const before = earlier(key);
   const hours = Math.round(takeoverMs(ctx.state) / 3600000);
@@ -621,7 +621,7 @@ async function handle(ctx, now = Date.now()) {
       lead = leads.add(ctx.state, { name: (ctx.senderName || "").slice(0, 60) || undefined, phone, source: "واتساب", notes: `تواصل مع المساعد: ${redactPhones(text).slice(0, 120)}` }, ctx.sender, now);
       count(ctx.state, ctx.config.bot.timezone, "newClients", now);
       // A team in turn (.team autoassign): the member whose turn it is gets the client, and a note.
-      const member = rotation.assignNext(ctx.state, lead.id, now);
+      const member = rotation.assignNext(ctx.app, lead.id, now);
       if (member) {
         lead = leads.get(ctx.state, lead.id);
         await ctx.sock.sendMessage(member, { text: `🧑‍💼 عميل جديد ليك: ${lead.name || "عميل"} (+${phone}) — المساعد بيرد عليه، ولو احتاجك هيبلغك.\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
@@ -650,7 +650,7 @@ async function handle(ctx, now = Date.now()) {
 
   if (result.handoff) markWaiting(ctx.state, key, { lead: lead?.id, name: lead?.name || ctx.senderName || "", text: redactPhones(text).slice(0, 200), voice: Boolean(voice) }, now);
   if (result.handoff && tellOnce(ctx.state, key)) {
-    const agent = lead?.assignee || `${ctx.config.owners.numbers[0]}@s.whatsapp.net`;
+    const agent = rotation.notifyJid(ctx.app, lead);
     const who = `${lead?.name || ctx.senderName || "عميل"}${phone ? ` (+${phone})` : ""}`;
     if (lead) leads.note(ctx.state, lead.id, "assistant", `محتاج رد منك (المساعد): ${redactPhones(text).slice(0, 150)}`, now);
     const before = earlier(key); // what was said before, so the agent knows the context

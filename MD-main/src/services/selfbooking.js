@@ -159,7 +159,7 @@ function listingFor(state, who, lead, named, now) {
 }
 
 const when = (t, timeZone) => viewings.when(t, timeZone);
-const agentOf = (ctx, lead) => lead?.assignee || `${ctx.config.owners.numbers[0]}@s.whatsapp.net`;
+const agentOf = (ctx, lead) => rotation.notifyJid(ctx.app, lead); // the assigned member while on the team, else the owner
 const isSelfBooked = (lead) => (v) => v.self && v.lead === lead.id;
 
 function phoneOf(ctx) {
@@ -280,7 +280,7 @@ async function handle(ctx, now = Date.now()) {
       ctx.sender,
       now,
     );
-    if (rotation.assignNext(ctx.state, client.id, now)) client = leads.get(ctx.state, client.id); // the team member whose turn it is
+    if (rotation.assignNext(ctx.app, client.id, now)) client = leads.get(ctx.state, client.id); // the team member whose turn it is
   }
   const agent = agentOf(ctx, client);
   const v = viewings.add(ctx.state, { lead: client.id, listing: listing.id, at, chat: agent, by: agent, notifyClient: Boolean(client.phone), self: true }, now);

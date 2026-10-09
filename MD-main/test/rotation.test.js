@@ -100,3 +100,45 @@ test("the customer assistant's new clients go in turn too, and the member is tol
   assert.equal(leads.byPhone(b.s, "201099990006").assignee, MONA);
   assert.match(b.last(MONA), /^🧑‍💼 عميل جديد ليك/);
 });
+
+test("someone whose sudo is removed stops getting clients' details: notices, viewing reminders and handoffs go to the owner, and the rotation skips them", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T12:00:00+03:00") });
+  const b = bot();
+  re.setAgent(b.s, "autoleads", "on");
+  re.setAgent(b.s, "booking", "on");
+  b.app.ai = { label: "Test AI", ask: async () => "هبلغ المسؤول 🙏 [HANDOFF]" };
+  await b.send(".team autoassign @a @m", { mentions: [AHMED, MONA] });
+
+  await b.send("معاينة 1", { from: c(1) });
+  await b.send("1", { from: c(1) }); // self-booked: Ahmed's client
+  const one = leads.byPhone(b.s, "201099990001");
+  assert.equal(one.assignee, AHMED);
+  const v = viewings.upcoming(b.s).find((x) => x.lead === one.id);
+
+  groupData(b.s).update((d) => (d.sudo = [MONA])); // Ahmed leaves the team
+  const ahmedBefore = b.to(AHMED).length;
+
+  await b.send("#1", { from: c(1) }); // his client asks again
+  t.mock.timers.setTime(Date.now() + 24 * 3600 * 1000 + 1000); // the same question is noted once a day
+  await b.send("#1", { from: c(1) });
+  assert.match(b.last(ME), /🔔 استفسار من عميل: عميل \(\+201099990001\) سأل عن #1/, "the owner gets the notice");
+
+  t.mock.timers.setTime(v.at - 59 * 60 * 1000);
+  await viewings.runDue(b.app, v.at - 59 * 60 * 1000);
+  assert.match(b.last(ME), /^⏰ \*معاينة بعد 59 دقيقة\*/, "the viewing reminder goes to the owner");
+
+  re.setAgent(b.s, "assistant", "on");
+  await b.send("ممكن نتفاوض؟", { from: c(1) });
+  assert.match(b.last(ME), /^🙋 \*عميل \(\+201099990001\) محتاج رد منك\*/, "the handoff goes to the owner");
+  assert.equal(b.to(AHMED).length, ahmedBefore, "nothing more reached Ahmed");
+
+  await b.send("#1", { from: c(2) });
+  await b.send("#1", { from: c(3) });
+  assert.deepEqual([leads.byPhone(b.s, "201099990002").assignee, leads.byPhone(b.s, "201099990003").assignee], [MONA, MONA], "the rotation skips him");
+  await b.send(".team autoassign");
+  assert.match(b.last(ME), /Next: @201055556666/);
+  groupData(b.s).update((d) => (d.sudo = []));
+  await b.send(".team autoassign");
+  assert.match(b.last(ME), /Next: nobody — no member is the owner or a sudo user any more/);
+  t.mock.timers.reset();
+});

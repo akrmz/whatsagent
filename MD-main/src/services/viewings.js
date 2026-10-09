@@ -4,6 +4,7 @@ const { UserError } = require("../core/errors");
 const re = require("./realestate");
 const leads = require("./leads");
 const team = require("./team");
+const rotation = require("./rotation");
 
 /**
  * Property viewings (.viewing): a client, a listing and a time. The agent gets a reminder an
@@ -196,6 +197,9 @@ async function runDue(app, now = Date.now()) {
   if (!app.sock || app.health.state !== "open") return 0;
   const s = store(app.state);
   const zone = app.config.bot.timezone;
+  // A self-booked viewing's reminders go to the member it was given to — the owner instead if
+  // that member has left the team (their sudo removed).
+  const chatOf = (v) => (v.self && !rotation.isStaff(app, v.chat) ? `${app.config.owners.numbers[0]}@s.whatsapp.net` : v.chat);
   let sent = 0;
   for (const v of Object.values(s.data.items)) {
     if (v.at < now - (v.outcome ? KEEP_AFTER_MS : KEEP_PENDING_MS)) {
@@ -205,7 +209,7 @@ async function runDue(app, now = Date.now()) {
     if (!v.outcome && !v.asked && now - v.at >= ASK_AFTER_MS && now - v.at < ASK_UNTIL_MS) {
       s.update(() => (v.asked = true));
       await app.sock
-        .sendMessage(v.chat, { text: `📝 *كيف كانت المعاينة؟*\n${line(app.state, v, zone)}\n.viewing done ${v.id} liked | thinking | no [ملاحظة]`, mentions: v.by ? [v.by] : [] })
+        .sendMessage(chatOf(v), { text: `📝 *كيف كانت المعاينة؟*\n${line(app.state, v, zone)}\n.viewing done ${v.id} liked | thinking | no [ملاحظة]`, mentions: v.by ? [v.by] : [] })
         .then(() => sent++)
         .catch((err) => app.log.warn({ err: err.message }, "could not ask about a viewing"));
       continue;
@@ -231,7 +235,7 @@ async function runDue(app, now = Date.now()) {
     s.update(() => (v.reminded = true));
     const c = leads.get(app.state, v.lead);
     try {
-      await app.sock.sendMessage(v.chat, {
+      await app.sock.sendMessage(chatOf(v), {
         text: `⏰ *معاينة بعد ${Math.max(1, Math.round((v.at - now) / 60000))} دقيقة*\n${line(app.state, v, zone)}${c?.phone ? `\n📞 +${c.phone}` : ""}`,
         mentions: v.by ? [v.by] : [],
       });

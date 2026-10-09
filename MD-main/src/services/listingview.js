@@ -81,14 +81,14 @@ async function captureInquiry(ctx, listing) {
       return null;
     }
     sameQuestion(ctx.state, `${lead.id}|${listing.id}`);
-    if (rotation.assignNext(ctx.state, lead.id)) lead = leads.get(ctx.state, lead.id); // the team member whose turn it is
+    if (rotation.assignNext(ctx.app, lead.id)) lead = leads.get(ctx.state, lead.id); // the team member whose turn it is
     re.count(ctx.state, listing.id, "inquiries");
   }
   const owner = ctx.config.owners.numbers[0];
   if (owner && notifyOwner(ctx.state, String(lead.id))) {
     const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
     await ctx.sock
-      .sendMessage(rotation.notifyJid(ctx.config, lead), { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}\n${ctx.prefix}lead ${lead.id}` })
+      .sendMessage(rotation.notifyJid(ctx.app, lead), { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}\n${ctx.prefix}lead ${lead.id}` })
       .catch(() => {});
   }
   return { lead, isNew: !existing };

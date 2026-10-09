@@ -70,7 +70,7 @@ async function handle(ctx) {
     }
     try {
       lead = leads.add(ctx.state, { name: (ctx.senderName || "").slice(0, 60) || undefined, phone: phone || undefined, ...wish, source: "واتساب", notes: `طلب: ${String(ctx.body).trim().slice(0, 300)}` }, ctx.sender);
-      if (rotation.assignNext(ctx.state, lead.id)) lead = leads.get(ctx.state, lead.id); // the team member whose turn it is
+      if (rotation.assignNext(ctx.app, lead.id)) lead = leads.get(ctx.state, lead.id); // the team member whose turn it is
     } catch (err) {
       ctx.log.warn({ err: err.message }, "requests: client not saved");
       return null;
@@ -100,7 +100,7 @@ async function handle(ctx) {
   if (owner && notifyOwner(ctx.state, String(lead.id))) {
     const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
     const found = [matches.length ? `أرسلت له ${matches.length}: ${matches.map(({ listing }) => `#${listing.id}`).join("، ")}` : "لا يوجد عقار مطابق", plans.length && `🏗️ مشروعات: ${plans.map((p) => `P${p.id}`).join("، ")}`].filter(Boolean).join("\n");
-    await ctx.sock.sendMessage(rotation.notifyJid(ctx.config, lead), { text: `🔔 ${isNew ? "طلب من عميل جديد" : "طلب جديد"}: ${who}\n🔎 ${what}\n${found}\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
+    await ctx.sock.sendMessage(rotation.notifyJid(ctx.app, lead), { text: `🔔 ${isNew ? "طلب من عميل جديد" : "طلب جديد"}: ${who}\n🔎 ${what}\n${found}\n${ctx.prefix}lead ${lead.id}` }).catch(() => {});
   }
   return { lead, matches, isNew };
 }

@@ -35,7 +35,7 @@ function autoassign(ctx) {
   }
   const s = rotation.settings(ctx.state);
   if (!s.on || !s.members.length) return ctx.reply(`🔄 Handing new clients out in turn is off.\nTurn it on with the members: ${p}team autoassign @colleague1 @colleague2 me`);
-  return ctx.reply({ text: `🔄 New clients go in turn to: ${s.members.map(tag).join(" → ")}\nNext: ${tag(rotation.nextMember(ctx.state))}\nStop: ${p}team autoassign off`, mentions: s.members });
+  return ctx.reply({ text: `🔄 New clients go in turn to: ${s.members.map(tag).join(" → ")}\nNext: ${rotation.nextMember(ctx.app) ? tag(rotation.nextMember(ctx.app)) : "nobody — no member is the owner or a sudo user any more"}\nStop: ${p}team autoassign off`, mentions: s.members });
 }
 
 module.exports = {
