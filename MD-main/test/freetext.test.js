@@ -21,7 +21,7 @@ test("listings written as sentences, the way broker posts are", () => {
     type: "شقة", deal: "بيع", size: 150, rooms: 3, baths: 2, floor: "الرابع", finishing: "سوبر لوكس", price: 3500000, location: "التجمع الخامس",
   });
   assert.deepEqual(p("🔥 فرصة لقطة 🔥\nفيلا للبيع بكمبوند ميفيدا\nمساحة 400م\n5 غرف و 4 حمامات\nبمقدم 2 مليون والباقي على 6 سنين\nالسعر 18 مليون"), {
-    type: "فيلا", deal: "بيع", size: 400, rooms: 5, baths: 4, price: 18000000, location: "ميفيدا",
+    type: "فيلا", deal: "بيع", size: 400, rooms: 5, baths: 4, price: 18000000, location: "ميفيدا", down: 2000000, years: 6,
   });
   assert.deepEqual(p("شقة للإيجار في المعادي، 120م، غرفتين وحمامين، دور 3، 25 ألف شهريا"), { type: "شقة", deal: "إيجار", size: 120, rooms: 2, baths: 2, floor: "3", price: 25000, location: "المعادي" });
   assert.deepEqual(p("Apartment for sale in New Cairo, 3 bedrooms, 2 bathrooms, 165 sqm, price 4.2m"), { type: "شقة", deal: "بيع", size: 165, rooms: 3, baths: 2, price: 4200000, location: "New Cairo" });

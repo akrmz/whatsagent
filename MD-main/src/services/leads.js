@@ -43,6 +43,8 @@ const LABELS = {
   name: ["الاسم", "اسم", "العميل", "اسم العميل", "name", "client"],
   phone: ["الموبايل", "موبايل", "الهاتف", "هاتف", "التليفون", "تليفون", "الرقم", "رقم", "واتساب", "واتس", "phone", "mobile", "whatsapp", "tel"],
   budget: ["الميزانية", "ميزانية", "الميزانيه", "السعر", "budget", "price"],
+  // The most they can put down now (buyers of units sold in instalments).
+  downMax: ["المقدم", "مقدم", "الدفعة المقدمة", "down payment", "down"],
   type: ["النوع", "نوع", "المطلوب", "يريد", "type", "wants", "looking for"],
   location: ["المنطقة", "منطقة", "الموقع", "المكان", "location", "area", "city"],
   rooms: ["الغرف", "غرف", "عدد الغرف", "rooms", "bedrooms"],
@@ -101,6 +103,7 @@ function parseLeadText(text, ownerNumber) {
     const v = m[2].trim();
     if (key === "phone") out.phone = normalizePhone(v, ownerNumber) || undefined;
     else if (key === "budget") Object.assign(out, parseBudget(v));
+    else if (key === "downMax") out.downMax = re.parseAmount(v) || undefined;
     else if (key === "type") out.type = re.typeIn(v) || v.slice(0, 30);
     else if (key === "deal") out.deal = re.dealIn(v) || undefined;
     else if (key === "rooms") out.rooms = Number(re.latinDigits(v).match(/\d+/)?.[0]) || undefined;
@@ -127,7 +130,10 @@ function parseLeadText(text, ownerNumber) {
     const f = re.extractFree(free);
     if (out.rooms === undefined && f.rooms) out.rooms = f.rooms;
     if (!out.location && f.location) out.location = f.location.slice(0, 80);
-    if (out.min === undefined && out.max === undefined) Object.assign(out, budgetIn(free));
+    // "معايا مقدم مليون": what they can put down, not the price they can pay.
+    if (out.downMax === undefined && f.down) out.downMax = f.down;
+    const budgetText = out.downMax ? free.replace(/(?:بمقدم|مقدم)\s*:?\s*(?:حدود|في حدود|لحد|حتى)?\s*\d[\d,.]*\s*(?:مليون|ملايين|million|m|ألف|الف|k)?/giu, " ") : free;
+    if (out.min === undefined && out.max === undefined) Object.assign(out, budgetIn(budgetText));
   }
   if (notes.length) out.notes = notes.join("\n").slice(0, 500);
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
@@ -349,18 +355,23 @@ const locationWords = (s) => re.latinDigits(String(s || "")).toLowerCase().split
 function fits(lead, listing) {
   if (listing.status !== "available") return null;
   // A client without any wishes yet (e.g. saved from a contact card) matches nothing, not everything.
-  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms) return null;
+  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax) return null;
   if (lead.deal && listing.deal && lead.deal !== listing.deal) return null;
   if (lead.type && listing.type && lead.type !== listing.type) return null;
   if (lead.rooms && listing.rooms && listing.rooms < lead.rooms) return null;
-  if (lead.max && listing.price && listing.price > lead.max * 1.1) return null;
+  // A buyer with a down payment ("معايا مقدم مليون") fits a unit sold in instalments whose down
+  // payment they can make, whatever its full price; with a budget too, either way fits.
+  const downOk = Boolean(lead.downMax && listing.down && listing.down <= lead.downMax * 1.1);
+  if (lead.downMax && !lead.max && !downOk) return null; // cash-only units need the whole price
+  if (lead.max && listing.price && listing.price > lead.max * 1.1 && !downOk) return null;
   if (lead.min && listing.price && listing.price < lead.min * 0.7) return null;
   const words = locationWords(lead.location);
   if (words.length) {
     const where = re.latinDigits(`${listing.location || ""}`).toLowerCase();
     if (!words.some((w) => where.includes(w))) return null;
   }
-  return { over: Boolean(lead.max && listing.price > lead.max) };
+  const over = downOk ? listing.down > lead.downMax : Boolean(lead.max && listing.price > lead.max);
+  return { over, ...(downOk ? { byDown: true } : {}) };
 }
 
 /** Within budget first, then a little over; cheaper first within each. */
@@ -380,8 +391,12 @@ const matchingLeads = (state, listing) =>
 // ---- formatting ----------------------------------------------------------------------------
 
 const when = (t, timeZone) => new Intl.DateTimeFormat("en-GB", { timeZone, day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
-const budgetText = (l, cur) =>
-  l.min && l.max ? `${re.shortAr(l.min)} – ${re.shortAr(l.max)} ${cur}` : l.max ? `حتى ${re.shortAr(l.max)} ${cur}` : l.min ? `من ${re.shortAr(l.min)} ${cur}` : null;
+/** "حتى 3 مليون جنيه · مقدم حتى مليون جنيه" (the total budget and/or the down payment they can make) */
+const budgetText = (l, cur) => {
+  const total = l.min && l.max ? `${re.shortAr(l.min)} – ${re.shortAr(l.max)} ${cur}` : l.max ? `حتى ${re.shortAr(l.max)} ${cur}` : l.min ? `من ${re.shortAr(l.min)} ${cur}` : null;
+  const down = l.downMax ? `مقدم حتى ${re.shortAr(l.downMax)} ${cur}` : null;
+  return [total, down].filter(Boolean).join(" · ") || null;
+};
 const phoneText = (p) => (p ? `+${p}` : null);
 
 function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = {}) {

@@ -116,6 +116,9 @@ const LABELS = {
   baths: ["الحمامات", "حمامات", "حمام", "عدد الحمامات", "baths", "bathrooms"],
   floor: ["الدور", "دور", "الطابق", "طابق", "floor"],
   finishing: ["التشطيب", "تشطيب", "finishing"],
+  // Resale with instalments: the down payment (an amount or a %) and the years left.
+  down: ["المقدم", "مقدم", "الدفعة المقدمة", "down payment", "down"],
+  years: ["التقسيط", "تقسيط", "مدة التقسيط", "الأقساط", "الاقساط", "الباقي", "installments", "installment"],
   notes: ["ملاحظات", "تفاصيل", "مميزات", "الوصف", "وصف", "notes", "details", "features", "description"],
   // The location in English, for the English card and designs (.listing 12 en).
   locationEn: ["location en", "location (en)", "english location", "المنطقة بالانجليزي", "المنطقة بالإنجليزي", "العنوان بالانجليزي", "العنوان بالإنجليزي"],
@@ -138,7 +141,7 @@ const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(Strin
 const FINISHING = ["ألترا سوبر لوكس", "الترا سوبر لوكس", "سوبر لوكس", "نص تشطيب", "نصف تشطيب", "على المحارة", "علي المحارة", "تشطيب كامل", "متشطب", "بدون تشطيب", "لوكس", "fully finished", "semi finished", "core and shell"];
 const ARABIC_COUNTS = { غرفتين: ["rooms", 2], غرفتان: ["rooms", 2], أوضتين: ["rooms", 2], اوضتين: ["rooms", 2], حمامين: ["baths", 2], حمامان: ["baths", 2] };
 // Words that end a location written in a sentence ("في التجمع الخامس 150 متر …").
-const LOCATION_STOP = /\s(?:\d|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
+const LOCATION_STOP = /\s(?:\d|معايا|معاي|معي|ومعايا|ومعي|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
 
 /**
  * Details written as a sentence, the way most broker posts are:
@@ -169,9 +172,19 @@ function extractFree(text) {
       break;
     }
   }
+  // Resale with instalments: "مقدم 2 مليون" / "مقدم 25%", and "والباقي على 5 سنين" / "تقسيط على 60 شهر".
+  // "مقدم 2 مليون", "مقدم 25%", "مقدم في حدود 800 ألف", "مقدم مليون" (a unit alone is one of it).
+  if ((m = t.match(/(?:بمقدم|مقدم|down(?:\s*payment)?)\s*:?\s*(?:(?:في\s+)?حدود|لحد|حتى|about)?\s*(\d[\d,]*(?:\.\d+)?)?\s*(%|٪|مليون|ملايين|million|m\b|ألف|الف|k\b)?/iu)) && (m[1] || m[2])) {
+    if (m[2] === "%" || m[2] === "٪") out.downPct = Number(m[1]);
+    else out.down = parseAmount(`${m[1] || 1} ${m[2] || ""}`) || undefined;
+  }
+  if ((m = t.match(/(?:على|تقسيط|أقساط|اقساط|over)\s*(?:على\s*)?(\d{1,3})\s*(سنين|سنوات|سنة|سنه|years?|شهر|شهور|months?)/iu))) {
+    out.years = /شهر|شهور|month/iu.test(m[2]) ? Math.round((Number(m[1]) / 12) * 10) / 10 : Number(m[1]);
+  }
   if ((m = t.match(/(?:^|\s)(?:في|بـ?منطقة|منطقة|بكمبوند|كمبوند|بمدينة|in)\s+(.{3,60})/u))) {
     const loc = m[1].split(LOCATION_STOP)[0].trim();
-    if (loc.length >= 3 && !/^\d/.test(loc)) out.location = loc;
+    // "في حدود 3 مليون" is a budget, not a place.
+    if (loc.length >= 3 && !/^\d/.test(loc) && !/^(?:حدود|حدود\s|ميزانية|ميزانيه)/u.test(loc)) out.location = loc;
   }
   for (const k of Object.keys(out)) if (out[k] === undefined || Number.isNaN(out[k])) delete out[k];
   return out;
@@ -211,6 +224,7 @@ function parseListingText(text, ownerNumber) {
     else if (key === "rooms" || key === "baths") out[key] = firstNumber(value) ?? out[key];
     else if (key === "notes") notes.push(value);
     else if (key === "owner") out.owner = ownerFrom(value, ownerNumber) || out.owner;
+    else if (key === "down" || key === "years") Object.assign(out, extractFree(`${key === "down" ? "مقدم" : "على"} ${value}`));
     else out[key] = value.slice(0, key === "location" ? 120 : 60);
   }
   const all = String(text || "").replace(places.MAP_LINKS, " ");
@@ -223,8 +237,30 @@ function parseListingText(text, ownerNumber) {
     const rest = notes.filter((l) => !(l.length < 40 && (typeIn(l) || dealIn(l)) && !/\d/.test(l)));
     if (rest.length) out.notes = rest.join("\n").slice(0, 600);
   }
+  Object.assign(out, planFields(out));
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k];
   return out;
+}
+
+/**
+ * A down payment given as a % becomes an amount once the price is known; a down payment that
+ * isn't below the price, or a plan of more than 15 years, is dropped (a misreading).
+ */
+function planFields(f) {
+  const out = { downPct: undefined };
+  let down = f.down;
+  if (!down && f.downPct > 0 && f.downPct < 100 && f.price) down = Math.round((f.price * f.downPct) / 100);
+  out.down = down && down >= 1000 && (!f.price || down < f.price) ? down : undefined;
+  out.years = f.years > 0 && f.years <= 15 ? f.years : undefined;
+  return out;
+}
+
+/** "💳 مقدم 2,000,000 جنيه (25%) · الباقي على 5 سنين ≈ 100,000 جنيه شهرياً" (no interest, as developers' plans) */
+function planLine(l, cur) {
+  if (!l.down) return null;
+  const pct = l.price ? ` (${Math.round((l.down / l.price) * 100)}%)` : "";
+  const monthly = l.price && l.years ? ` ≈ ${money(Math.round((l.price - l.down) / (l.years * 12)), cur)} شهرياً` : "";
+  return `💳 مقدم ${money(l.down, cur)}${pct}${l.years ? ` · الباقي على ${l.years} ${l.years > 10 || l.years < 3 ? "سنة" : "سنين"}${monthly}` : ""}`;
 }
 
 /** Is this "المالك: …" (the private owner line)? */
@@ -264,7 +300,10 @@ function cleanFields(raw) {
     floor: str(typeof r.floor === "number" ? String(r.floor) : r.floor, 20),
     finishing: str(r.finishing, 40),
     notes: str(r.notes, 600),
+    down: num(r.down, 1000, 1e10),
+    years: num(r.years, 0.5, 15),
   };
+  Object.assign(out, planFields(out));
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
 }
@@ -384,6 +423,7 @@ function card(l, a) {
     l.location && `📍 ${l.location}`,
     l.price && `💰 *${money(l.price, cur)}*${l.price >= 1e5 ? ` (${shortAr(l.price)})` : ""}${l.deal === "إيجار" ? " شهرياً" : ""}`,
     cut && `📉 كان ${money(cut.was, cur)} — خصم ${cut.pct}%`,
+    l.deal !== "إيجار" && planLine(l, cur),
     specs || null,
     l.finishing && `✨ التشطيب: ${l.finishing}`,
     ppm,
@@ -409,6 +449,16 @@ function search(state, query, pool = all(state)) {
   const amount = String.raw`(\d+(?:\.\d+)?)\s*(m|مليون|k|ألف|الف)?`;
   const toN = (n, u) => Number(n) * (/^(m|مليون)$/.test(u || "") ? 1e6 : u ? 1e3 : 1);
   let r;
+  // "مقدم 1m" (the most one can put down) and "تقسيط": units sold in instalments. Before the
+  // budget, so "مقدم حتى 1m" isn't read as the price.
+  if ((r = q.match(new RegExp(`(?:بمقدم|مقدم)\\s*(?:حتى|<)?\\s*${amount}`)))) {
+    [f.plan, f.downMax] = [true, toN(r[1], r[2])];
+    q = q.replace(r[0], " ");
+  }
+  if ((r = q.match(/(?:بالتقسيط|تقسيط|اقساط|أقساط|installments?)/u))) {
+    f.plan = true;
+    q = q.replace(r[0], " ");
+  }
   if ((r = q.match(new RegExp(`${amount}\\s*-\\s*${amount}`)))) {
     [f.min, f.max] = [toN(r[1], r[2] || r[4]), toN(r[3], r[4])];
     q = q.replace(r[0], " ");
@@ -432,6 +482,8 @@ function search(state, query, pool = all(state)) {
     if (f.min && !(l.price >= f.min)) return false;
     if (f.max && !(l.price <= f.max)) return false;
     if (f.rooms && l.rooms !== f.rooms) return false;
+    if (f.plan && !l.down) return false;
+    if (f.downMax && !(l.down <= f.downMax)) return false;
     const where = `${l.location || ""} ${l.notes || ""}`.toLowerCase();
     return words.every((w) => where.includes(w));
   });
@@ -458,7 +510,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, typeIn, typesIn, dealIn, stripTypeWords,
+  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, addFeedback, stale,
   STATUS_AR, MAX_PHOTOS,
 };
