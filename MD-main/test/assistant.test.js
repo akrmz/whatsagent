@@ -229,3 +229,44 @@ test("the agent answering by voice note (or photo) from the phone takes over too
   await b.send("طيب", { from: CLIENT });
   assert.equal(b.calls.length, 0);
 });
+
+test("[SHOW #n] sends available listings' cards (never sold or unknown ones, at most 2); [WANTS …] fills the client's card", async () => {
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  re.add(b.s, { type: "شقة", deal: "بيع", location: "التجمع الخامس", price: 3.4e6 }, ME); // #3
+  re.add(b.s, { type: "شقة", deal: "بيع", location: "التجمع الخامس", price: 3.5e6 }, ME); // #4
+  b.answers.push("عندي #1 في التجمع الخامس بـ 3.2 مليون 👇 [SHOW #1] [SHOW #2] [SHOW #9] [SHOW #3] [SHOW #4]\n[WANTS type=شقة; deal=بيع; area=التجمع الخامس; rooms=3; max=3.5 مليون]");
+  await b.send("عايز شقة 3 غرف في التجمع الخامس لحد 3.5 مليون", { from: CLIENT });
+  const out = b.to(CLIENT).map((m) => m.content.text || m.content.caption || "");
+  assert.equal(out[0], "عندي #1 في التجمع الخامس بـ 3.2 مليون 👇", "the tags are not shown");
+  assert.match(out[1], /^🏠 \*شقة للبيع\* — #1/);
+  assert.match(out[2], /^🏠 \*شقة للبيع\* — #3/, "#2 is sold and #9 doesn't exist: skipped");
+  assert.equal(out.length, 3, "at most 2 cards");
+  assert.doesNotMatch(out.join("\n"), /أبو أحمد|201001234567/, "the owner stays private");
+
+  const lead = leads.byPhone(b.s, "201099998888");
+  assert.deepEqual([lead.type, lead.deal, lead.location, lead.rooms, lead.max], ["شقة", "بيع", "التجمع الخامس", 3, 3.5e6]);
+  assert.deepEqual(lead.sentListings, [1, 3], "noted as sent, so campaigns don't send them again");
+  const notes = () => lead && leads.get(b.s, lead.id).history.map((h) => h.text).filter((t) => t.startsWith("طلبه"));
+  assert.deepEqual(notes(), ["طلبه (من المحادثة مع المساعد): شقة للبيع، في التجمع الخامس، 3 غرف، حتى 3.5 مليون جنيه"]);
+
+  b.answers.push("تمام 👍 [WANTS type=شقة; area=التجمع الخامس]");
+  await b.send("أيوه شقة في التجمع", { from: CLIENT });
+  assert.equal(notes().length, 1, "nothing new: no new note");
+  b.answers.push("تمام، هدورلك على حاجة بميزانية أعلى. [WANTS max=4500000]");
+  await b.send("ممكن أزود لـ 4.5", { from: CLIENT });
+  assert.equal(leads.get(b.s, lead.id).max, 4.5e6, "the client changed their budget");
+
+  b.answers.push("أكيد [SHOW #4] [WANTS type=فيلا]");
+  await b.send(".assistant test عندك فيلا؟");
+  assert.match(b.to(ME).at(-1).content.text, /^🧪 \*A client would get:\*\n\nأكيد\n\n📎 plus the card of #4 \(with the photo\)\n📝 saved on the client's card: فيلا/);
+});
+
+test("the client's wishes are checked like a typed card", () => {
+  const assistant = require("../src/services/assistant");
+  assert.deepEqual(assistant.parseWants(" type=شقه ; deal=ايجار; area=المعادي; rooms=2; min=8 الاف; max=15000"), { type: "شقة", deal: "إيجار", location: "المعادي", rooms: 2, min: 8000, max: 15000 });
+  assert.deepEqual(assistant.parseWants("type=قصر; rooms=40; min=10; area=x; colour=red"), {}, "unknown type, silly numbers, too short an area, unknown keys");
+  assert.deepEqual(assistant.parseWants("min=5 مليون; max=3 مليون"), { min: 3e6, max: 5e6 }, "swapped");
+  assert.deepEqual(assistant.parseWants(""), {});
+});

@@ -3,6 +3,7 @@
 const re = require("../../services/realestate");
 const leads = require("../../services/leads");
 const assistant = require("../../services/assistant");
+const requests = require("../../services/requests");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -37,7 +38,7 @@ module.exports = {
   aliases: ["mosaed", "customerbot", "salesbot"],
   category: "realestate",
   description:
-    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
+    "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings it recommends, saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
   usage: "on | off | info <text>|clear | test <question> | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
@@ -66,8 +67,13 @@ module.exports = {
       if (!ctx.app.ai) throw new UserError(`No AI is set up yet (${p}setai).`);
       if (!rest) throw new UserError(`Write a client's question: ${p}assistant test عندك شقة في التجمع؟`);
       await ctx.react("🤖");
-      const { text, handoff } = await assistant.answer(ctx.app, { state: ctx.state, key: `test|${ctx.sender}`, lead: null, text: rest });
-      return ctx.reply(`🧪 *A client would get:*\n\n${text}${handoff ? "\n\n🙋 (and you'd be told to follow up)" : ""}`);
+      const { text, handoff, show, wants } = await assistant.answer(ctx.app, { state: ctx.state, key: `test|${ctx.sender}`, lead: null, text: rest });
+      const extra = [
+        show.length && `📎 plus the card${show.length > 1 ? "s" : ""} of ${show.map((l) => `#${l.id}`).join(", ")} (with the photo)`,
+        Object.keys(wants).length && `📝 saved on the client's card: ${requests.describe({ ...wants, type: wants.type || "عقار" }, re.agent(ctx.state).currency)}`,
+        handoff && "🙋 and you'd be told to follow up",
+      ].filter(Boolean);
+      return ctx.reply(`🧪 *A client would get:*\n\n${text}${extra.length ? `\n\n${extra.join("\n")}` : ""}`);
     }
     if (sub === "pause" || sub === "resume") {
       const { key, label } = clientKey(ctx, ctx.args[1]);
