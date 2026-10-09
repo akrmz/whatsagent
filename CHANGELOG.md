@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.38.0 — 2026-10-10
+
+### Added — ready greetings, and messages that wait for their day
+- **Ready greetings:** `.blast msg رمضان`, `عيد` (الفطر), `الأضحى` or `سنة جديدة` uses a written Egyptian greeting with the client's name and yours. The preview shows it, and filters work as usual (`.blast msg won` then `عيد` on the next line).
+- **`{agent}`** in any message becomes "— your name · your company". Without a client name, "يا {name}" disappears cleanly instead of leaving "يا".
+- **Scheduled:** `.blast msg go 20/10 09:00` starts the message then. A date alone means 09:00, and a day and month already past this year means next year. `.blast msg go friday at 9am`, `tomorrow at 9am` and `بكرة 9 الصبح` work too, up to 60 days ahead.
+  - It starts within your sending hours, keeps its picture until then, and `.blast stop` cancels it.
+  - `.campaigns` shows the start day ("🕒 يبدأ الخميس، 15 أكتوبر …"), or just the time for a start within the day.
+
+### Checked
+- 1 test (362 in total). It covers:
+  - the Ramadan greeting with the name and the agent, and no dangling words without them;
+  - a wrong or past time refused;
+  - a message scheduled for 15/10: waiting for its day, then for the sending hours, then sent;
+  - the start day in `.campaigns`, and a past day and month (next year, too far) refused.
+
 ## 3.37.0 — 2026-10-10
 
 ### Added — your own message to clients: greetings and announcements
