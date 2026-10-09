@@ -6,6 +6,7 @@ const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
 const leads = require("../../services/leads");
 const places = require("../../services/places");
+const health = require("../../services/listinghealth");
 const { redactPhones } = require("../../services/phones");
 const { limiterFor } = require("../../core/ratelimit");
 
@@ -170,6 +171,22 @@ async function nearby(ctx, text) {
   return ctx.reply(`${head}\n\n${lines.join("\n")}\n\n${ctx.prefix}listing <number> for details · ${ctx.prefix}listing <number> map for the pin${staffNote}`);
 }
 
+/**
+ * ".listings check": available listings with something missing (photos, price, size, area,
+ * rooms, map pin, owner number) or not updated for 30 days, the most incomplete first, each with
+ * the command that fills its biggest gap. Staff only (it's about running the catalogue).
+ */
+function healthCheck(ctx) {
+  if (!ctx.isSudoOrOwner) return ctx.reply("Only the owner and sudo users check the catalogue. Anyone can search it: .listings");
+  const p = ctx.prefix;
+  const { list, total } = health.check(ctx.state, p);
+  if (!total) return ctx.reply(`The catalogue has no available listing yet. ${p}listing add`);
+  if (!list.length) return ctx.reply(`✅ All ${total} available listing(s) have photos, a price, a size, an area, rooms, a map pin and an owner number, and were updated in the last ${health.STALE_DAYS} days.`);
+  const cur = re.agent(ctx.state).currency;
+  const lines = list.slice(0, 20).map(({ listing, gaps }) => `▫️ ${re.line(listing, cur)}\n   ناقص: ${gaps.map((g) => g.label).join(" · ")}\n   ↳ ${gaps[0].fix}`);
+  return ctx.reply([`🧹 *Listings to complete* (${list.length} of ${total} available) — the most incomplete first`, "", ...lines, list.length > 20 ? `… and ${list.length - 20} more` : null, "", "Photos and the price matter most: clients' matches, campaigns, the market figures and the assistant all use them."].filter((x) => x !== null).join("\n"));
+}
+
 const HELP = (p) =>
   [
     "🏠 *Listings · العقارات*",
@@ -321,11 +338,12 @@ module.exports = [
     aliases: ["properties", "aqarat"],
     category: "realestate",
     description:
-      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم").',
-    usage: "[filters] | near [filters] [radius km]",
-    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all", "(reply to a client's location) .listings near", ".listings near شقة 5 كم https://maps.app.goo.gl/…"],
+      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم"). "check" (owner and sudo users) lists the available listings missing photos, a price, a size, an area, rooms, a map pin or an owner number, or not updated for 30 days, the most incomplete first, with the command to fix each.',
+    usage: "[filters] | near [filters] [radius km] | check",
+    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all", "(reply to a client's location) .listings near", ".listings near شقة 5 كم https://maps.app.goo.gl/…", ".listings check"],
     cooldown: 3,
     async run(ctx) {
+      if (/^(check|health|missing|ناقص|مراجعة)$/i.test(ctx.args[0] || "")) return healthCheck(ctx);
       const nearWord = /^(near|nearby|nearest|قريب|القريب|الأقرب|الاقرب|جنبي)$/i.test(ctx.args[0] || "");
       if (nearWord || places.fromMessage(ctx.quoted?.message)) return nearby(ctx, nearWord ? ctx.text.replace(/^\s*\S+/, "") : ctx.text);
       const { list, filters } = re.search(ctx.state, ctx.text);
