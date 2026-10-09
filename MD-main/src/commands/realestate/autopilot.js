@@ -23,7 +23,7 @@ module.exports = {
   aliases: ["reauto", "taliqai"],
   category: "realestate",
   description:
-    "لوحة الأتمتة — every automatic real-estate feature on one screen: what's on (auto-capture, request answers, the client menu, self-booked viewings, automatic campaigns, follow-ups, weekly owner reports, greetings, away replies, status posts, listing of the day, the morning summary, rent and viewing reminders, watched groups), today's campaign messages against the daily cap, running and waiting campaigns, and what is waiting to be sent, with the command to switch each. Owner and sudo users.",
+    "لوحة الأتمتة — every automatic real-estate feature on one screen: what's on (auto-capture, request answers, the client menu, self-booked viewings, the customer assistant, automatic campaigns, follow-ups, weekly owner reports, greetings, away replies, status posts, listing of the day, the morning summary, rent and viewing reminders, watched groups), today's campaign messages against the daily cap, running and waiting campaigns, and what is waiting to be sent, with the command to switch each. Owner and sudo users.",
   examples: [".autopilot"],
   permission: "sudo",
   cooldown: 3,
@@ -58,6 +58,7 @@ module.exports = {
       `${on(a.autoleads)} حفظ اللي يسأل عن #رقم كعميل — ${p}agent autoleads on|off`,
       `${on(a.requests)} الرد على طلبات العملاء المكتوبة — ${p}agent requests on|off`,
       `${on(a.catalog)} قائمة العقارات للعملاء ("عقارات") — ${p}agent catalog on|off`,
+      `${on(a.assistant && ctx.app.ai)} المساعد الذكي يرد على أسئلة العملاء${a.assistant && !ctx.app.ai ? " (محتاج مفتاح AI: .setai)" : ""} — ${p}assistant on|off`,
       `${on(a.booking)} حجز المعاينة بنفسه ("معاينة")${a.booking ? ` — ${booking.describe(booking.settings(s))}` : ""} — ${p}agent booking on|off`,
       `${on(ar.greet)} ترحيب بأول تواصل — ${p}greet on <الرسالة> | off`,
       `${on(ar.away)} رد خارج مواعيد العمل — ${p}awaymsg on <الرسالة> | off`,
