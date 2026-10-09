@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.37.0 — 2026-10-10
+
+### Added — your own message to clients: greetings and announcements
+- **`.blast msg`** with the message on the next line sends your own message to your clients, through the campaign queue (the same random gaps, hours and daily cap). Use it for an occasion greeting (Ramadan, Eid, the new year) or an announcement (a new project, new units in an area).
+  - **Who gets it:** clients with a number who haven't said "وقف", except lost ones.
+  - **Filters**, on the first line after `msg`: a status (`new`, `viewing`, `won` …), a type (`شقة` …), `بيع`/`إيجار`, area words, or `all` (lost clients too). On one line, everything is the message.
+  - **`{name}`** becomes each client's name. Every message ends with the "وقف" line.
+  - **A picture:** send the command with one, or reply to one, and it goes with every message. It is resized like listing photos and deleted from the server when the campaign ends or is stopped.
+  - **Preview first:** who gets it, the first 15 by name, and exactly how it reads. **`.blast msg go`** within 15 minutes starts it.
+  - One such message runs at a time, with up to 1,000 clients and 1,000 characters.
+  - A client who says "وقف" before their turn is skipped. Each client's history notes the message. It isn't a listing, so no reply tracking or follow-up starts from it.
+- It shows client names, so like `.blast` it works in your private chat with the bot or a staff-only group. The summary comes back to the chat you started it from ("📣 رسالة #N للعملاء …").
+
+### Checked
+- 3 tests (361 in total). They cover:
+  - the help text, the preview (lost, stopped and number-less clients left out, `{name}` filled), nothing sent before go, paced sending, the note, no reply tracking, the summary, and one use per draft;
+  - filters (area and type, won, all, sale or rent with no match), the length limit, a mixed group, one at a time, and the 15-minute draft;
+  - a picture with every message deleted at the end, and a stop request on the way.
+
 ## 3.36.0 — 2026-10-10
 
 A review of the customer assistant (3.32–3.35), the newest part that strangers can reach.
