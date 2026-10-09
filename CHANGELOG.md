@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.42.0 — 2026-10-10
+
+### Added — your own answers, and English cards
+- **`.assistant faq`**: your answers to the questions clients ask most, such as commission, financing, how a reservation works or the documents needed.
+  - **Adding:** `.assistant faq add بتاخدوا عمولة كام؟ | 2.5% من المشتري بعد التعاقد`, or the question on the first line and the answer below.
+  - **Managing:** `.assistant faq` lists them and `.assistant faq del 2` removes one. Up to 25, with questions up to 200 characters and answers up to 400.
+  - **How it's used:** they go in the prompt as "the agent's own answers", used as written in the client's language. Links in your answers are kept, like links in your office info.
+- **English cards:** a client writing in English (mostly Latin letters) gets the English listing card (as with `#12 en`) and the English project card when the assistant sends cards.
+
+### Changed
+- Your office info (`.assistant info`) and FAQ reach the AI as you wrote them, office phone number included. Before, numbers in the office info were masked like clients' numbers. Listing notes, which can hold an owner's number, and clients' messages are still masked.
+
+### Checked
+- 1 test (368 in total), and the office-info test updated. It covers:
+  - FAQ add with `|` or a new line, a malformed add refused, the list, and the prompt;
+  - a link from the FAQ kept;
+  - deleting, and a missing number refused;
+  - English listing and project cards for an English message, and an Arabic message staying Arabic.
+
 ## 3.41.0 — 2026-10-10
 
 ### Improved — handing a client between the assistant and you
