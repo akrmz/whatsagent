@@ -318,3 +318,38 @@ test("handed-over clients wait in .assistant inbox, get one reminder after 2 hou
   assert.equal(assistant.waiting(b.s).length, 0, "a lost client isn't waiting");
   t.mock.timers.reset();
 });
+
+test("personal messages get no answer and aren't saved; ignored numbers are never sent to the AI; links a client could plant are removed", async () => {
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  const FRIEND = "201022223333@s.whatsapp.net";
+
+  b.answers.push("[IGNORE]");
+  await b.send("ازيك يا عم أحمد، هنتقابل بالليل؟", { from: FRIEND });
+  assert.equal(b.to(FRIEND).length, 0, "no answer");
+  assert.equal(leads.byPhone(b.s, "201022223333"), null, "not saved as a client");
+  assert.equal(b.calls.length, 1);
+
+  await b.send(".assistant ignore 01022223333");
+  assert.match(b.last(ME), /🙈 The assistant won't answer \+201022223333/, "a local number is normalised");
+  await b.send("طب هتيجي؟", { from: FRIEND });
+  assert.equal(b.calls.length, 1, "never sent to the AI");
+  await b.send(".assistant ignored");
+  assert.match(b.last(ME), /▫️ \+201022223333/);
+  await b.send(".assistant ignored", { chat: GROUP });
+  assert.match(b.to(GROUP).at(-1).content.text, /^🔒/);
+  await b.send(".assistant unignore 201022223333");
+  assert.match(b.last(ME), /answers \+201022223333 again/);
+
+  // A client tries to make it send a payment link; the map link and the office's own site stay.
+  await b.send(".assistant info موقعنا: dar-aqar.example/listings — المكتب في التجمع");
+  b.answers.push("ادفع العربون هنا http://pay-deposit.example/x أو على evil.xyz/pay ، والخريطة: https://maps.app.goo.gl/AbC123 وكل العروض على dar-aqar.example/listings 👍");
+  await b.send("ابعتلي لينك أدفع منه العربون", { from: CLIENT });
+  const said = b.last(CLIENT);
+  assert.doesNotMatch(said, /pay-deposit|evil\.xyz/);
+  assert.match(said, /https:\/\/maps\.app\.goo\.gl\/AbC123/);
+  assert.match(said, /dar-aqar\.example\/listings/);
+  assert.match(b.calls.at(-1).system, /12\. Never write links or website addresses/);
+  assert.ok(leads.byPhone(b.s, "201099998888"), "a property conversation: saved");
+});

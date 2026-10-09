@@ -5,6 +5,7 @@ const leads = require("../../services/leads");
 const assistant = require("../../services/assistant");
 const requests = require("../../services/requests");
 const { UserError } = require("../../core/errors");
+const { normalizePhone } = require("../../services/phones");
 
 const idOf = (s) => {
   const n = Number(re.latinDigits(String(s || "")).replace(/^#/, ""));
@@ -17,8 +18,8 @@ function clientKey(ctx, arg) {
   const lead = id && id < 1e6 ? leads.get(ctx.state, id) : null;
   if (lead?.phone) return { key: lead.phone, label: `#${lead.id}` };
   if (id && id < 1e6) throw new UserError(lead ? `Client #${id} has no number.` : `There is no client #${id}.`);
-  const phone = re.latinDigits(String(arg || "")).replace(/\D/g, "");
-  if (phone.length >= 8) return { key: phone, label: `+${phone}` };
+  const phone = normalizePhone(arg, ctx.config.owners.numbers[0]); // "0100 …" → "20100…"
+  if (phone) return { key: phone, label: `+${phone}` };
   throw new UserError(`Which client? ${ctx.prefix}assistant pause 5 (a client number) or a phone number.`);
 }
 
@@ -30,6 +31,7 @@ const HELP = (p) =>
     `${p}assistant test <question> — see what a client would get`,
     `${p}assistant pause 5 [hours] · ${p}assistant resume 5 — stop or restart it for one client`,
     `${p}assistant inbox — clients waiting for your reply (reminded once after 2 hours) · ${p}assistant done 5`,
+    `${p}assistant ignore 2010… — never answer this number (family, friends, suppliers) · ${p}assistant ignored · ${p}assistant unignore 2010…`,
     "",
     "When you answer a client yourself from your phone, it steps back in that chat for 12 hours.",
   ].join("\n");
@@ -40,7 +42,7 @@ module.exports = {
   category: "realestate",
   description:
     "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings it recommends, saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
-  usage: "on | off | info <text>|clear | test <question> | inbox | done <client> | pause <client> [hours] | resume <client>",
+  usage: "on | off | info <text>|clear | test <question> | inbox | done <client> | ignore|unignore <number> | ignored | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
@@ -89,6 +91,17 @@ module.exports = {
       return ctx.reply(
         [`🙋 *Waiting for your reply* (${list.length}) — oldest first`, "", ...list.slice(0, 20).map((w) => assistant.waitingLine(w, now, p)), "", `A client leaves the list when you reply to them from your phone. Done another way: ${p}assistant done <client>`].join("\n"),
       );
+    }
+    if (sub === "ignore" || sub === "unignore" || sub === "ignored") {
+      // Numbers it never answers: family, friends, suppliers writing to the same WhatsApp.
+      if (sub === "ignored" || !ctx.args[1]) {
+        if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 The list shows numbers: use ${p}assistant ignored in your private chat with the bot.`);
+        const list = assistant.ignoredList(ctx.state);
+        return ctx.reply(list.length ? `🙈 *The assistant never answers* (${list.length})\n${list.map((k) => `▫️ ${/^\d+$/.test(k) ? `+${k}` : k}`).join("\n")}\n\nUndo: ${p}assistant unignore <number>` : `Nobody is ignored. ${p}assistant ignore 2010… (family, friends, suppliers)`);
+      }
+      const { key, label } = clientKey(ctx, ctx.args[1]);
+      assistant.setIgnored(ctx.state, key, sub === "ignore");
+      return ctx.reply(sub === "ignore" ? `🙈 The assistant won't answer ${label} (the greeting and away messages, if on, still do). Undo: ${p}assistant unignore ${ctx.args[1]}` : `▶️ The assistant answers ${label} again.`);
     }
     if (sub === "pause" || sub === "resume") {
       const { key, label } = clientKey(ctx, ctx.args[1]);

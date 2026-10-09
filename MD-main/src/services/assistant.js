@@ -10,6 +10,7 @@ const { redactPhones } = require("./phones");
 const { zoneNow } = require("./gcschedule");
 const { limiterFor } = require("../core/ratelimit");
 const { toAudio } = require("../core/media");
+const { UserError } = require("../core/errors");
 
 /**
  * The customer assistant (.assistant on): the configured AI answers clients' questions in
@@ -68,6 +69,21 @@ const pausedUntil = (state, key, now = Date.now()) => {
   return until > now ? until : 0;
 };
 const pausedCount = (state, now = Date.now()) => Object.values(store(state).data.paused).filter((u) => u > now).length;
+
+// ---- numbers it never answers (.assistant ignore) ------------------------------------------
+
+const MAX_IGNORED = 500;
+const isIgnored = (state, key) => Boolean(store(state).data.ignored?.[key]);
+function setIgnored(state, key, on, now = Date.now()) {
+  if (on && !isIgnored(state, key) && ignoredList(state).length >= MAX_IGNORED) throw new UserError(`At most ${MAX_IGNORED} ignored numbers.`);
+  store(state).update((d) => {
+    d.ignored ||= {};
+    if (on) d.ignored[key] = now;
+    else delete d.ignored[key];
+  });
+  if (on) aiUsage.forget(`assistant|${key}`);
+}
+const ignoredList = (state) => Object.keys(store(state).data.ignored || {});
 
 // ---- clients waiting for the agent (after a handoff) ---------------------------------------
 // waiting: { [key]: { at, lead?, name, text, voice, reminded? } } — cleared when the agent
@@ -200,6 +216,8 @@ function systemPrompt(state, lead, text) {
     "8. A message starting with 🎤 is a voice note written out automatically; it may contain mistakes. If it is unclear, ask the client to say it again or write it.",
     "9. To send the client a listing's card with its photo, add [SHOW #12] — when they ask to see one or you recommend one; at most 2 per reply, only listings from the CATALOG.",
     "10. When the client says what they are looking for, add [WANTS type=شقة; deal=بيع; area=التجمع الخامس; rooms=3; min=2000000; max=3500000] with only what they said (leave out what they didn't say). Type, deal (بيع or إيجار) and area in Arabic; amounts as full numbers.",
+    "11. If the message is clearly personal or has nothing to do with property or the office (family, friends, another business, a wrong number), reply with exactly [IGNORE] and nothing else. When in doubt, answer normally.",
+    "12. Never write links or website addresses, except the map links in the CATALOG and those in OFFICE INFO.",
     "",
     a.phone ? `The agent's public contact: ${[a.name, a.phone].filter(Boolean).join(" ")}` : null,
     client.length ? `CLIENT (from the agent's notes): ${client.join("; ")}` : lead ? "CLIENT: a saved client; what they want isn't known yet (you may ask: type, area, budget)." : "CLIENT: new, nothing known yet.",
@@ -212,6 +230,19 @@ function systemPrompt(state, lead, text) {
   ]
     .filter((x) => x !== null)
     .join("\n");
+}
+
+const IGNORE = /\[\s*IGNORE\s*\]/i;
+// Links and bare domains ("evil.example/pay"); emails keep their name but lose the domain.
+const LINK = /(?:https?:\/\/|www\.)[^\s<>"]+|\b[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,24}(?:\/[^\s<>"]*)?/gi;
+const MAPS = /^(?:https?:\/\/)?(?:www\.)?(?:google\.[a-z.]{2,8}\/maps|maps\.google\.[a-z.]{2,8}|maps\.app\.goo\.gl|goo\.gl\/maps)(?:[/?#]|$)/i;
+
+/** Links the answer may keep: Google Maps (listing pins), or ones in the agent's own office info or profile. */
+function trustedLink(state, link) {
+  if (MAPS.test(link)) return true;
+  const a = re.agent(state);
+  const own = `${info(state)}\n${a.name || ""}\n${a.company || ""}\n${a.phone || ""}`.toLowerCase();
+  return own.includes(link.toLowerCase().replace(/[.,،؛;:!?)]+$/, ""));
 }
 
 const SHOW = /\[\s*SHOW\s*#?\s*(\d{1,5})\s*\]/gi;
@@ -255,6 +286,7 @@ async function answer(app, { state, key, lead, text }) {
   const question = redactPhones(String(text).slice(0, MAX_INPUT));
   const mem = `assistant|${key}`;
   const raw = String(await app.ai.ask(question, { system: systemPrompt(state, lead, question), history: aiUsage.history(mem, TURNS), maxChars: MAX_INPUT }));
+  if (IGNORE.test(raw)) return { text: "", ignore: true, handoff: false, show: [], wants: {} };
   const handoff = HANDOFF.test(raw);
   HANDOFF.lastIndex = 0;
   const show = [...new Set([...raw.matchAll(SHOW)].map((m) => Number(m[1])))]
@@ -267,7 +299,9 @@ async function answer(app, { state, key, lead, text }) {
     .replace(SHOW, "")
     .replace(new RegExp(WANTS.source, "gi"), "")
     .replace(/\[[A-Z_]{3,20}[^\]]{0,300}\]/g, "") // any other tag-like text
+    .replace(LINK, (link) => (trustedLink(state, link) ? link : "")) // a client can't make it send a payment or phishing link
     .replace(/[ \t]+\n/g, "\n")
+    .replace(/[ \t]{2,}/g, " ")
     .trim()
     .slice(0, MAX_ANSWER);
   aiUsage.remember(mem, TURNS, question, clean);
@@ -341,6 +375,7 @@ async function handle(ctx, now = Date.now()) {
   let text = ctx.body.trim();
   if (!voice && (!text || text.startsWith(ctx.prefix))) return false;
   const key = keyOf(ctx.app, ctx.sender);
+  if (isIgnored(ctx.state, key)) return false; // family, friends, suppliers (.assistant ignore)
   if (pausedUntil(ctx.state, key, now)) return false; // the agent is talking to them
   if (re.all(ctx.state).some((l) => l.owner?.phone === key)) return false; // owners talk to the agent
   if (!flood(ctx.state, key)) return true; // a flood: silence
@@ -361,6 +396,19 @@ async function handle(ctx, now = Date.now()) {
 
   const phone = /^\d{8,15}$/.test(key) ? key : null;
   let lead = phone ? leads.byPhone(ctx.state, phone) : null;
+
+  await ctx.sock.sendPresenceUpdate?.("composing", ctx.chatId)?.catch(() => {});
+  let result;
+  try {
+    result = await answer(ctx.app, { state: ctx.state, key, lead, text: voice ? `🎤 ${text}` : text });
+  } catch (err) {
+    ctx.log.warn({ err: err.message }, "assistant: no answer from the AI");
+    return false; // the greeting / away message can still answer
+  }
+  // A personal message (family, a friend, another business): no answer, not saved as a client.
+  if (result.ignore || !result.text) return false;
+
+  // Saved as a client only now, once it is a real conversation about property.
   if (!lead && phone && newClients(ctx.state)) {
     try {
       lead = leads.add(ctx.state, { name: (ctx.senderName || "").slice(0, 60) || undefined, phone, source: "واتساب", notes: `تواصل مع المساعد: ${redactPhones(text).slice(0, 120)}` }, ctx.sender, now);
@@ -368,17 +416,7 @@ async function handle(ctx, now = Date.now()) {
       ctx.log.warn({ err: err.message }, "assistant: client not saved");
     }
   }
-
-  await ctx.sock.sendPresenceUpdate?.("composing", ctx.chatId)?.catch(() => {});
-  let result;
-  try {
-    if (voice && lead) leads.note(ctx.state, lead.id, "client", `🎤 رسالة صوتية: ${redactPhones(text).slice(0, 300)}`, now);
-    result = await answer(ctx.app, { state: ctx.state, key, lead, text: voice ? `🎤 ${text}` : text });
-  } catch (err) {
-    ctx.log.warn({ err: err.message }, "assistant: no answer from the AI");
-    return false; // the greeting / away message can still answer
-  }
-  if (!result.text) return false;
+  if (voice && lead) leads.note(ctx.state, lead.id, "client", `🎤 رسالة صوتية: ${redactPhones(text).slice(0, 300)}`, now);
   await ctx.reply(result.text);
   // Listing cards it recommended (with the first photo), noted as sent so campaigns don't repeat them.
   for (const l of result.show) {
@@ -401,4 +439,4 @@ async function handle(ctx, now = Date.now()) {
   return true;
 }
 
-module.exports = { handle, answer, parseWants, saveWants, markWaiting, clearWaiting, waiting, waitingLine, remindDue, startAssistantLoop, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };
+module.exports = { handle, answer, parseWants, saveWants, isIgnored, setIgnored, ignoredList, trustedLink, markWaiting, clearWaiting, waiting, waitingLine, remindDue, startAssistantLoop, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };
