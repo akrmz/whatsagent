@@ -2,6 +2,24 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.34.0 — 2026-10-10
+
+### Added — the assistant sends listings and saves what the client wants
+- **Listing cards:** when the assistant recommends a listing, or the client asks to see one, it sends the listing's card with its first photo after its answer.
+  - At most 2 per answer, and only available listings: sold, rented or unknown numbers are skipped. The owner never appears (the client's card view).
+  - They are noted as sent to the client, so a campaign for that listing doesn't send it again and the quiet-client follow-up can pick it up.
+- **The client's wishes:** what the client says they want (type, sale/rent, area, rooms, budget) is saved on their client card, and the history notes it ("طلبه (من المحادثة مع المساعد): …"). Then `.listing match`, campaigns, automatic campaigns for new listings and the catalogue matching work for clients who only chatted with the bot.
+  - Only what changed is saved, so a repeat adds no note. A client who raises their budget gets it updated.
+  - Each value is checked like a typed client card: a known property type, sale or rent, an area of 2–60 characters, 1–10 rooms, amounts from 1,000 (monthly rents) upwards. Anything else is dropped.
+- `.assistant test` shows which cards would be sent and what would be saved.
+
+### Checked
+- 2 tests (356 in total). They cover:
+  - the tags hidden, cards sent only for available listings and at most 2, and the owner kept private;
+  - the wishes saved, noted once, and updated when the budget changes;
+  - the test preview;
+  - the value checks (Arabic spellings, rents in thousands, nonsense dropped, min/max swapped).
+
 ## 3.33.0 — 2026-10-10
 
 ### Added — the assistant understands voice notes
