@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.41.0 — 2026-10-10
+
+### Improved — handing a client between the assistant and you
+- **A client who asks for a person** is now handled on its own, not as one more AI answer:
+  - **Detected:** short messages ("عايز أكلم حد", "كلمني", "حد يكلمني", "خدمة العملاء", "اتصل بيا", "call me", "talk to a human" …) are recognised without the AI. Arabic is matched loosely (hamzas, ة/ه, ى/ي), and staff in general ("الموظفين") or "I'm an agent" don't count. In a longer message, the AI answers `[HUMAN]`.
+  - **What the client gets:** a fixed answer: "حاضر 🙏 بلغت <you> وهيكلمك في أقرب وقت". Outside working hours (the viewing days and hours) it adds when ("هيكلمك السبت، 10 أكتوبر في 11:00 ص"), and your number from your profile.
+  - **Then the assistant is quiet** in that chat until you write, with at most one "بلغت … وهيرد عليك قريب" every 2 hours if they keep writing. They stay on `.assistant inbox` (marked 📞) and get the 2-hour reminder.
+  - **What you get:** an urgent "📞 … عايز يكلمك" notice with what they said, the earlier exchanges, a link that opens their chat (wa.me), and the resume command (at most every 30 minutes per client). The client's history notes it, and `.assistant stats` counts it ("📞 Asked for a person").
+- **When you take over:** writing to a client from your phone still makes the assistant quiet, now for a time you choose: **`.assistant takeover 6`** (1–72 hours, default 12).
+  - For saved clients you get one note per takeover ("⏸️ رديت على … — المساعد ساكت معاه 12 ساعة", "اللي كان طالب يكلمك" if they had asked), with `.assistant resume` to bring it back sooner.
+  - No note for chats with people who aren't clients.
+- The AI handoff notice ("🙋 محتاج رد منك") also carries the link to the chat. The prompt's rules now separate the two cases: negotiating or reserving is `[HANDOFF]`, a person or a call is `[HUMAN]`.
+
+### Checked
+- 2 tests (367 in total), and 3 earlier ones updated (their messages said "كلمني", which is now a request for a person). They cover:
+  - the fixed answer without the AI, the notice with the chat link, the inbox mark, quiet while waiting, and one reassurance after 2 hours;
+  - the agent's takeover note sent once and the waiting list cleared, with no note for a friend's chat;
+  - after hours with the next opening time, `[HUMAN]` from the AI, the takeover setting, and the phrase checks.
+
 ## 3.40.0 — 2026-10-10
 
 ### Improved — the customer assistant
