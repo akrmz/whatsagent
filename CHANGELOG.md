@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.30.0 — 2026-10-10
+
+### Added — weekly reports to owners
+- **`.agent ownerreports on`**: every Saturday, from the start of the sending hours, each available listing's owner gets the `.listing report` message.
+  - **Paced:** it goes through the campaign queue, with the same random gaps, hours and daily cap. You're told when it's done ("📣 تقارير الملاك …").
+  - **Left out:** listings with nothing to report yet, added in the last 3 days, without an owner number, or reported in the last 6 days (by hand or automatically). At most 30 a week.
+  - **Opt-out:** every report ends with "لو مش حابب توصلك التقارير دي ابعت: وقف التقارير". An owner who sends **وقف التقارير** gets no more reports, even with `.listing report 12 send`, until they send **اشتراك التقارير**. It is kept by phone number, so editing the owner line doesn't undo it. A plain "وقف" is still the clients' opt-out from offers.
+- **Where to see it:** `.autopilot` shows the setting and how many reports are due; `.agent` shows it too.
+
+### Changed
+- The campaign loop now has one paced "send one message" step shared by every kind of campaign (listing, price drop, welcome, follow-up, owner reports). The sending behaviour is unchanged; the existing campaign tests pass as before.
+
+### Checked
+- 2 tests (343 in total). They cover:
+  - who is due (stale, sold, new, no owner number, no news, opted out);
+  - Saturdays only, from the sending hours, once a day;
+  - the report text and opt-out line, and the summary to you;
+  - the next week's queue, and stop/start from the owner;
+  - "وقف التقارير" from a non-owner, and a plain "وقف" not being taken for it.
+
 ## 3.29.0 — 2026-10-10
 
 ### Added — a marketing report for listings' owners
