@@ -201,7 +201,8 @@ function message(listing, lead, agent, mode) {
   const head = cut
     ? `📉 *نزل سعره!*${(lead.sentListings || []).includes(listing.id) ? " العقار اللي بعتهولك قبل كده" : ""}\nبقى ${re.shortAr(listing.price)} بدل ${re.shortAr(cut.was)} ${agent.currency || "جنيه"} (خصم ${cut.pct}%)`
     : "عندي عقار مناسب لطلبك:";
-  return `${hi}${head}\n\n${re.card(listing, agent)}\n\nللاستفسار رد على الرسالة أو أرسل: #${listing.id}\n${OPT_OUT_LINE}`;
+  const book = agent.booking ? `\n🗓️ لحجز معاينة ابعت: معاينة ${listing.id}` : "";
+  return `${hi}${head}\n\n${re.card(listing, agent)}\n\nللاستفسار رد على الرسالة أو أرسل: #${listing.id}${book}\n${OPT_OUT_LINE}`;
 }
 
 /**

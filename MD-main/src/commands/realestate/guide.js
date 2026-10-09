@@ -29,7 +29,7 @@ module.exports = {
 ${p}agent requests on — العميل يكتب طلبه ("عايز شقة في التجمع ميزانية 3 مليون") فيرد عليه البوت بأقرب العقارات ويحفظه`],
       [Boolean(ar.away || ar.greet), `*٥. الرد التلقائي*\n${p}greet on رسالة ترحيب لأول تواصل\n${p}awaymsg on رسالة خارج المواعيد · ${p}awaymsg hours 10:00-22:00`],
       [autolistings.anyOn(ctx.state), `*٦. النشر*\n${p}flyer <رقم> صورة إعلان · ${p}story <رقم> تصميم للحالة · ${p}collage <رقم> كولاج الصور · ${p}adcopy <رقم> نص إعلان\n${p}autolistings on 10:00 في الجروب: عقار كل يوم · ${p}statuspost daily 09:00 على حالتك كل يوم\n${p}brochure كتالوج PDF للعميل`],
-      [Boolean(digest.get(ctx.state, ctx.chatId)), `*٧. يومك*\n${p}digest on 08:30 ملخص الصباح\n${p}viewing add <عميل> <عقار> بكرة 4م · ${p}lead follow <عميل> بكرة 10ص\nبعد المعاينة: ${p}viewing done <رقم> liked|thinking|no · ${p}viewings ics لإضافة المواعيد لتقويم موبايلك`],
+      [Boolean(digest.get(ctx.state, ctx.chatId)), `*٧. يومك*\n${p}digest on 08:30 ملخص الصباح\n${p}viewing add <عميل> <عقار> بكرة 4م · ${p}lead follow <عميل> بكرة 10ص\nالعميل يحجز بنفسه: ${p}agent booking on (يبعت معاينة) · ${p}viewing hours 11:00-19:00\nبعد المعاينة: ${p}viewing done <رقم> liked|thinking|no · ${p}viewings ics لإضافة المواعيد لتقويم موبايلك`],
     ];
     const next = steps.findIndex(([ok]) => !ok);
     return ctx.reply(

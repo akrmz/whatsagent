@@ -27,14 +27,14 @@ const upcoming = (state, now = Date.now()) =>
     .filter((v) => v.at > now - KEEP_AFTER_MS)
     .sort((a, b) => a.at - b.at);
 
-function add(state, { lead, listing, at, chat, by, notifyClient = false }, now = Date.now()) {
+function add(state, { lead, listing, at, chat, by, notifyClient = false, self = false }, now = Date.now()) {
   if (!leads.get(state, lead)) throw new UserError(`There is no client #${lead}.`);
   if (!re.get(state, listing)) throw new UserError(`There is no listing #${listing}.`);
   if (at < now) throw new UserError("That time has already passed.");
   const v = store(state).update((d) => {
     if (Object.keys(d.items).length >= MAX_VIEWINGS) throw new UserError("Too many viewings saved.");
     const id = ++d.seq;
-    d.items[id] = { id, lead, listing, at, chat, by, bookedAt: now, ...(notifyClient ? { notifyClient: true } : {}) };
+    d.items[id] = { id, lead, listing, at, chat, by, bookedAt: now, ...(notifyClient ? { notifyClient: true } : {}), ...(self ? { self: true } : {}) };
     return d.items[id];
   });
   team.record(state, by, "viewings", 1, now);

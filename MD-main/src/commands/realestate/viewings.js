@@ -1,6 +1,7 @@
 "use strict";
 
 const viewings = require("../../services/viewings");
+const booking = require("../../services/selfbooking");
 const leads = require("../../services/leads");
 const re = require("../../services/realestate");
 const { parseWhen } = require("../../services/reminders");
@@ -18,9 +19,9 @@ module.exports = [
     aliases: ["moaayna", "visit", "showing"],
     category: "realestate",
     description:
-      "مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add \"send\" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Two hours after, you are asked how it went: \"done\" records it (liked moves the client to negotiating). Owner and sudo users.",
-    usage: "add <client> <listing> <when> [send] | done <id> liked|thinking|no [note] | del <id>",
-    examples: [".viewing add 5 12 tomorrow at 4pm", ".viewing add 5 12 friday at 18:00 send", ".viewing done 3 liked عايز يتفاوض على السعر", ".viewing del 3"],
+      "مواعيد المعاينة — book a viewing: a client, a listing and a time. You get a reminder an hour before (in this chat); add \"send\" to also send the client a confirmation on WhatsApp. The client moves to the viewing stage. Two hours after, you are asked how it went: \"done\" records it (liked moves the client to negotiating). \"hours\", \"days\" and \"length\" set when clients may book themselves (.agent booking on: they send معاينة and pick a free time); \"slots\" shows the next free times. Owner and sudo users.",
+    usage: "add <client> <listing> <when> [send] | done <id> liked|thinking|no [note] | del <id> | hours 11:00-19:00 | days sat-thu | length 60 | slots",
+    examples: [".viewing add 5 12 tomorrow at 4pm", ".viewing add 5 12 friday at 18:00 send", ".viewing done 3 liked عايز يتفاوض على السعر", ".viewing del 3", ".viewing hours 11:00-19:00", ".viewing days sat-thu", ".viewing slots"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -46,6 +47,25 @@ module.exports = [
                 ? `\n📅 Book again: ${ctx.prefix}viewing add ${v.lead} ${v.listing} <when> send${(c?.noShows || 0) > 1 ? ` · ⚠️ ${c.noShows} missed viewings so far` : ""}`
                 : `\n🔎 Other listings for them: ${ctx.prefix}lead ${v.lead}`;
         return ctx.reply(`📝 Viewing #${id}: ${viewings.RESULTS[result].ar}${note ? ` — ${note}` : ""} (${c ? `${c.name || "عميل"} #${c.id}` : `#${v.lead}`}, #${v.listing})${next}`);
+      }
+      // Self-booking (.agent booking on): the hours and days clients can pick from.
+      if (["hours", "days", "length", "slots", "مواعيد"].includes(sub)) {
+        const value = ctx.args.slice(1).join(" ");
+        if (sub === "hours" && value) booking.setHours(ctx.state, value);
+        if (sub === "days" && value) booking.setDays(ctx.state, value);
+        if (sub === "length" && value) booking.setLength(ctx.state, Number(re.latinDigits(value)));
+        const free = booking.freeSlots(ctx.state, zone);
+        const on = re.agent(ctx.state).booking;
+        return ctx.reply(
+          [
+            `🗓️ *Viewing hours for self-booking*: ${booking.describe(booking.settings(ctx.state))}`,
+            `Clients booking themselves: ${on ? "on" : `off — ${ctx.prefix}agent booking on`}`,
+            "",
+            free.length ? `Next free times:\n${free.map((t) => `▫️ ${viewings.when(t, zone)}`).join("\n")}` : "No free time in the next 7 days.",
+            "",
+            `Change: ${ctx.prefix}viewing hours 11:00-19:00 · ${ctx.prefix}viewing days sat-thu · ${ctx.prefix}viewing length 60`,
+          ].join("\n"),
+        );
       }
       if (sub !== "add" && sub !== "new") return ctx.reply(`Usage: ${ctx.prefix}viewing add <client> <listing> tomorrow at 4pm [send] · ${ctx.prefix}viewing done <viewing> liked|thinking|no · ${ctx.prefix}viewings`);
       const [lead, listing] = [idOf(ctx.args[1]), idOf(ctx.args[2])];

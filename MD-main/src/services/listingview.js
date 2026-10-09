@@ -22,7 +22,11 @@ const ownerLine = (ctx, l) => (l.owner && staffOnlyChat(ctx) ? `\n\n🔑 الم�
 
 async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   const a = re.agent(ctx.state);
-  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l);
+  // A client in a private chat, with self-booking on: remembered, so "معاينة" means this one.
+  const canBook = a.booking && !ctx.isSudoOrOwner && !ctx.isGroup && l.status === "available";
+  if (canBook) require("./selfbooking").noteViewed(ctx.state, ctx.sender, l.id);
+  const bookLine = canBook ? (lang === "en" ? `\n\n🗓️ To book a viewing, send: معاينة ${l.id}` : `\n\n🗓️ لحجز معاينة ابعت: معاينة ${l.id}`) : "";
+  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l) + bookLine;
   if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views"); // client interest only, not the team's own views
   const pics = re.photos(ctx.config, l);
   if (!pics.length) return ctx.reply(text);
