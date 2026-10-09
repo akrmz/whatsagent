@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.35.0 — 2026-10-10
+
+### Added — no handed-over client is forgotten
+- **`.assistant inbox`** lists the clients the assistant handed over to you ("محتاج رد منك") who haven't had your reply yet, oldest first.
+  - Each line shows the name, number, how long they have waited, what they wrote (🎤 for a voice note, numbers masked) and the `.lead` command.
+  - A client leaves the list when you reply to them from your phone (or pause the assistant for them), with **`.assistant done 5`**, or when the client is won or lost.
+  - Entries are kept up to a week (at most 200).
+- **One reminder** ("⏰ لسه مستني ردك") if a client is still waiting 2 hours after the handoff. It goes to the client's assigned team member, else the owner. It is sent between 09:00 and 22:00, so a night handoff is reminded in the morning.
+- **The morning summary** lists who is waiting ("🙋 مستنيين ردك"), and `.assistant` shows the count.
+- The list names clients, so `.assistant inbox` and `done` only work in your private chat with the bot or a group of staff only (see B-21).
+
+### Checked
+- 1 test (357 in total). It covers:
+  - the inbox line, refused in a mixed group, and the count in `.assistant`;
+  - no reminder before 2 hours, then one only;
+  - the summary line, and clearing when the agent replies from the phone;
+  - a night handoff reminded in the morning;
+  - `done`, and a lost client dropping out.
+
 ## 3.34.0 — 2026-10-10
 
 ### Added — the assistant sends listings and saves what the client wants
