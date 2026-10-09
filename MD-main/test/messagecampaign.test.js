@@ -117,3 +117,34 @@ test("a picture goes with every message and is deleted when the campaign ends; a
   assert.equal(fs.existsSync(file), false, "the picture is deleted when it's done");
   t.mock.timers.reset();
 });
+
+test("ready greetings fill {name} and {agent}; a message can wait for a date and time", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: at("2026-10-10", "12:00") });
+  const b = bot();
+  const re = require("../src/services/realestate");
+  re.setAgent(b.s, "name", "أحمد");
+  re.setAgent(b.s, "company", "دار للتسويق");
+  await b.send(".blast msg رمضان");
+  assert.match(b.last(), /#1 reads:\n┈┈┈┈┈┈┈┈\nرمضان كريم يا منى 🌙\nكل سنة وانت طيب، وربنا يتقبل منا ومنكم صالح الأعمال\.\n— أحمد · دار للتسويق\n\nلإيقاف رسائل العروض أرسل: وقف\n/);
+  assert.equal(campaigns.messageText({}, campaigns.occasion("عيد الأضحى"), {}), "عيد أضحى مبارك 🐑\nكل سنة وانت طيب، وينعاد عليك وعلى عيلتك بالخير.\n\nلإيقاف رسائل العروض أرسل: وقف", "no name, no agent: nothing dangling");
+
+  await b.send(".blast msg go someday");
+  assert.match(b.last(), /When\? e\.g\./);
+  await b.send(".blast msg go 2026-10-01 09:00");
+  assert.match(b.last(), /from a minute to 60 days from now/);
+  await b.send(".blast msg go 15/10 09:30");
+  assert.match(b.last(), /^🕒 Message #\d+ to 2 client\(s\) is scheduled for /);
+  const c = campaigns.running(b.s)[0];
+  assert.equal(c.startAt, at("2026-10-15", "09:30"));
+  await b.send(".campaigns");
+  assert.match(b.last(), /🕒 يبدأ الخميس، 15 أكتوبر/);
+  assert.equal(await campaigns.tick(b.app, at("2026-10-12", "12:00"), () => 0), "idle", "waits for its day");
+  assert.equal(await campaigns.tick(b.app, at("2026-10-15", "09:45"), () => 0), "hours", "and for the sending hours");
+  assert.equal(await campaigns.tick(b.app, at("2026-10-15", "10:00"), () => 0), "sent");
+  assert.match(b.to("201000000001").at(-1).content.text, /^رمضان كريم يا منى 🌙/);
+
+  await b.send(".blast msg\nأهلاً {name}");
+  await b.send(".blast msg go 20/09 09:00");
+  assert.match(b.last(), /from a minute to 60 days/, "20/09 has passed this year: next year is too far");
+  t.mock.timers.reset();
+});

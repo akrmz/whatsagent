@@ -7,6 +7,8 @@ const fs = require("node:fs");
 const path = require("node:path");
 const crypto = require("node:crypto");
 const { UserError } = require("../../core/errors");
+const { parseWhen } = require("../../services/reminders");
+const { localDate, zonedInstant, parseTime } = require("../../services/timecalc");
 
 const idOf = (s) => {
   const n = Number(re.latinDigits(String(s || "")).replace(/^#/, ""));
@@ -20,6 +22,30 @@ const STATUS_AR = { running: "▶️ جارية", done: "✅ انتهت", stoppe
 const MSG = /^(msg|message|رسالة|رساله|تهنئة|تهنئه)$/;
 const GO = /^(go|start|yes|ابدأ|ابدا|نعم|تمام)$/;
 const DRAFT_FOR = 15 * 60 * 1000;
+const MAX_AHEAD = 60 * 24 * 3600 * 1000;
+
+/**
+ * When a scheduled message starts: "20/10 09:00", "2026-10-20 9am" (a date without a time is
+ * 09:00; a day/month already past this year means next year), or what .remind understands
+ * ("friday at 9am", "tomorrow at 9am", "بكرة 9 الصبح"). @returns {number|null}
+ */
+function whenFrom(text, timeZone, now = Date.now()) {
+  const t = re.latinDigits(String(text || "")).trim();
+  const m = t.match(/^(?:(\d{4})-(\d{1,2})-(\d{1,2})|(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?)(?:\s+(?:at\s+)?(.+))?$/i);
+  if (m) {
+    const today = localDate(timeZone, now);
+    const [y, mo, d] = m[1] ? [+m[1], +m[2], +m[3]] : [m[6] ? +m[6] : today.y, +m[5], +m[4]];
+    const minutes = m[7] ? parseTime(m[7]) : 9 * 60;
+    if (minutes === null || mo < 1 || mo > 12 || d < 1 || d > 31) return null;
+    let at = zonedInstant(timeZone, { y, m: mo, d }, minutes);
+    if (!m[1] && !m[6] && at < now) at = zonedInstant(timeZone, { y: y + 1, m: mo, d }, minutes);
+    return at;
+  }
+  const w = parseWhen(t, timeZone, now);
+  return w && !w.every && !w.rest ? now + w.ms : null;
+}
+
+const whenLabel = (t, timeZone) => new Intl.DateTimeFormat("ar-EG-u-nu-latn", { timeZone, weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" }).format(new Date(t));
 const drafts = new Map(); // sender → { text, audience, image?: Buffer, at } — in memory, until "go"
 
 /**
@@ -32,6 +58,11 @@ async function messageCampaign(ctx, arg) {
   if (GO.test(arg)) {
     const d = drafts.get(ctx.sender);
     if (!d || Date.now() - d.at > DRAFT_FOR) throw new UserError(`Nothing to send: write the message first (${p}blast msg …), then ${p}blast msg go within 15 minutes.`);
+    // ".blast msg go 20/10 09:00" (or "friday at 9am", "tomorrow at 9am"): it waits until then.
+    const whenText = ctx.args.slice(2).join(" ");
+    const startAt = whenText ? whenFrom(whenText, ctx.config.bot.timezone) : null;
+    if (whenText && !startAt) throw new UserError(`When? e.g. ${p}blast msg go 20/10 09:00 · ${p}blast msg go friday at 9am · ${p}blast msg go tomorrow at 9am`);
+    if (startAt && (startAt < Date.now() + 60 * 1000 || startAt > Date.now() + MAX_AHEAD)) throw new UserError("Pick a time from a minute to 60 days from now.");
     let image;
     if (d.image) {
       image = `${crypto.randomUUID()}.jpg`;
@@ -40,19 +71,21 @@ async function messageCampaign(ctx, arg) {
     }
     let c;
     try {
-      c = campaigns.startMessage(ctx.state, { by: ctx.sender, chat: ctx.chatId, text: d.text, image, audience: d.audience });
+      c = campaigns.startMessage(ctx.state, { by: ctx.sender, chat: ctx.chatId, text: d.text, image, audience: d.audience, startAt });
     } catch (err) {
       if (image) campaigns.dropImage(ctx.config, { image });
       throw err;
     }
     drafts.delete(ctx.sender);
     const e = campaigns.estimate(ctx.state, c.total);
+    if (c.startAt) return ctx.reply(`🕒 Message #${c.id} to ${c.total} client(s) is scheduled for ${whenLabel(c.startAt, ctx.config.bot.timezone)} (then about ${e.minutes} min of sending, within your sending hours).\n${p}campaigns — see it · ${p}blast stop ${c.id} — cancel`);
     return ctx.reply(`▶️ Message #${c.id} started: ${c.total} client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done.\n${p}campaigns — progress · ${p}blast stop ${c.id}`);
   }
 
   const body = ctx.text.replace(/^\s*\S+/, ""); // after "msg"
   const [first, ...rest] = body.replace(/^[ \t]+/, "").split("\n");
-  const [filters, text] = rest.join("\n").trim() ? [first, rest.join("\n").trim()] : ["", first.trim()];
+  const [filters, written] = rest.join("\n").trim() ? [first, rest.join("\n").trim()] : ["", first.trim()];
+  const text = campaigns.occasion(written) || written; // "رمضان", "عيد", "الأضحى", "سنة جديدة": a ready greeting
   if (!text) {
     return ctx.reply(
       [
@@ -65,7 +98,10 @@ async function messageCampaign(ctx, arg) {
         `${p}blast msg التجمع شقة`,
         "عندنا وحدات جديدة في التجمع الخامس …",
         "",
-        "Filters: a status (new, viewing, negotiating, won …), a type (شقة …), بيع/إيجار, area words, or all (lost clients too). {name} becomes each client's name. Send it with a picture (or reply to one) to attach it.",
+        "Filters: a status (new, viewing, negotiating, won …), a type (شقة …), بيع/إيجار, area words, or all (lost clients too). {name} becomes each client's name, {agent} your name and company. Send it with a picture (or reply to one) to attach it.",
+        "",
+        `Ready greetings: ${p}blast msg رمضان · عيد · الأضحى · سنة جديدة`,
+        `At a time: ${p}blast msg go 20/10 09:00 · ${p}blast msg go friday at 9am`,
       ].join("\n"),
     );
   }
@@ -91,11 +127,11 @@ async function messageCampaign(ctx, arg) {
       "",
       `${image ? "🖼️ With the picture. " : ""}#${people[0].id} reads:`,
       "┈┈┈┈┈┈┈┈",
-      campaigns.messageText(people[0], text),
+      campaigns.messageText(people[0], text, re.agent(ctx.state)),
       "┈┈┈┈┈┈┈┈",
       `⏱️ One every ${s.gapMin}–${s.gapMax} s, ${s.from}–${s.to}, at most ${s.perDay} a day: about ${e.minutes} min${e.days > 1 ? ` over ${e.days} days` : ""}.`,
       "",
-      `Send it: ${p}blast msg go (within 15 minutes)`,
+      `Send it: ${p}blast msg go (within 15 minutes) · or at a time: ${p}blast msg go 20/10 09:00 · ${p}blast msg go friday at 9am`,
     ]
       .filter((x) => x !== null)
       .join("\n"),
@@ -110,7 +146,8 @@ function list(ctx) {
   const tz = ctx.config.bot.timezone;
   const hhmm = (t) => new Intl.DateTimeFormat("en-GB", { timeZone: tz, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(t));
   for (const c of items) {
-    const waiting = c.status === "running" && c.startAt > Date.now() ? ` · 🕒 يبدأ ${hhmm(c.startAt)}` : "";
+    const soon = c.startAt - Date.now() < 20 * 3600 * 1000;
+    const waiting = c.status === "running" && c.startAt > Date.now() ? ` · 🕒 يبدأ ${soon ? hhmm(c.startAt) : whenLabel(c.startAt, tz)}` : "";
     lines.push("", `${STATUS_AR[c.status] || c.status} ${campaigns.summary(c)}${c.status === "running" ? ` · ⏳ ${c.queue.length} متبقي` : ""}${waiting}`);
   }
   if (items.some((c) => c.status === "running")) lines.push("", `Stop one: ${ctx.prefix}blast stop <number>`);

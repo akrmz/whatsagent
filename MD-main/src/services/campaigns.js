@@ -202,15 +202,27 @@ const messageTargets = (state, a) =>
     .sort((x, y) => x.id - y.id)
     .slice(0, MAX_AUDIENCE);
 
-/** The text one client gets: {name} filled in, and how to stop. */
-const messageText = (lead, text) =>
+/** Ready greetings for the occasions (".blast msg رمضان"); {name} and {agent} are filled in. */
+const OCCASIONS = {
+  ramadan: { words: ["رمضان", "ramadan"], text: "رمضان كريم يا {name} 🌙\nكل سنة وانت طيب، وربنا يتقبل منا ومنكم صالح الأعمال.\n{agent}" },
+  eid: { words: ["عيد", "العيد", "عيد الفطر", "الفطر", "eid"], text: "عيد سعيد يا {name} 🎉\nكل سنة وانت وعيلتك بألف خير، وينعاد عليكم بالصحة والسعادة.\n{agent}" },
+  adha: { words: ["الأضحى", "الاضحى", "عيد الأضحى", "عيد الاضحى", "adha"], text: "عيد أضحى مبارك يا {name} 🐑\nكل سنة وانت طيب، وينعاد عليك وعلى عيلتك بالخير.\n{agent}" },
+  newyear: { words: ["سنة جديدة", "السنة الجديدة", "رأس السنة", "راس السنة", "newyear", "new year"], text: "سنة جديدة سعيدة يا {name} ✨\nنتمنالك سنة مليانة خير ونجاح، ولو بتفكر في عقار جديد السنة دي أنا موجود.\n{agent}" },
+};
+/** The ready greeting a whole message names ("رمضان", "عيد الأضحى"), or null. */
+const occasion = (text) => Object.values(OCCASIONS).find((o) => o.words.includes(String(text || "").trim().toLowerCase()))?.text || null;
+
+/** The text one client gets: {name} and {agent} filled in, and how to stop. */
+const messageText = (lead, text, agent = {}) =>
   `${String(text)
+    .replace(/\{agent\}/g, [agent.name, agent.company].filter(Boolean).length ? `— ${[agent.name, agent.company].filter(Boolean).join(" · ")}` : "")
+    .replace(/ ?يا \{name\}/g, lead.name ? ` يا ${lead.name}` : "") // no name: no dangling "يا"
     .replace(/\{name\}/g, lead.name || "")
     .replace(/ {2,}/g, " ")
     .replace(/ ([،.؟!,])/g, "$1")
     .trim()}\n\n${OPT_OUT_LINE}`;
 
-function startMessage(state, { by, chat, text, image, audience }, now = Date.now()) {
+function startMessage(state, { by, chat, text, image, audience, startAt }, now = Date.now()) {
   const t = String(text || "").trim();
   if (t.length < 2 || t.length > MAX_MESSAGE) throw new UserError(`The message is 2 to ${MAX_MESSAGE} characters.`);
   if (running(state).some((c) => c.kind === "message")) throw new UserError("A message to clients is already being sent (.campaigns). Wait for it, or stop it.");
@@ -219,7 +231,7 @@ function startMessage(state, { by, chat, text, image, audience }, now = Date.now
   if (!queue.length) throw new UserError("No client matches (with a number, and who hasn't said stop).");
   return store(state).update((d) => {
     const id = ++d.seq;
-    d.items[id] = { id, kind: "message", text: t, ...(image ? { image } : {}), audience: audienceText(audience), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    d.items[id] = { id, kind: "message", text: t, ...(image ? { image } : {}), ...(startAt > now ? { startAt } : {}), audience: audienceText(audience), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
     return d.items[id];
   });
 }
@@ -368,7 +380,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
       leads.markNudged(app.state, lead.id, c.by, now);
     } else if (msg) {
       // Not a listing: no reply tracking or follow-up starts from it, only a note.
-      const text = messageText(lead, c.text);
+      const text = messageText(lead, c.text, re.agent(app.state));
       const file = c.image && imagePath(app.config, c.image);
       await app.sock.sendMessage(jid, file && fs.existsSync(file) ? { image: fs.readFileSync(file), caption: text } : { text });
       leads.note(app.state, lead.id, c.by, `أُرسلت له رسالة (#${c.id}): ${c.text.slice(0, 60)}${c.text.length > 60 ? "…" : ""}`, now);
@@ -399,4 +411,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, startMessage, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, startMessage, occasion, OCCASIONS, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
