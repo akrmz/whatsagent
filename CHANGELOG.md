@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.47.0 — 2026-10-10
+
+### Added — down payments and instalments (resale units sold in instalments)
+- **Listings:** the down payment and the instalment years are read like the other details:
+  - "مقدم 2 مليون والباقي على 5 سنين";
+  - "مقدم 25%" (worked out from the price);
+  - "تقسيط على 72 شهر" (6 years);
+  - the lines `المقدم:` and `التقسيط:`.
+
+  A down payment that isn't below the price, or more than 15 years, is dropped as a misreading. The card shows "💳 مقدم 2,000,000 جنيه (25%) · الباقي على 5 سنين ≈ 100,000 جنيه شهرياً" (the rest split evenly, no interest, like developers' plans). The English card shows the same, and rentals never do.
+- **Clients:** a down-payment budget is read too: "معايا مقدم مليون", "ومقدم 2 مليون", "مقدم في حدود 800 ألف", or the line `المقدم: 1.5 مليون`. It's shown on the card as "مقدم حتى …". The amount after "مقدم" is no longer taken as the total budget, and "في حدود 3 مليون" is no longer taken as a place.
+- **Matching:** a buyer with a down payment fits a unit whose down payment they can make (+10%), whatever its full price. Cash-only units still need the whole price within their budget, and with both a budget and a down payment either way fits. This applies everywhere clients are matched:
+  - `.listing match`, campaigns and automatic campaigns, and price drops;
+  - written requests (which now save the down payment);
+  - revive, the client menu, and the assistant (whose `[WANTS]` now has `down=`).
+- **Search:** `.listings تقسيط` lists only units sold in instalments; `.listings شاليه مقدم 2m` those whose down payment is at most 2 million.
+
+### Checked
+- 3 tests (380 in total), and a broker-post test updated (its post had "بمقدم 2 مليون والباقي على 6 سنين", now read). They cover:
+  - parsing (amount, %, months, labelled lines, a misreading dropped), and the Arabic and English cards (none for rentals);
+  - clients' down payments, and the budget text;
+  - matching (down payment fits, cash needs the whole price, too large a down payment, budget plus down payment, no down payment said);
+  - from chat: the card, the search filters, the client card, `.listing match`, and a written request answered and saved by down payment.
+
 ## 3.46.0 — 2026-10-10
 
 ### Added — market prices as pictures to post
