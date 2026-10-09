@@ -56,6 +56,7 @@ function pause(state, key, ms = PAUSE_MS, now = Date.now()) {
   store(state).update((d) => {
     for (const [k, until] of Object.entries(d.paused)) if (until <= now) delete d.paused[k];
     d.paused[key] = now + ms;
+    if (d.waiting) delete d.waiting[key]; // the agent is on it
   });
   aiUsage.forget(`assistant|${key}`);
 }
@@ -67,6 +68,70 @@ const pausedUntil = (state, key, now = Date.now()) => {
   return until > now ? until : 0;
 };
 const pausedCount = (state, now = Date.now()) => Object.values(store(state).data.paused).filter((u) => u > now).length;
+
+// ---- clients waiting for the agent (after a handoff) ---------------------------------------
+// waiting: { [key]: { at, lead?, name, text, voice, reminded? } } — cleared when the agent
+// replies from the phone (or pauses the assistant for them), or with ".assistant done".
+
+const REMIND_AFTER = 2 * 3600 * 1000;
+const KEEP_WAITING = 7 * 24 * 3600 * 1000;
+const MAX_WAITING = 200;
+
+function markWaiting(state, key, entry, now = Date.now()) {
+  store(state).update((d) => {
+    d.waiting ||= {};
+    const was = d.waiting[key];
+    d.waiting[key] = { ...entry, at: was?.at || now }; // waiting since the first unanswered handoff
+    const keys = Object.keys(d.waiting).sort((a, b) => d.waiting[a].at - d.waiting[b].at);
+    for (const k of keys.slice(0, Math.max(0, keys.length - MAX_WAITING))) delete d.waiting[k];
+  });
+}
+
+function clearWaiting(state, key) {
+  const had = Boolean(store(state).data.waiting?.[key]);
+  if (had) store(state).update((d) => delete d.waiting[key]);
+  return had;
+}
+
+/** Clients still waiting for the agent, oldest first (a week at most; won/lost clients drop out). */
+function waiting(state, now = Date.now()) {
+  return Object.entries(store(state).data.waiting || {})
+    .map(([key, w]) => ({ key, ...w }))
+    .filter((w) => now - w.at < KEEP_WAITING)
+    .filter((w) => !w.lead || !["won", "lost"].includes(leads.get(state, w.lead)?.status))
+    .sort((a, b) => a.at - b.at);
+}
+
+const ago = (ms) => (ms < 3600 * 1000 ? `${Math.max(1, Math.round(ms / 60000))} دقيقة` : ms < 48 * 3600 * 1000 ? `${Math.round(ms / 3600000)} ساعة` : `${Math.round(ms / 86400000)} يوم`);
+
+/** "▫️ منى (+2010…) — من 3 ساعة: "…" · .lead 5" */
+const waitingLine = (w, now, p = ".") =>
+  `▫️ ${w.name || "عميل"}${/^\d{8,15}$/.test(w.key) ? ` (+${w.key})` : ""} — من ${ago(now - w.at)}${w.voice ? " 🎤" : ""}: "${w.text.slice(0, 80)}"${w.lead ? ` · ${p}lead ${w.lead}` : ""}`;
+
+/**
+ * One reminder for a client still waiting 2 hours after a handoff, sent between 09:00 and
+ * 22:00 (a night handoff is reminded in the morning). @returns {Promise<number>} reminders sent
+ */
+async function remindDue(app, now = Date.now()) {
+  if (!app.sock || app.health.state !== "open" || !re.agent(app.state).assistant) return 0;
+  const { minutes } = zoneNow(app.config.bot.timezone, now);
+  if (minutes < 9 * 60 || minutes >= 22 * 60) return 0;
+  let sent = 0;
+  for (const w of waiting(app.state, now).filter((x) => !x.reminded && now - x.at >= REMIND_AFTER)) {
+    store(app.state).update((d) => d.waiting[w.key] && (d.waiting[w.key].reminded = now));
+    const lead = w.lead ? leads.get(app.state, w.lead) : null;
+    const agent = lead?.assignee || `${app.config.owners.numbers[0]}@s.whatsapp.net`;
+    await app.sock.sendMessage(agent, { text: `⏰ *لسه مستني ردك*\n${waitingLine(w, now, app.config.bot.prefix)}\n\nكل اللي مستنيين: ${app.config.bot.prefix}assistant inbox` }).catch(() => {});
+    sent++;
+  }
+  return sent;
+}
+
+function startAssistantLoop(app) {
+  const timer = setInterval(() => remindDue(app).catch((err) => app.log.warn({ err: err.message }, "assistant reminders failed")), 60 * 1000);
+  timer.unref?.();
+  return () => clearInterval(timer);
+}
 
 // ---- what the AI is given ------------------------------------------------------------------
 
@@ -322,6 +387,7 @@ async function handle(ctx, now = Date.now()) {
   }
   saveWants(ctx.state, lead, result.wants, now);
 
+  if (result.handoff) markWaiting(ctx.state, key, { lead: lead?.id, name: lead?.name || ctx.senderName || "", text: redactPhones(text).slice(0, 200), voice: Boolean(voice) }, now);
   if (result.handoff && tellOnce(ctx.state, key)) {
     const agent = lead?.assignee || `${ctx.config.owners.numbers[0]}@s.whatsapp.net`;
     const who = `${lead?.name || ctx.senderName || "عميل"}${phone ? ` (+${phone})` : ""}`;
@@ -335,4 +401,4 @@ async function handle(ctx, now = Date.now()) {
   return true;
 }
 
-module.exports = { handle, answer, parseWants, saveWants, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };
+module.exports = { handle, answer, parseWants, saveWants, markWaiting, clearWaiting, waiting, waitingLine, remindDue, startAssistantLoop, systemPrompt, setInfo, info, pause, resume, pausedUntil, pausedCount, keyOf, answeredToday, PAUSE_MS, PER_CLIENT_DAY, PER_DAY, MAX_INFO };

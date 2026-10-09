@@ -6,6 +6,7 @@ const viewings = require("./viewings");
 const rentals = require("./rentals");
 const hotleads = require("./hotleads");
 const weekly = require("./weekly");
+const assistant = require("./assistant");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 
@@ -49,6 +50,9 @@ function build(state, timeZone, now = Date.now()) {
   if (open.length) lines.push(`📝 بدون نتيجة: ${open.slice(0, 6).map((v) => `#${v.id}`).join("، ")} — .viewing done <رقم> liked|thinking|no`);
   lines.push("", `⏰ *متابعات اليوم (${followUps.length})*`);
   lines.push(...(followUps.length ? followUps.slice(0, 15).map((l) => `${hhmm(l.followUp.at, timeZone)} ${leads.line(l, cur)}${l.followUp.note ? ` — ${l.followUp.note}` : ""}`) : ["لا توجد"]));
+  // Clients the customer assistant handed over who haven't had a reply yet.
+  const waiting = assistant.waiting(state, now);
+  if (waiting.length) lines.push("", `🙋 *مستنيين ردك (${waiting.length})*`, ...waiting.slice(0, 8).map((w) => assistant.waitingLine(w, now)), ...(waiting.length > 8 ? ["… .assistant inbox"] : []));
   const top = hotleads.hot(state, 3, now);
   if (top.length) lines.push("", "🔥 *ابدأ بهؤلاء اليوم*", ...top.map((h) => hotleads.line(h, cur)));
   if (fresh.length) lines.push("", `🆕 *عملاء جدد آخر 24 ساعة (${fresh.length})*`, ...fresh.slice(0, 10).map((l) => leads.line(l, cur)));

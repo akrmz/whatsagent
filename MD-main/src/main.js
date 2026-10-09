@@ -36,6 +36,7 @@ const { startViewingsLoop } = require("./services/viewings");
 const { startDigestLoop } = require("./services/digest");
 const { startCampaignLoop } = require("./services/campaigns");
 const { startRentalsLoop } = require("./services/rentals");
+const { startAssistantLoop } = require("./services/assistant");
 const { startAutoUpdate } = require("./services/autoupdate");
 const { startGroupScheduleLoop } = require("./services/gcschedule");
 
@@ -195,6 +196,7 @@ async function start() {
   require("./services/team").setTimeZone(app.config.bot.timezone); // monthly team counters start at local midnight
   const stopCampaigns = startCampaignLoop(app);
   const stopRentals = startRentalsLoop(app);
+  const stopAssistant = startAssistantLoop(app);
   const stopNotices = startNoticeLoop(app, require("../package.json").version);
   app.connection = connection;
 
@@ -219,6 +221,7 @@ async function start() {
     stopDigest();
     stopCampaigns();
     stopRentals();
+    stopAssistant();
     connection.stop();
     app.state.flush();
     health?.close();

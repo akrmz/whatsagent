@@ -29,6 +29,7 @@ const HELP = (p) =>
     `${p}assistant info <text> — office facts it may use (address, hours, how you work) · ${p}assistant info clear`,
     `${p}assistant test <question> — see what a client would get`,
     `${p}assistant pause 5 [hours] · ${p}assistant resume 5 — stop or restart it for one client`,
+    `${p}assistant inbox — clients waiting for your reply (reminded once after 2 hours) · ${p}assistant done 5`,
     "",
     "When you answer a client yourself from your phone, it steps back in that chat for 12 hours.",
   ].join("\n");
@@ -39,7 +40,7 @@ module.exports = {
   category: "realestate",
   description:
     "المساعد الذكي للعملاء — a chatbot for your clients: in private chats the AI answers their questions (prices, areas, sizes, payment plans, what is available) from your catalogue, projects and office information only, never inventing prices or features. When it can't answer, or the client wants to negotiate, call or reserve, it says you'll follow up and tells you. It sends the cards of listings it recommends, saves what the client wants on their card, and also answers voice notes (written out first, with a Gemini or OpenAI key). It steps back for 12 hours in a chat where you reply yourself. Needs an AI key (.setai). Owner and sudo users.",
-  usage: "on | off | info <text>|clear | test <question> | pause <client> [hours] | resume <client>",
+  usage: "on | off | info <text>|clear | test <question> | inbox | done <client> | pause <client> [hours] | resume <client>",
   examples: [".assistant on", ".assistant info المكتب في التجمع الخامس، من السبت للخميس 11ص–7م. العمولة 2.5% على المشتري.", ".assistant test فيه شقق في التجمع تحت 3 مليون؟", ".assistant pause 5", ".assistant"],
   permission: "sudo",
   cooldown: 3,
@@ -75,6 +76,20 @@ module.exports = {
       ].filter(Boolean);
       return ctx.reply(`🧪 *A client would get:*\n\n${text}${extra.length ? `\n\n${extra.join("\n")}` : ""}`);
     }
+    if (sub === "inbox" || sub === "waiting" || sub === "done") {
+      // Names and numbers: only where no outsider reads them (see B-21).
+      if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 The list names clients: use ${p}assistant ${sub} in your private chat with the bot, or in a group of staff only.`);
+      if (sub === "done") {
+        const { key, label } = clientKey(ctx, ctx.args[1]);
+        return ctx.reply(assistant.clearWaiting(ctx.state, key) ? `✅ ${label} is off the waiting list.` : `${label} wasn't waiting.`);
+      }
+      const now = Date.now();
+      const list = assistant.waiting(ctx.state, now);
+      if (!list.length) return ctx.reply("✅ Nobody is waiting for you: every client the assistant handed over has had your reply.");
+      return ctx.reply(
+        [`🙋 *Waiting for your reply* (${list.length}) — oldest first`, "", ...list.slice(0, 20).map((w) => assistant.waitingLine(w, now, p)), "", `A client leaves the list when you reply to them from your phone. Done another way: ${p}assistant done <client>`].join("\n"),
+      );
+    }
     if (sub === "pause" || sub === "resume") {
       const { key, label } = clientKey(ctx, ctx.args[1]);
       if (sub === "resume") {
@@ -95,6 +110,7 @@ module.exports = {
         `🤖 *Customer assistant*: ${a.assistant ? "on" : "off"}${ctx.app.ai ? ` (${ctx.app.ai.label})` : " — no AI set up (.setai)"}`,
         `Answers today: ${assistant.answeredToday(ctx.state, tz)} of ${assistant.PER_DAY} (at most ${assistant.PER_CLIENT_DAY} per client)`,
         `Chats where it's quiet (you're talking): ${assistant.pausedCount(ctx.state)}`,
+        `Waiting for your reply: ${assistant.waiting(ctx.state).length}${assistant.waiting(ctx.state).length ? ` — ${p}assistant inbox` : ""}`,
         `Office info: ${assistant.info(ctx.state) ? `${assistant.info(ctx.state).length} characters` : "none"}`,
         "",
         HELP(p),

@@ -270,3 +270,51 @@ test("the client's wishes are checked like a typed card", () => {
   assert.deepEqual(assistant.parseWants("min=5 مليون; max=3 مليون"), { min: 3e6, max: 5e6 }, "swapped");
   assert.deepEqual(assistant.parseWants(""), {});
 });
+
+test("handed-over clients wait in .assistant inbox, get one reminder after 2 hours (daytime), show in the morning summary, and leave when the agent replies", async (t) => {
+  const at = (hhmm) => Date.parse(`2026-10-10T${hhmm}:00+03:00`);
+  t.mock.timers.enable({ apis: ["Date"], now: at("10:00") });
+  const b = bot();
+  b.app.ai = b.fakeAi;
+  re.setAgent(b.s, "assistant", "on");
+  const digest = require("../src/services/digest");
+
+  b.answers.push("أحمد هيكلمك بخصوص السعر 🙏 [HANDOFF]");
+  await b.send("ممكن نتفاوض في السعر؟ كلمني على 01099998888", { from: CLIENT });
+  await b.send(".assistant inbox");
+  const lead = leads.byPhone(b.s, "201099998888");
+  assert.ok(b.last(ME).startsWith(`🙋 *Waiting for your reply* (1) — oldest first\n\n▫️ منى (+201099998888) — من 1 دقيقة: "ممكن نتفاوض في السعر؟ كلمني على [رقم]" · .lead ${lead.id}`), b.last(ME));
+  await b.send(".assistant inbox", { chat: GROUP });
+  assert.match(b.to(GROUP).at(-1).content.text, /^🔒/, "names and numbers: not in a mixed group");
+  await b.send(".assistant");
+  assert.match(b.last(ME), /Waiting for your reply: 1 — \.assistant inbox/);
+
+  const assistant = require("../src/services/assistant");
+  assert.equal(await assistant.remindDue(b.app, at("11:00")), 0, "not yet 2 hours");
+  assert.equal(await assistant.remindDue(b.app, at("12:01")), 1);
+  assert.match(b.last(ME), /^⏰ \*لسه مستني ردك\*\n▫️ منى \(\+201099998888\) — من 2 ساعة: "ممكن نتفاوض/);
+  assert.equal(await assistant.remindDue(b.app, at("14:00")), 0, "once");
+  assert.match(digest.build(b.s, "Africa/Cairo", at("14:00")), /🙋 \*مستنيين ردك \(1\)\*\n▫️ منى/);
+
+  // The agent replies from the phone: off the list.
+  await b.send("أهلاً يا منى، هكلمك دلوقتي", { chat: CLIENT, fromMe: true });
+  assert.equal(assistant.waiting(b.s).length, 0);
+  assert.doesNotMatch(digest.build(b.s, "Africa/Cairo", at("14:00")), /مستنيين ردك/);
+
+  // A night handoff is reminded in the morning; ".assistant done" clears one by hand; a lost client drops out.
+  t.mock.timers.setTime(at("23:00"));
+  const other = "201077776666@s.whatsapp.net";
+  b.answers.push("هبلغه 🙏 [HANDOFF]");
+  await b.send("عايز أحجز الشقة", { from: other });
+  assert.equal(await assistant.remindDue(b.app, at("23:00") + 3 * 3600 * 1000), 0, "02:00: no messages at night");
+  assert.equal(await assistant.remindDue(b.app, Date.parse("2026-10-11T09:05:00+03:00")), 1, "in the morning");
+  await b.send(".assistant done 201077776666");
+  assert.match(b.last(ME), /✅ \+201077776666 is off the waiting list/);
+  b.answers.push("هبلغه 🙏 [HANDOFF]");
+  t.mock.timers.setTime(Date.now() + 2 * 3600 * 1000);
+  await b.send("طب امتى؟", { from: other });
+  assert.equal(assistant.waiting(b.s).length, 1);
+  leads.update(b.s, leads.byPhone(b.s, "201077776666").id, { status: "lost" });
+  assert.equal(assistant.waiting(b.s).length, 0, "a lost client isn't waiting");
+  t.mock.timers.reset();
+});
