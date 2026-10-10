@@ -216,6 +216,8 @@ function createDispatcher(app) {
     }
   }
 
+  // For ".in <group> <command>" (services/remoterun.js): the same checks as a typed command.
+  app.dispatch = { execute };
   return { handleUpsert, handleMessage, handleEvent, execute };
 }
 

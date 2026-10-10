@@ -1,18 +1,12 @@
 "use strict";
 
 const { resolveTargets, at } = require("../../services/targets");
-const { LRU } = require("../../core/lru");
 const { stopAll } = require("../../services/automations");
-
-// The last .groups list, so ".leavegroup 3" can refer to it.
-const lastList = new LRU({ max: 10, ttlMs: 30 * 60 * 1000 });
+const grouppick = require("../../services/grouppick");
 
 const INVITE_RE = /chat\.whatsapp\.com\/(?:invite\/)?([A-Za-z0-9]{10,40})/;
 
-async function allGroups(ctx) {
-  const groups = Object.values((await ctx.sock.groupFetchAllParticipating()) || {});
-  return groups.sort((a, b) => (b.participants?.length || 0) - (a.participants?.length || 0));
-}
+const allGroups = (ctx) => grouppick.allGroups(ctx.sock);
 
 const base = { category: "owner", permission: "owner", cooldown: 5 };
 
@@ -21,17 +15,19 @@ module.exports = [
     ...base,
     name: "groups",
     aliases: ["listgroups", "grouplist"],
-    description: "Lists every group the bot is in, with member counts and whether the bot is an admin there.",
+    description: "Lists every group the bot is in, with its number, ID, member count and whether the bot is an admin there. Use the number or the ID with .in to set a group up from your private chat, or with .leavegroup.",
     async run(ctx) {
       const groups = await allGroups(ctx);
       if (!groups.length) return ctx.reply("The bot is not in any group.");
-      lastList.set(ctx.chatId, groups.map((g) => g.id));
+      grouppick.remember(ctx.chatId, groups);
       const botIds = new Set(ctx.app.identity.aliases(ctx.sock.user?.id).concat(ctx.app.identity.aliases(ctx.sock.user?.lid)));
       const lines = groups.slice(0, 100).map((g, i) => {
         const admin = (g.participants || []).some((p) => p.admin && ctx.app.identity.aliases(p.id).some((a) => botIds.has(a)));
-        return `${i + 1}. *${g.subject || "(no name)"}* · ${g.participants?.length || 0} members${admin ? " · 👮 admin" : ""}${g.announce ? " · 🔒" : ""}`;
+        return `${i + 1}. *${g.subject || "(no name)"}* · ${g.participants?.length || 0} members${admin ? " · 👮 admin" : ""}${g.announce ? " · 🔒" : ""}\n    🆔 ${g.id}`;
       });
-      return ctx.reply(`👥 *Groups* (${groups.length})\n\n${lines.join("\n")}\n\nLeave one: ${ctx.prefix}leavegroup <number>`);
+      return ctx.reply(
+        `👥 *Groups* (${groups.length})\n\n${lines.join("\n")}\n\nSet one up from here, without writing in it: ${ctx.prefix}in <number or ID> <command>, e.g. ${ctx.prefix}in 1 autoazkar on\nLeave one: ${ctx.prefix}leavegroup <number>`,
+      );
     },
   },
   {
@@ -42,14 +38,14 @@ module.exports = [
     usage: "<number from .groups>",
     async run(ctx) {
       const n = Number(ctx.args[0]);
-      const id = lastList.get(ctx.chatId)?.[n - 1];
+      const id = grouppick.lastList.get(ctx.chatId)?.[n - 1];
       if (!id) return ctx.reply(`Send ${ctx.prefix}groups first, then ${ctx.prefix}leavegroup <number>.`);
       const meta = await ctx.app.groups.get(ctx.sock, id).catch(() => null);
       await ctx.sock.sendMessage(id, { text: "👋 Goodbye!" }).catch(() => {});
       await ctx.sock.groupLeave(id);
       const stopped = stopAll(ctx.state, id, { all: true });
       ctx.app.groups.invalidate(id);
-      lastList.delete(ctx.chatId);
+      grouppick.forget(ctx.chatId);
       return ctx.reply(`✅ Left *${meta?.subject || id}*.${stopped.length ? `\nStopped there:${stopped.join(", ")}` : ""}`);
     },
   },
