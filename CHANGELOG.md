@@ -2,6 +2,31 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.56.0 — 2026-10-10
+
+### Added — why a unit isn't selling
+- **`.listings slow [days]`** (owner and sudo users) lists the available units on the market 30+ days, or the days given.
+  - **Order:** grouped by unit type (apartments, chalets and villas apart), the oldest first. A unit that came back on the market counts from its return.
+  - **Funnel:** each shows 👀 views · 📣 sends · 💬 questions · 🏠 viewings, with what the viewers thought (👍 👎 🚫), and 📈 its price per m² against similar listings.
+  - **Next step:** each also gets the one next step that fits, with its command. These are checked in this order, and the first that applies is shown:
+    1. no photos;
+    2. clients who liked it at a viewing (follow them up, `.listing who`);
+    3. a price 10%+ above similar listings (show the owner the report, `.listing report 12 send`);
+    4. barely marketed (`.blast`, `.statuspost`);
+    5. most viewers didn't like it;
+    6. questions but no viewings;
+    7. no-shows;
+    8. seen 20+ times but nobody asked (price, photos or description);
+    9. otherwise, a push.
+  - At most 25 are shown.
+- **The Saturday morning summary** counts the units on the market 60+ days by type: "🐢 معروضة من 60+ يوم: شقة 2 · شاليه 2 · فيلا 1 — .listings slow 60".
+
+### Checked
+- 3 tests (400 in total). They cover:
+  - the list (who is in and out, the order, the grouping by type, each funnel and each step, a custom number of days, staff only, a unit back on the market);
+  - the Saturday line;
+  - the remaining steps (disliked, no viewings, no-shows, a push, above the market).
+
 ## 3.55.0 — 2026-10-10
 
 ### Added — tell interested clients when a unit is available again
