@@ -45,6 +45,8 @@ const LABELS = {
   budget: ["الميزانية", "ميزانية", "الميزانيه", "السعر", "budget", "price"],
   // The most they can put down now (buyers of units sold in instalments).
   downMax: ["المقدم", "مقدم", "الدفعة المقدمة", "down payment", "down"],
+  // The most they can pay a month (the same buyers).
+  monthlyMax: ["القسط", "قسط", "القسط الشهري", "الأقساط", "الاقساط", "monthly", "installment", "monthly installment"],
   type: ["النوع", "نوع", "المطلوب", "يريد", "type", "wants", "looking for"],
   location: ["المنطقة", "منطقة", "الموقع", "المكان", "location", "area", "city"],
   rooms: ["الغرف", "غرف", "عدد الغرف", "rooms", "bedrooms"],
@@ -104,6 +106,7 @@ function parseLeadText(text, ownerNumber) {
     if (key === "phone") out.phone = normalizePhone(v, ownerNumber) || undefined;
     else if (key === "budget") Object.assign(out, parseBudget(v));
     else if (key === "downMax") out.downMax = re.parseAmount(v) || undefined;
+    else if (key === "monthlyMax") out.monthlyMax = re.parseAmount(v) >= 1000 ? re.parseAmount(v) : undefined;
     else if (key === "type") out.type = re.typeIn(v) || v.slice(0, 30);
     else if (key === "deal") out.deal = re.dealIn(v) || undefined;
     else if (key === "rooms") out.rooms = Number(re.latinDigits(v).match(/\d+/)?.[0]) || undefined;
@@ -134,8 +137,12 @@ function parseLeadText(text, ownerNumber) {
     if (by) out.deliveryBy = by;
     // "معايا مقدم مليون": what they can put down, not the price they can pay.
     if (out.downMax === undefined && f.down) out.downMax = f.down;
-    // The budget is read without the down payment and the delivery ("استلام لحد 2028" isn't 2,028).
-    const budgetText = (out.downMax ? free.replace(/(?:بمقدم|مقدم)\s*:?\s*(?:حدود|في حدود|لحد|حتى)?\s*\d[\d,.]*\s*(?:مليون|ملايين|million|m|ألف|الف|k)?/giu, " ") : free).replace(
+    // "قسط 40 ألف" / "أقدر أدفع 40 ألف في الشهر": the most they can pay a month (not the price).
+    const monthly = out.monthlyMax === undefined ? re.monthlyIn(free) : null;
+    if (monthly) out.monthlyMax = monthly.value;
+    // The budget is read without the down payment, the instalment and the delivery ("استلام لحد 2028" isn't 2,028).
+    const noMonthly = monthly ? free.replace(monthly.text, " ") : free;
+    const budgetText = (out.downMax ? noMonthly.replace(/(?:بمقدم|مقدم)\s*:?\s*(?:حدود|في حدود|لحد|حتى)?\s*\d[\d,.]*\s*(?:مليون|ملايين|million|m|ألف|الف|k)?/giu, " ") : noMonthly).replace(
       /(?:استلام|الاستلام|تسليم|التسليم|delivery)\s*:?\s*(?:قبل|لحد|حتى|في|خلال|before|by|in)?\s*(?:[\p{L}]+\s+)?20\d{2}/giu,
       " ",
     );
@@ -380,7 +387,7 @@ const locationWords = (s) => re.latinDigits(String(s || "")).toLowerCase().split
 function fits(lead, listing) {
   if (listing.status !== "available") return null;
   // A client without any wishes yet (e.g. saved from a contact card) matches nothing, not everything.
-  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax && !lead.features?.length && !lead.deliveryBy) return null;
+  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax && !lead.monthlyMax && !lead.features?.length && !lead.deliveryBy) return null;
   if (lead.deal && listing.deal && lead.deal !== listing.deal) return null;
   if (lead.type && listing.type && lead.type !== listing.type) return null;
   if (lead.rooms && listing.rooms && listing.rooms < lead.rooms) return null;
@@ -388,10 +395,16 @@ function fits(lead, listing) {
   if (lead.deliveryBy && listing.delivery && listing.delivery > lead.deliveryBy) return null;
   // Must-haves the client named (صف أول، حمام سباحة …): the unit has them all.
   if (lead.features?.length && !lead.features.every((f) => re.featuresOf(listing).includes(f))) return null;
-  // A buyer with a down payment ("معايا مقدم مليون") fits a unit sold in instalments whose down
-  // payment they can make, whatever its full price; with a budget too, either way fits.
-  const downOk = Boolean(lead.downMax && listing.down && listing.down <= lead.downMax * 1.1);
-  if (lead.downMax && !lead.max && !downOk) return null; // cash-only units need the whole price
+  // A buyer with a down payment ("معايا مقدم مليون") and/or a monthly instalment ("قسط 40 ألف")
+  // fits a unit sold in instalments whose down payment and instalment they can make, whatever its
+  // full price; with a budget too, either way fits. A plan without its years has no known
+  // instalment, so it doesn't fit a buyer who gave one.
+  const monthly = re.monthlyOf(listing);
+  const wantsPlan = Boolean(lead.downMax || lead.monthlyMax);
+  const downOk = Boolean(
+    wantsPlan && listing.down && (!lead.downMax || listing.down <= lead.downMax * 1.1) && (!lead.monthlyMax || (monthly && monthly <= lead.monthlyMax * 1.1)),
+  );
+  if (wantsPlan && !lead.max && !downOk) return null; // cash-only units need the whole price
   if (lead.max && listing.price && listing.price > lead.max * 1.1 && !downOk) return null;
   if (lead.min && listing.price && listing.price < lead.min * 0.7) return null;
   const words = locationWords(lead.location);
@@ -399,7 +412,7 @@ function fits(lead, listing) {
     const where = re.latinDigits(`${listing.location || ""}`).toLowerCase();
     if (!words.some((w) => where.includes(w))) return null;
   }
-  const over = downOk ? listing.down > lead.downMax : Boolean(lead.max && listing.price > lead.max);
+  const over = downOk ? Boolean((lead.downMax && listing.down > lead.downMax) || (lead.monthlyMax && monthly > lead.monthlyMax)) : Boolean(lead.max && listing.price > lead.max);
   return { over, ...(downOk ? { byDown: true } : {}) };
 }
 
@@ -424,7 +437,8 @@ const when = (t, timeZone) => new Intl.DateTimeFormat("en-GB", { timeZone, day: 
 const budgetText = (l, cur) => {
   const total = l.min && l.max ? `${re.shortAr(l.min)} – ${re.shortAr(l.max)} ${cur}` : l.max ? `حتى ${re.shortAr(l.max)} ${cur}` : l.min ? `من ${re.shortAr(l.min)} ${cur}` : null;
   const down = l.downMax ? `مقدم حتى ${re.shortAr(l.downMax)} ${cur}` : null;
-  return [total, down].filter(Boolean).join(" · ") || null;
+  const monthly = l.monthlyMax ? `قسط حتى ${re.shortAr(l.monthlyMax)} ${cur} شهرياً` : null;
+  return [total, down, monthly].filter(Boolean).join(" · ") || null;
 };
 const phoneText = (p) => (p ? `+${p}` : null);
 

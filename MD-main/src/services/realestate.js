@@ -279,6 +279,25 @@ function planLine(l, cur) {
   return `💳 مقدم ${money(l.down, cur)}${pct}${l.years ? ` · الباقي على ${l.years} ${l.years > 10 || l.years < 3 ? "سنة" : "سنين"}${monthly}` : ""}`;
 }
 
+/** The monthly instalment of a unit sold in instalments (no interest), or null without a plan. */
+const monthlyOf = (l) => (l.price > 0 && l.down > 0 && l.years > 0 && l.down < l.price ? Math.round((l.price - l.down) / (l.years * 12)) : null);
+
+/**
+ * The most a buyer can pay a month: "قسط 40 ألف", "القسط الشهري في حدود 50 ألف", "أقدر أدفع 40
+ * ألف في الشهر", "monthly 40k". "… في الشهر" alone is read only when the text isn't about renting
+ * (then it is the rent). @returns {{ value: number, text: string } | null} text: the words matched
+ */
+function monthlyIn(text) {
+  const t = latinDigits(String(text || ""));
+  const amount = String.raw`(\d[\d,]*(?:\.\d+)?)\s*(مليون|ملايين|million|m\b|ألف|الف|k\b)?`;
+  const named = new RegExp(String.raw`(?:القسط|قسط|الأقساط|الاقساط|أقساط|اقساط|monthly(?:\s*installments?)?)\s*(?:الشهري|شهري|شهريا|شهرياً)?\s*:?\s*(?:(?:في\s+)?حدود|لحد|حتى|مش أكتر من|ما يزيدش عن|about|up to)?\s*${amount}`, "iu");
+  const perMonth = new RegExp(String.raw`${amount}\s*(?:في الشهر|فى الشهر|كل شهر|شهرياً|شهريا|شهري|/\s*شهر|a month|per month|monthly)`, "iu");
+  const m = t.match(named) || (dealIn(t) !== "إيجار" ? t.match(perMonth) : null);
+  if (!m) return null;
+  const value = parseAmount(`${m[1]} ${m[2] || ""}`);
+  return value >= 1000 && value <= 1e7 ? { value, text: m[0] } : null;
+}
+
 // ---- features: what chalets, villas and apartments are chosen for ---------------------------
 // [name, English, how it is written]. A client who asks for one gets only units that have it.
 
@@ -512,6 +531,11 @@ function search(state, query, pool = all(state)) {
     [f.plan, f.downMax] = [true, toN(r[1], r[2])];
     q = q.replace(r[0], " ");
   }
+  // "قسط 40 ألف": units sold in instalments whose monthly instalment is at most that.
+  if ((r = q.match(new RegExp(`(?:القسط|قسط|اقساط|أقساط)\\s*(?:شهري|الشهري)?\\s*(?:حتى|<)?\\s*${amount}`)))) {
+    [f.plan, f.monthlyMax] = [true, toN(r[1], r[2])];
+    q = q.replace(r[0], " ");
+  }
   // "استلام 2026": delivered by then (a listing without a delivery year is ready).
   if ((r = q.match(/(?:استلام|تسليم|delivery)\s*(?:قبل|لحد|حتى|في|by)?\s*(20\d{2})/u))) {
     f.deliveryBy = Number(r[1]);
@@ -551,6 +575,7 @@ function search(state, query, pool = all(state)) {
     if (f.plan && !l.down) return false;
     if (f.deliveryBy && l.delivery > f.deliveryBy) return false;
     if (f.downMax && !(l.down <= f.downMax)) return false;
+    if (f.monthlyMax && !(monthlyOf(l) !== null && monthlyOf(l) <= f.monthlyMax)) return false; // (null <= n is true in JS)
     const where = `${l.location || ""} ${l.notes || ""}`.toLowerCase();
     return words.every((w) => where.includes(w));
   });
@@ -577,7 +602,7 @@ const line = (l, cur) =>
 module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
-  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
+  parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, monthlyOf, monthlyIn, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, backOnMarket, count, addFeedback, stale,
   STATUS_AR, MAX_PHOTOS,
 };

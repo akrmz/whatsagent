@@ -19,7 +19,7 @@ const WANT = /(?<![\p{L}])(?:عايز|عاوز|عايزه|عاوزه|عايزة|
 const MAYBE = /(?<![\p{L}])(?:حد عنده|عندك|عندكم|عندكو|فيه|في حاجة)(?![\p{L}])/iu;
 const OFFER = /(?<![\p{L}])(?:بسعر|السعر|المطلوب|بمقدم|مقدم|تقسيط|اقساط|أقساط|استلام|متر|م²|م2)(?![\p{L}])/iu;
 const asks = (t) => WANT.test(t) || /[؟?]/.test(t) || (MAYBE.test(t) && !OFFER.test(re.latinDigits(t)));
-const WISH_FIELDS = ["type", "deal", "location", "rooms", "min", "max", "downMax", "features", "deliveryBy"];
+const WISH_FIELDS = ["type", "deal", "location", "rooms", "min", "max", "downMax", "monthlyMax", "features", "deliveryBy"];
 
 const perClient = (state, key) => limiterFor(state, "request-client", { max: 1, windowMs: 10 * 60 * 1000 })(key); // one answer per client per 10 min
 const newClients = (state) => limiterFor(state, "inquiry-new", { max: 30, windowMs: 3600 * 1000, size: 1 })("all"); // shared with #12 inquiries
