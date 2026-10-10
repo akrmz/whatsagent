@@ -3,6 +3,7 @@
 const re = require("./realestate");
 const leads = require("./leads");
 const viewings = require("./viewings");
+const owners = require("./owners");
 const route = require("./viewingroute");
 const rentals = require("./rentals");
 const hotleads = require("./hotleads");
@@ -85,9 +86,13 @@ function build(state, timeZone, now = Date.now()) {
   const old = re.stale(state, 30, now);
   if (old.length) {
     lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);
-    const askable = old.filter((l) => l.owner?.phone && !(l.ask && now - l.ask.at < 7 * 86400 * 1000)).slice(0, 5);
+    const askable = old.filter((l) => owners.contactOf(l) && !(l.ask && now - l.ask.at < 7 * 86400 * 1000)).slice(0, 5);
     if (askable.length) lines.push(`🔑 اسأل الملاك: .listing ask ${askable.map((l) => l.id).join(" ")}`);
   }
+  // Brokers' units (from a channel or a forwarded post, no owner saved) go fast: a week unconfirmed is long.
+  const recentlyAsked = (l) => l.ask && now - l.ask.at < 3 * 86400 * 1000;
+  const brokers = re.stale(state, 7, now).filter((l) => !old.includes(l) && owners.contactOf(l)?.kind === "broker" && !recentlyAsked(l));
+  if (brokers.length) lines.push(`🔗 وحدات سماسرة من غير تأكيد من 7+ أيام: ${brokers.slice(0, 8).map((l) => `#${l.id}`).join("، ")} — اسألهم: .listing ask ${brokers.slice(0, 5).map((l) => l.id).join(" ")}`);
   // Saturday, the start of the work week in Egypt: the week in numbers too, and what listings miss.
   if (new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now)) === "Sat") {
     const c = health.counts(state, now);

@@ -220,7 +220,7 @@ module.exports = [
         return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${priceLine}${clientsLine(ctx, l, await ctx.isStaffOnlyChat())}${autoLine}${dupLine}`);
       }
       if (sub === "ask") {
-        // ".listing ask 12 15 18": ask each owner whether it's still available (at most 5 at once).
+        // ".listing ask 12 15 18": ask each owner (or, without one, the broker it came from) whether it's still available (at most 5 at once).
         const ids = [...new Set(ctx.args.slice(1).map(idOf).filter(Boolean))];
         if (!ids.length) throw new UserError(`Which listings? ${ctx.prefix}listing ask 12 [15 18 …]`);
         // The owners' answers (with their name and number) come back to this chat.
@@ -231,13 +231,13 @@ module.exports = [
         for (const n of ids) {
           const l = re.get(ctx.state, n);
           if (!l) skipped.push(`#${n}: not found`);
-          else if (!l.owner?.phone) skipped.push(`#${n}: no owner number (${ctx.prefix}listing edit ${n} المالك: الاسم 0100…)`);
+          else if (!owners.contactOf(l)) skipped.push(`#${n}: no owner or broker number (${ctx.prefix}listing edit ${n} المالك: الاسم 0100…)`);
           else {
             await owners.ask(ctx, l);
-            done.push(`#${n}`);
+            done.push(`#${n}${owners.contactOf(l).kind === "broker" ? " (the broker)" : ""}`);
           }
         }
-        return ctx.reply([done.length ? `📤 Asked the owner of ${done.join(", ")} whether it's still available. Their answer comes here.` : null, ...skipped.map((x) => `⚠️ ${x}`)].filter(Boolean).join("\n"));
+        return ctx.reply([done.length ? `📤 Asked about ${done.join(", ")}: is it still available? The answer comes here.` : null, ...skipped.map((x) => `⚠️ ${x}`)].filter(Boolean).join("\n"));
       }
       const id = idOf(arg);
       if (!id) return ctx.reply(HELP(ctx.prefix));

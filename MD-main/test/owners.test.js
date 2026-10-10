@@ -77,8 +77,8 @@ test(".listing ask: the owner's answer is read and the agent told; asks close af
   const updated = re.get(s, 1).updated;
 
   await b.send(".listing ask 1 3 9");
-  assert.match(b.text(), /📤 Asked the owner of #1/);
-  assert.match(b.text(), /⚠️ #3: no owner number/);
+  assert.match(b.text(), /📤 Asked about #1: is it still available?/);
+  assert.match(b.text(), /⚠️ #3: no owner or broker number/);
   assert.match(b.text(), /⚠️ #9: not found/);
   const q = b.sentTo(OWNER).at(-1).content.text;
   assert.match(q, /^أهلاً أبو أحمد 👋\nبخصوص شقة في التجمع المعروض بـ 3,000,000 جنيه \(#1\): هل ما زال متاحاً؟/);

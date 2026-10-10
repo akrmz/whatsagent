@@ -29,14 +29,25 @@ function classify(text) {
   return { kind: "other" };
 }
 
-/** The message the owner gets. */
+/**
+ * Who to ask about a listing: its owner, else the broker it came from (a channel or a forwarded
+ * post: listing.source, 3.66). @returns {{ phone, name?, kind: "owner"|"broker" } | null}
+ */
+function contactOf(l) {
+  if (l.owner?.phone) return { phone: l.owner.phone, name: l.owner.name, kind: "owner" };
+  const p = l.source?.phones?.[0];
+  return p ? { phone: p, kind: "broker" } : null;
+}
+
+/** The message the owner (or the broker) gets. */
 function askText(state, l) {
   const a = re.agent(state);
   const cur = a.currency;
+  const c = contactOf(l);
   const what = `${l.type || "العقار"}${l.location ? ` في ${l.location}` : ""}${l.price ? ` المعروض بـ ${re.money(l.price, cur)}${l.deal === "إيجار" ? " شهرياً" : ""}` : ""}`;
   return [
-    `${l.owner?.name ? `أهلاً ${l.owner.name} 👋` : "أهلاً 👋"}`,
-    `بخصوص ${what} (#${l.id}): هل ما زال متاحاً؟`,
+    `${c?.kind === "owner" && l.owner?.name ? `أهلاً ${l.owner.name} 👋` : "أهلاً 👋"}`,
+    c?.kind === "broker" ? `بخصوص ${what} اللي كان معروض عندك (#${l.id}): لسه متاح؟` : `بخصوص ${what} (#${l.id}): هل ما زال متاحاً؟`,
     "",
     "رد بكلمة: *متاح* · *اتباع* · *اتأجر* · أو السعر الجديد (مثلاً: السعر بقى 3 مليون)",
     re.contactLine(a) ? `\n${re.contactLine(a)}` : null,
@@ -47,16 +58,17 @@ function askText(state, l) {
 
 /** Sends the question to the owner and opens the ask. */
 async function ask(ctx, l, now = Date.now()) {
-  if (!l.owner?.phone) throw new Error(`#${l.id} has no owner number`);
-  await ctx.sock.sendMessage(`${l.owner.phone}@s.whatsapp.net`, { text: askText(ctx.state, l) });
-  re.update(ctx.state, l.id, { ask: { at: now, chat: ctx.chatId, by: ctx.sender } }, l.updated); // asking isn't an update
+  const c = contactOf(l);
+  if (!c) throw new Error(`#${l.id} has no owner or broker number`);
+  await ctx.sock.sendMessage(`${c.phone}@s.whatsapp.net`, { text: askText(ctx.state, l) });
+  re.update(ctx.state, l.id, { ask: { at: now, chat: ctx.chatId, by: ctx.sender, to: c.phone, kind: c.kind } }, l.updated); // asking isn't an update
 }
 
-/** Listings this number owns with a question still open, newest first. */
+/** Listings with a question still open to this number (the one it was sent to), newest first. */
 const openAsks = (state, phone, now = Date.now()) =>
   re
     .all(state)
-    .filter((l) => l.owner?.phone === phone && l.ask && !l.ask.answered && now - l.ask.at < OPEN_FOR)
+    .filter((l) => l.ask && !l.ask.answered && now - l.ask.at < OPEN_FOR && (l.ask.to ? l.ask.to === phone : l.owner?.phone === phone))
     .sort((a, b) => b.ask.at - a.ask.at);
 
 /**
@@ -70,7 +82,7 @@ async function handleReply(ctx, phone, now = Date.now()) {
   const named = re.latinDigits(ctx.body).match(/#\s?(\d{1,5})/);
   const l = named ? open.find((x) => x.id === Number(named[1])) : open.length === 1 ? open[0] : null;
   const cur = re.agent(ctx.state).currency;
-  const who = `${open[0].owner.name || "المالك"} (+${phone})`;
+  const who = open[0].ask.kind === "broker" ? `السمسار (+${phone})` : `${open[0].owner?.name || "المالك"} (+${phone})`;
   const text = ctx.body.trim().slice(0, 300);
   const tell = (chat, msg) => ctx.sock.sendMessage(chat || `${ctx.config.owners.numbers[0]}@s.whatsapp.net`, { text: msg }).catch(() => {});
 
@@ -95,4 +107,4 @@ async function handleReply(ctx, phone, now = Date.now()) {
   return true;
 }
 
-module.exports = { classify, askText, ask, openAsks, handleReply, OPEN_FOR, MAX_AT_ONCE };
+module.exports = { classify, askText, ask, openAsks, handleReply, contactOf, OPEN_FOR, MAX_AT_ONCE };
