@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.62.0 — 2026-10-10
+
+### Added — the reports by unit type
+- **`.restats`** has a section "🏷️ حسب النوع". It gives one line per type (apartments, chalets, villas …): the available, reserved and sold units, views, questions, the clients looking for that type, and the deals.
+  - It warns when clients want a type you have none of available, for example "⚠️ فيه 2 عميل بيدور على فيلا ومفيش متاح", with `.sellers` and `.feed` to find some.
+- **`.deals`** splits the period's deals by type: count, value and commission of each.
+- **The weekly summary** (`.weekly`, and Saturday's morning summary) adds a line with the new clients wanting each type and the deals: "🏷️ حسب النوع: شقة: 3 عميل · 1 صفقة | شاليه: 2 عميل".
+- **A deal now keeps its unit type**, so the reports stay right after its listing is deleted. Deals recorded before this take their listing's type, else what the client wanted.
+
+### Checked
+- 2 tests (418 in total). They cover the `.restats` lines and the warning, `.deals` and the weekly line by type, a deal whose listing was deleted, and deals from before this version. Two older tests were updated for the new line and the saved type.
+
 ## 3.61.1 — 2026-10-10
 
 ### Security — B-25: a long run of spaces froze the bot
