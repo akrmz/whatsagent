@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.67.0 — 2026-10-11
+
+### Added — ask the broker whether their unit is still available
+- **`.listing ask 12`** on a unit without an owner, but with a broker's number (its private source, 3.66), asks the broker: "بخصوص شاليه في الساحل الشمالي المعروض بـ 9,000,000 جنيه اللي كان معروض عندك (#12): لسه متاح؟".
+  - Their answer is read like an owner's (available, sold, rented, a new price) and you're told: "🔴 السمسار (+2010…) قال إن #12 … اتباع" with the command to mark it.
+  - A unit with an owner saved still asks the owner.
+  - Only the number that was asked counts as the answer.
+- **The morning summary** lists brokers' units unconfirmed for 7+ days, with the command to ask ("🔗 وحدات سماسرة من غير تأكيد من 7+ أيام: … — اسألهم: .listing ask 12 15"). Brokers' units go fast; owners' still wait 30 days.
+
+### Checked
+- 2 tests (435 in total). They cover:
+  - a broker asked with its own wording, and an owner asked instead when one is saved;
+  - another number not taken as the answer, and the broker's "sold" read and reported;
+  - the 7-day line for brokers' units (not owners' units, not a source without a number).
+- Two earlier expectations were updated for the new wording.
+
 ## 3.66.0 — 2026-10-11
 
 ### Added — who to call about a unit from a channel or a forwarded post
