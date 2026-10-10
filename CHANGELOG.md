@@ -2,6 +2,19 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.55.0 — 2026-10-10
+
+### Added — tell interested clients when a unit is available again
+- **A listing remembers coming back:** when a reserved, sold or rented unit is set to available again (by `.listing status`, or any other change), the bot records when and from what.
+- **`.listing status 12 available`** then says how many clients were interested: "🔁 2 client(s) asked about it, booked a viewing or liked it. Tell them it's available again: .blast 12 back". It shows a count only.
+- **`.blast 12 back`** previews who would be told ("⏳ محجوز → ✅ متاح (النهارده)"), with each client's strongest sign, the strongest first. **`.blast 12 back go`** sends "🔁 *خبر حلو!* العقار اللي كنت مهتم بيه رجع متاح تاني:" with the card and first photo, paced and with the stop line like every campaign.
+  - **Who gets it:** clients who asked about it (including while it was reserved, when they were offered alternatives), booked a viewing or liked it.
+  - **Who doesn't:** clients only sent it in a campaign, no-shows, those who didn't like it, won or lost clients, and those who said وقف. A client who closes after being queued is skipped.
+  - **Limits:** each client is told once each time the unit comes back, and only within 30 days of its return. Merging two clients keeps who was told.
+
+### Checked
+- 2 tests (397 in total). They cover the count after `status available`, the preview (who is in, who is out, the order), the messages and the notes, once per return, a second return being news again, the 30-day limit, a client who closes being skipped, a sold unit coming back, and merging.
+
 ## 3.54.0 — 2026-10-10
 
 ### Added — alternatives for units already sold or reserved
