@@ -8,6 +8,7 @@ const leads = require("../../services/leads");
 const places = require("../../services/places");
 const health = require("../../services/listinghealth");
 const slowlistings = require("../../services/slowlistings");
+const photohash = require("../../services/photohash");
 const interest = require("../../services/interest");
 const { alternatives } = require("../../services/alternatives");
 const { aiFields, shortLinkGeo, vsMarket, clientsLine, autoblast } = require("../../services/newlisting");
@@ -263,8 +264,10 @@ module.exports = [
       if (sub === "photo" || sub === "photos" || sub === "صورة") {
         const media = ctx.findMedia({ types: ["image", "document"] });
         if (!media || (media.type === "document" && !/^image\//.test(media.mimetype || ""))) return ctx.reply(`Send a picture with ${ctx.prefix}listing photo ${id} as its caption, or reply to one.`);
-        const n = re.addPhoto(ctx.state, ctx.config, id, await img.toListingJpeg(await ctx.download(media, 15 * 1024 * 1024)));
-        return ctx.reply(`📷 Photo ${n}/${re.MAX_PHOTOS} added to #${id}.`);
+        const jpeg = await img.toListingJpeg(await ctx.download(media, 15 * 1024 * 1024));
+        const n = re.addPhoto(ctx.state, ctx.config, id, jpeg);
+        const same = await photohash.sameAs(ctx.state, [jpeg], { exclude: id }); // the unit reposted under another number?
+        return ctx.reply(`📷 Photo ${n}/${re.MAX_PHOTOS} added to #${id}.${photohash.line(same, { p: ctx.prefix, listing: id })}`);
       }
       if (sub === "edit") {
         // Everything after "edit 12", line breaks kept (several fields can be changed at once).

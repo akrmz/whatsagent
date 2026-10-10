@@ -5,6 +5,7 @@ const re = require("../../services/realestate");
 const drafts = require("../../services/drafts");
 const channels = require("../../services/channels");
 const newlisting = require("../../services/newlisting");
+const photohash = require("../../services/photohash");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -16,7 +17,8 @@ const owner = (ctx) => ctx.config.owners.numbers[0];
 const editsAfter = (ctx) => ctx.text.replace(/^\S+\s+\S+\s*/, "");
 
 async function show(ctx, d) {
-  const text = drafts.reviewText(ctx.state, d, { p: ctx.prefix, ownerNumber: owner(ctx) });
+  const photoMatches = await drafts.photoMatchesOf(ctx.state, ctx.config, d);
+  const text = drafts.reviewText(ctx.state, d, { p: ctx.prefix, ownerNumber: owner(ctx), photoMatches });
   const pics = drafts.photos(ctx.config, d);
   if (!pics.length) return ctx.reply(text);
   for (const [i, p] of pics.entries()) await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? text : undefined });
@@ -83,10 +85,11 @@ module.exports = [
         delete read.owner;
         const base = await newlisting.shortLinkGeo(read, d.texts.join("\n"));
         const dup = re.findDuplicate(ctx.state, base);
+        const photoMatches = await drafts.photoMatchesOf(ctx.state, ctx.config, d); // before the photos move
         const l = drafts.save(ctx.state, ctx.config, id, { edits, by: ctx.sender, ownerNumber: owner(ctx), base });
         const more = newlisting.afterAdd(ctx, l, { by: ctx.sender, chat: ctx.chatId, showNames: await ctx.isStaffOnlyChat(), duplicate: dup });
         return ctx.reply(
-          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}${more}\n\nFlyer: ${p}flyer ${l.id}`,
+          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}${more}\n\nFlyer: ${p}flyer ${l.id}`,
         );
       }
       if (sub === "del" || sub === "delete" || sub === "remove" || sub === "مسح") {

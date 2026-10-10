@@ -35,6 +35,7 @@ const { startAutoListingsLoop } = require("./services/autolistings");
 const { startViewingsLoop } = require("./services/viewings");
 const { startDraftsLoop } = require("./services/drafts");
 const { startChannelsLoop } = require("./services/channels");
+const { startPhotoHashLoop } = require("./services/photohash");
 const { startDigestLoop } = require("./services/digest");
 const { startCampaignLoop } = require("./services/campaigns");
 const { startRentalsLoop } = require("./services/rentals");
@@ -196,6 +197,7 @@ async function start() {
   const stopViewings = startViewingsLoop(app);
   const stopDrafts = startDraftsLoop(app);
   const stopChannels = startChannelsLoop(app);
+  const stopPhotoHashes = startPhotoHashLoop(app);
   const stopDigest = startDigestLoop(app);
   require("./services/team").setTimeZone(app.config.bot.timezone); // monthly team counters start at local midnight
   const stopCampaigns = startCampaignLoop(app);
@@ -224,6 +226,7 @@ async function start() {
     stopViewings();
     stopDrafts();
     stopChannels();
+    stopPhotoHashes();
     stopDigest();
     stopCampaigns();
     stopRentals();

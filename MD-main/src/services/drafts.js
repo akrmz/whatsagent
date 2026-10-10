@@ -5,6 +5,7 @@ const path = require("node:path");
 const re = require("./realestate");
 const { normalizePhone } = require("./phones");
 const newlisting = require("./newlisting");
+const photohash = require("./photohash");
 const { limiterFor } = require("../core/ratelimit");
 const { UserError } = require("../core/errors");
 
@@ -110,6 +111,9 @@ function writePhoto(config, id, n, jpeg) {
   fs.writeFileSync(photoFile(config, id, n), jpeg, { mode: 0o600 });
 }
 
+/** Listings whose photos look like this draft's (a unit reposted by another broker): [{ id, distance }]. */
+const photoMatchesOf = (state, config, d) => photohash.sameAs(state, photos(config, d).map((f) => fs.readFileSync(f)));
+
 /** Drafts complete (2 quiet minutes) and not shown to the owner yet, oldest first. */
 const due = (state, now = Date.now()) => open(state).filter((d) => !d.reviewed && now - d.updated >= IDLE);
 const markReviewed = (state, id, now = Date.now()) => store(state).update((s) => s.items[id] && (s.items[id].reviewed = now));
@@ -118,7 +122,7 @@ const notifyBudget = (state) => limiterFor(state, "drafts-notify", { max: NOTIFY
 const photos = (config, d) => Array.from({ length: d.photos || 0 }, (_, i) => photoFile(config, d.id, i + 1)).filter((p) => fs.existsSync(p));
 
 /** The review message (its caption, with the first photo). */
-function reviewText(state, d, { p = ".", ownerNumber } = {}) {
+function reviewText(state, d, { p = ".", ownerNumber, photoMatches = [] } = {}) {
   const f = fieldsOf(d, ownerNumber);
   const { contacts } = splitContacts(d.texts.join("\n"), ownerNumber);
   const preview = Object.keys(f).filter((k) => k !== "notes").length ? re.card({ id: "؟", status: "available", ...f }, re.agent(state)) : "⚠️ مش واضح ده عقار إيه — مفيش نوع ولا سعر في الكلام";
@@ -133,6 +137,7 @@ function reviewText(state, d, { p = ".", ownerNumber } = {}) {
     `📷 ${d.photos} صورة${d.photos >= MAX_PHOTOS ? " (الحد الأقصى)" : ""}`,
     contacts.length ? `📞 أرقام في البوست (خاصة، مش هتظهر في الكارت): ${contacts.map((c) => `+${c}`).join(" · ")}` : null,
     dup ? `⚠️ شكلها زي #${dup.id} المحفوظ` : null,
+    photohash.line(photoMatches).trim() || null,
     missing.length ? `✏️ ناقص: ${missing.join("، ")} — ضيفه وانت بتحفظ: ${p}drafts save ${d.id} ${!f.type ? "النوع: شقة" : !f.price ? "السعر: 3 مليون" : "المنطقة: التجمع"}` : null,
     "",
     `احفظها: ${p}drafts save ${d.id} · بتعديل: ${p}drafts save ${d.id} السعر: … · امسحها: ${p}drafts del ${d.id}`,
@@ -196,12 +201,13 @@ async function runDue(app, now = Date.now()) {
         // price check, the clients it suits and, with autoblast on, the campaign.
         const base = await newlisting.shortLinkGeo(fieldsOf(d, ownerNumber), d.texts.join("\n"), { state: app.state });
         const dup = re.findDuplicate(app.state, base);
+        const photoMatches = await photoMatchesOf(app.state, app.config, d);
         const l = save(app.state, app.config, d.id, { by: d.by || "channel", ownerNumber, base });
         const env = { state: app.state, config: app.config, prefix: p };
         const more = newlisting.afterAdd(env, l, { by: d.by, chat: to, showNames: !to.endsWith("@g.us"), duplicate: dup });
         if (notifyBudget(app.state)) {
           await app.sock
-            .sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}${dup ? `\n⚠️ شكله زي #${dup.id}` : ""}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}${more}` })
+            .sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}${dup ? `\n⚠️ شكله زي #${dup.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}${more}` })
             .catch(() => {});
         }
         sent++;
@@ -212,7 +218,8 @@ async function runDue(app, now = Date.now()) {
     }
     if (!notifyBudget(app.state)) break; // the rest wait in .drafts
     markReviewed(app.state, d.id, now);
-    const text = reviewText(app.state, d, { p, ownerNumber });
+    const photoMatches = await photoMatchesOf(app.state, app.config, d);
+    const text = reviewText(app.state, d, { p, ownerNumber, photoMatches });
     const [first] = photos(app.config, d);
     try {
       await app.sock.sendMessage(to, first ? { image: fs.readFileSync(first), caption: text } : { text });
@@ -242,4 +249,4 @@ function startDraftsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { runDue, startDraftsLoop, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, EXPIRE_AFTER };
+module.exports = { runDue, startDraftsLoop, photoMatchesOf, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, EXPIRE_AFTER };
