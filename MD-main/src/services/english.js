@@ -92,6 +92,11 @@ function details(l, a) {
     cut: !(l.status && l.status !== "available") && re.discount(l),
     contact: [a.name, a.phone].filter(Boolean).join("   "),
     cur,
+    plan:
+      l.deal === "إيجار"
+        ? ""
+        : [l.down && `${cur} ${short(l.down)} down`, l.down && l.years && `the rest over ${l.years} years`, l.delivery > new Date().getFullYear() && `delivery ${l.delivery}`].filter(Boolean).join("  ·  "),
+    feats: re.featuresOf(l).slice(0, 4).map((f) => re.FEATURE_EN[f] || f).join("  ·  "),
   };
 }
 

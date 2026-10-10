@@ -56,6 +56,8 @@ async function flyer(listing, agent, photoPath, { lang = "ar" } = {}) {
   <text x="${side.x}" y="${PHOTO_H + 265}" font-size="${en ? 70 : 76}" font-weight="bold" fill="#e0b25b" ${side.attrs} font-family="${FONT}">${esc(d.price)}</text>
   ${was}
   ${specs ? `<text x="${side.x}" y="${PHOTO_H + 345}" font-size="${en ? 34 : 38}" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(clip(specs, 60))}</text>` : ""}
+  ${d.plan ? `<text x="${side.x}" y="${PHOTO_H + 398}" font-size="${en ? 30 : 32}" font-weight="bold" fill="#e0b25b" ${side.attrs} xml:space="preserve" font-family="${FONT}">${esc(isolateNumbers(clip(d.plan, 64)))}</text>` : ""}
+  ${featureBand(d.feats, W, PHOTO_H, 66, 32, !en)}
   ${d.contact ? `<rect y="${H - 110}" width="${W}" height="110" fill="#e0b25b"/><text x="${W / 2}" y="${H - 42}" font-size="44" font-weight="bold" fill="#0f2233" text-anchor="middle"${rtlContact ? ` direction="rtl"` : ""} font-family="${FONT}">📞 ${esc(isolateNumbers(clip(d.contact, 44)))}</text>` : ""}
 </svg>`;
   return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
@@ -98,8 +100,22 @@ function details(listing, agent) {
     status,
     cut: !status && re.discount(listing),
     was: (cut) => `${re.group(cut.was)} ${cur}`,
+    // What often sells a chalet or a villa: how it's paid, when it's delivered, what it has.
+    plan:
+      listing.deal === "إيجار"
+        ? ""
+        : [listing.down && `مقدم ${re.shortAr(listing.down)}`, listing.down && listing.years && `الباقي على ${listing.years} ${listing.years > 10 || listing.years < 3 ? "سنة" : "سنين"}`, listing.delivery > new Date().getFullYear() && `استلام ${listing.delivery}`]
+            .filter(Boolean)
+            .join("  ·  "),
+    feats: re.featuresOf(listing).slice(0, 4).join("  ·  "),
   };
 }
+
+/** The features as a band across the bottom of the photo (none: nothing). */
+const featureBand = (feats, w, bottom, h, size, rtl = true) =>
+  feats
+    ? `<rect y="${bottom - h}" width="${w}" height="${h}" fill="#0f2233" fill-opacity="0.78"/><text x="${w / 2}" y="${bottom - h / 2 + size * 0.36}" font-size="${size}" font-weight="bold" fill="#ffffff" text-anchor="middle"${rtl ? ` direction="rtl"` : ""} xml:space="preserve" font-family="${FONT}">${esc(isolateNumbers(clip(feats, 60)))}</text>`
+    : "";
 
 /** A photo resized to fill a box, or a plain gradient with a house when there is none. */
 async function tile(photoPath, w, h) {
@@ -147,8 +163,10 @@ async function story(listing, agent, photoPath, { lang = "ar" } = {}) {
   <text x="${side.x}" y="${P + 310}" font-size="${en ? 80 : 92}" font-weight="bold" fill="#e0b25b" ${side.attrs} font-family="${FONT}">${esc(d.price)}</text>
   ${d.cut ? `<text x="${en ? W - 70 : 70}" y="${P + 310}" font-size="46" fill="#9fb0bf" text-decoration="line-through"${en ? "" : ` direction="rtl"`} text-anchor="end" font-family="${FONT}">${esc(en ? `${d.cur} ${re.group(d.cut.was)}` : d.was(d.cut))}</text>` : ""}
   ${specs ? `<text x="${side.x}" y="${P + 405}" font-size="${en ? 38 : 44}" fill="#ffffff" ${side.attrs} font-family="${FONT}">${esc(clip(specs, 60))}</text>` : ""}
-  <rect x="70" y="${P + 470}" rx="24" width="${W - 140}" height="110" fill="none" stroke="#e0b25b" stroke-width="4"/>
-  <text x="${W / 2}" y="${P + 542}" font-size="50" font-weight="bold" fill="#e0b25b" text-anchor="middle"${en ? "" : ` direction="rtl"`} font-family="${FONT}">${en ? `To ask about it, send: #${listing.id} en` :`للاستفسار أرسل: ${LRI}#${listing.id}${PDI}`}</text>
+  ${d.plan ? `<text x="${side.x}" y="${P + 470}" font-size="${en ? 36 : 40}" font-weight="bold" fill="#e0b25b" ${side.attrs} xml:space="preserve" font-family="${FONT}">${esc(isolateNumbers(clip(d.plan, 60)))}</text>` : ""}
+  ${featureBand(d.feats, W, P, 84, 42, !en)}
+  <rect x="70" y="${P + 525}" rx="24" width="${W - 140}" height="110" fill="none" stroke="#e0b25b" stroke-width="4"/>
+  <text x="${W / 2}" y="${P + 597}" font-size="50" font-weight="bold" fill="#e0b25b" text-anchor="middle"${en ? "" : ` direction="rtl"`} font-family="${FONT}">${en ? `To ask about it, send: #${listing.id} en` :`للاستفسار أرسل: ${LRI}#${listing.id}${PDI}`}</text>
   ${contactBar(d.contact, W, H - 150, 150, 50)}
 </svg>`;
   return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
@@ -198,6 +216,8 @@ async function collage(listing, agent, photoPaths) {
   <text x="${W - 60}" y="${P + 180}" font-size="72" font-weight="bold" fill="#e0b25b" ${RTL} font-family="${FONT}">${esc(d.price)}</text>
   ${d.cut ? `<text x="60" y="${P + 180}" font-size="40" fill="#9fb0bf" text-decoration="line-through" direction="rtl" text-anchor="end" font-family="${FONT}">${esc(d.was(d.cut))}</text>` : ""}
   ${d.specs ? `<text x="${W - 60}" y="${P + 255}" font-size="36" fill="#ffffff" ${RTL} font-family="${FONT}">${esc(d.specs)}</text>` : ""}
+  ${d.plan ? `<text x="${W - 60}" y="${P + 312}" font-size="32" font-weight="bold" fill="#e0b25b" ${RTL} xml:space="preserve" font-family="${FONT}">${esc(isolateNumbers(clip(d.plan, 64)))}</text>` : ""}
+  ${featureBand(d.feats, W, P, 62, 30)}
   ${contactBar(d.contact, W, H - 100, 100, 42)}
 </svg>`;
   return sharp({ create: { width: W, height: H, channels: 3, background: "#0f2233" } })
@@ -206,4 +226,4 @@ async function collage(listing, agent, photoPaths) {
     .toBuffer();
 }
 
-module.exports = { flyer, story, collage, collageLayout, watermark, toListingJpeg, esc, isolateNumbers, clip, FONT, RTL };
+module.exports = { flyer, story, collage, collageLayout, details, watermark, toListingJpeg, esc, isolateNumbers, clip, FONT, RTL };
