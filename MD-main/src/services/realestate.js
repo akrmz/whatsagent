@@ -38,6 +38,14 @@ const firstNumber = (text) => {
   return m ? Number(m[0]) : null;
 };
 
+/**
+ * Every run of whitespace as one space, or one line break if it had one. The parsers' patterns
+ * have optional words between `\s*` ("قسط\s*(?:شهري)?\s*:?\s*…"): on a long run of spaces each
+ * way of splitting it is tried, so "قسط" and 300 spaces took seconds and froze the bot (B-25).
+ * Every parser that reads text from outside starts with this.
+ */
+const squeeze = (s) => String(s ?? "").replace(/[^\S\n]+/g, " ").replace(/ ?\n\s*/g, "\n");
+
 const group = (n) => Math.round(n).toLocaleString("en-US");
 /** 3500000 → "3.5 مليون", 750000 → "750 ألف" */
 function shortAr(n) {
@@ -203,6 +211,7 @@ function extractFree(text) {
  * @returns {object} the fields found (only those)
  */
 function parseListingText(text, ownerNumber) {
+  text = squeeze(text); // see squeeze: brokers' posts in watched groups and sellers' messages come here
   const out = {};
   const notes = [];
   for (const raw of String(text || "").split(/\n+/)) {
@@ -288,7 +297,7 @@ const monthlyOf = (l) => (l.price > 0 && l.down > 0 && l.years > 0 && l.down < l
  * (then it is the rent). @returns {{ value: number, text: string } | null} text: the words matched
  */
 function monthlyIn(text) {
-  const t = latinDigits(String(text || ""));
+  const t = latinDigits(squeeze(text)).replace(/\n/g, " ");
   const amount = String.raw`(\d[\d,]*(?:\.\d+)?)\s*(مليون|ملايين|million|m\b|ألف|الف|k\b)?`;
   const named = new RegExp(String.raw`(?:القسط|قسط|الأقساط|الاقساط|أقساط|اقساط|monthly(?:\s*installments?)?)\s*(?:الشهري|شهري|شهريا|شهرياً)?\s*:?\s*(?:(?:في\s+)?حدود|لحد|حتى|مش أكتر من|ما يزيدش عن|about|up to)?\s*${amount}`, "iu");
   const perMonth = new RegExp(String.raw`${amount}\s*(?:في الشهر|فى الشهر|كل شهر|شهرياً|شهريا|شهري|/\s*شهر|a month|per month|monthly)`, "iu");
@@ -519,7 +528,7 @@ function card(l, a) {
  * `pool`: the listings to search (the catalogue by default; brokers' offers for .feed).
  */
 function search(state, query, pool = all(state)) {
-  let q = latinDigits(String(query || "")).toLowerCase();
+  let q = latinDigits(squeeze(query)).replace(/\n/g, " ").toLowerCase();
   const f = { type: typeIn(q), deal: dealIn(q), all: new RegExp(ALL_RE.source, "iu").test(q) };
   q = q.replace(ALL_RE, " ");
   const amount = String.raw`(\d+(?:\.\d+)?)\s*(m|مليون|k|ألف|الف)?`;
@@ -600,7 +609,7 @@ const line = (l, cur) =>
   `*#${l.id}* ${l.type || "عقار"} لل${l.deal || "بيع"}${l.location ? ` — ${l.location.slice(0, 40)}` : ""}${l.price ? ` — ${shortAr(l.price)}${cur ? ` ${cur}` : ""}` : ""}${l.size ? ` · ${l.size}م²` : ""}${l.rooms ? ` · ${l.rooms} غرف` : ""}${l.status !== "available" ? ` (${STATUS_AR[l.status]})` : ""}${l.photos ? " 📷" : ""}`;
 
 module.exports = {
-  parseAmount, latinDigits, shortAr, money, group,
+  parseAmount, latinDigits, squeeze, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, monthlyOf, monthlyIn, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, backOnMarket, count, addFeedback, stale,

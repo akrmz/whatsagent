@@ -91,6 +91,7 @@ function budgetIn(text) {
 
 /** Labelled lines ("الاسم: …", "الموبايل: …", "الميزانية: 2-3 مليون" …); unlabeled lines become notes. */
 function parseLeadText(text, ownerNumber) {
+  text = re.squeeze(text); // clients' requests, brokers' groups and lead-ad forms come here (B-25)
   const out = {};
   const notes = [];
   for (const raw of String(text || "").split(/\n+/)) {
