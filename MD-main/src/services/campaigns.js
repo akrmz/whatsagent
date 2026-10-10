@@ -5,6 +5,7 @@ const path = require("node:path");
 const re = require("./realestate");
 const leads = require("./leads");
 const requests = require("./requests");
+const interest = require("./interest");
 const ownerReport = require("./ownerreport");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
@@ -22,6 +23,7 @@ const DEFAULTS = { perDay: 40, from: "10:00", to: "21:00", gapMin: 45, gapMax: 9
 const MAX_RUNNING = 5;
 const KEEP_FINISHED = 30;
 const OPT_OUT_LINE = "لإيقاف رسائل العروض أرسل: وقف";
+const BACK_MIN_SCORE = 3; // asked about it, or stronger (interest.SIGNS)
 
 const store = (state) => state.store("campaigns", { seq: 0, items: {}, settings: {}, day: { date: "", count: 0 }, next: 0 });
 const settings = (state) => ({ ...DEFAULTS, ...store(state).data.settings });
@@ -31,7 +33,15 @@ const running = (state) => all(state).filter((c) => c.status === "running").sort
 
 /** Clients a campaign for this listing would reach: matching, with a phone, not opted out, not sent it before. */
 const targets = (state, listing, mode) =>
-  mode === "drop"
+  mode === "back"
+    ? // Back on the market: the clients who asked about it, booked a viewing or liked it (not those only
+      // sent it in a campaign, no-shows or who didn't like it, nor won or lost ones), once per return.
+      interest
+        .forListing(state, listing.id)
+        .filter(({ lead, sign }) => sign.score >= BACK_MIN_SCORE && !["won", "lost"].includes(lead.status))
+        .map(({ lead }) => lead)
+        .filter((l) => l.phone && !l.optedOut && l.backNotified?.[listing.id] !== listing.back?.at)
+    : mode === "drop"
     ? // A price drop goes to clients whose budget it now fits, whether or not they got the listing before,
       // except those already told about this price.
       leads
@@ -60,12 +70,14 @@ function setHours(state, text) {
 function start(state, listing, { by, chat, mode, startAt }, now = Date.now()) {
   if (running(state).some((c) => c.listing === listing.id)) throw new UserError(`A campaign for #${listing.id} is already running (.campaigns).`);
   if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
+  if (mode === "back" && !re.backOnMarket(listing, now)) throw new UserError(`#${listing.id} hasn't come back on the market in the last 30 days (it is ${listing.status === "available" ? "available all along" : re.STATUS_AR[listing.status]}).`);
   if (mode === "drop" && !re.discount(listing, now)) throw new UserError(`#${listing.id} has no price cut in the last 30 days. Lower it first: .listing edit ${listing.id} السعر: …`);
   const queue = targets(state, listing, mode).map((l) => l.id);
+  if (!queue.length && mode === "back") throw new UserError(`No client to tell that #${listing.id} is available again: nobody asked about it, booked or liked it, or they were all told already.`);
   if (!queue.length) throw new UserError(mode === "drop" ? `No client to tell about #${listing.id}'s new price: none fits it within budget, or they were all told already.` : `No client to send #${listing.id} to: none matches, or they all have it already or asked to stop.`);
   return store(state).update((d) => {
     const id = ++d.seq;
-    d.items[id] = { id, listing: listing.id, ...(mode === "drop" ? { mode } : {}), ...(startAt > now ? { startAt } : {}), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
+    d.items[id] = { id, listing: listing.id, ...(mode ? { mode } : {}), ...(startAt > now ? { startAt } : {}), queue, total: queue.length, sent: [], failed: [], skipped: 0, status: "running", by, chat, created: now };
     // The file is rewritten on every message sent, so only the latest finished campaigns are kept.
     const finished = Object.values(d.items).filter((c) => c.status !== "running").sort((a, b) => b.id - a.id);
     for (const old of finished.slice(KEEP_FINISHED)) delete d.items[old.id];
@@ -90,7 +102,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "revive" ? `إعادة تواصل #${c.id} مع العملاء القدام` : c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "revive" ? `إعادة تواصل #${c.id} مع العملاء القدام` : c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : c.mode === "back" ? "رجوع " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -347,7 +359,9 @@ function message(listing, lead, agent, mode) {
   const cut = mode === "drop" && re.discount(listing);
   const head = cut
     ? `📉 *نزل سعره!*${(lead.sentListings || []).includes(listing.id) ? " العقار اللي بعتهولك قبل كده" : ""}\nبقى ${re.shortAr(listing.price)} بدل ${re.shortAr(cut.was)} ${agent.currency || "جنيه"} (خصم ${cut.pct}%)`
-    : "عندي عقار مناسب لطلبك:";
+    : mode === "back"
+      ? "🔁 *خبر حلو!* العقار اللي كنت مهتم بيه رجع متاح تاني:"
+      : "عندي عقار مناسب لطلبك:";
   const book = agent.booking ? `\n🗓️ لحجز معاينة ابعت: معاينة ${listing.id}` : "";
   return `${hi}${head}\n\n${re.card(listing, agent)}\n\nللاستفسار رد على الرسالة أو أرسل: #${listing.id}${book}\n${OPT_OUT_LINE}`;
 }
@@ -445,6 +459,8 @@ async function tick(app, now = Date.now(), rand = Math.random) {
       ? false // a message goes to everyone queued (a stop request is checked below)
       : c.mode === "drop"
       ? lead && lead.dropNotified?.[listing.id] === listing.price
+      : c.mode === "back"
+      ? lead && (lead.backNotified?.[listing.id] === listing.back?.at || ["won", "lost"].includes(lead.status))
       : lead && (lead.sentListings || []).includes(listing.id);
   if (!lead || !lead.phone || lead.optedOut || stale) return skip();
 
@@ -465,8 +481,9 @@ async function tick(app, now = Date.now(), rand = Math.random) {
       const text = message(listing, lead, re.agent(app.state), c.mode);
       const [photo] = re.photos(app.config, listing);
       await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
-      leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له ${c.mode === "drop" ? "تخفيض سعر " : ""}العقار #${listing.id} (حملة #${c.id})`, now);
+      leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له ${c.mode === "drop" ? "تخفيض سعر " : ""}العقار #${listing.id} (${c.mode === "back" ? "رجع متاح تاني، " : ""}حملة #${c.id})`, now);
       if (c.mode === "drop") leads.update(app.state, lead.id, { dropNotified: { ...(lead.dropNotified || {}), [listing.id]: listing.price } }, now);
+      if (c.mode === "back") leads.update(app.state, lead.id, { backNotified: { ...(lead.backNotified || {}), [listing.id]: listing.back?.at } }, now);
     }
   });
 }

@@ -315,8 +315,10 @@ function merge(state, keepId, otherId, by, now = Date.now()) {
     k.sentListings = [...new Set([...(k.sentListings || []), ...(o.sentListings || [])])].slice(-200);
     k.deals = [...(k.deals || []), ...(o.deals || [])].sort((a, b) => a.at - b.at);
     if (!k.deals.length) delete k.deals;
-    k.dropNotified = { ...(o.dropNotified || {}), ...(k.dropNotified || {}) };
-    if (!Object.keys(k.dropNotified).length) delete k.dropNotified;
+    for (const told of ["dropNotified", "backNotified"]) {
+      k[told] = { ...(o[told] || {}), ...(k[told] || {}) };
+      if (!Object.keys(k[told]).length) delete k[told];
+    }
     k.created = Math.min(k.created, o.created);
     if (o.optedOut) Object.assign(k, { optedOut: true, optedOutAt: k.optedOutAt || o.optedOutAt }); // a stop request is never lost
     if (o.noShows) k.noShows = (k.noShows || 0) + o.noShows;

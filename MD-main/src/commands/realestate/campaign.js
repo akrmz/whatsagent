@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const campaigns = require("../../services/campaigns");
+const interest = require("../../services/interest");
 const img = require("../../services/reimages");
 const fs = require("node:fs");
 const path = require("node:path");
@@ -161,9 +162,9 @@ module.exports = [
     aliases: ["tarweej", "sendmatch", "hamla3qar"],
     category: "realestate",
     description:
-      "حملة إرسال عقار — sends a listing to every saved client it suits (type, sale/rent, area, budget, rooms), one at a time: a random 45–90 s gap, only 10:00–21:00, at most 40 a day across all campaigns, so your number isn't flagged as spam. Clients who already got the listing or sent \"وقف\" are skipped; every message tells them how to stop. Shows the list first; \"go\" starts it. \"drop\" after a price cut tells every client the new price fits, including those who had it before (once per price). \"msg\" sends your own message (an occasion greeting, an announcement, optionally with a picture) to all clients or a filtered group, the same paced way. Owner and sudo users.",
-    usage: "<listing> [go] | <listing> drop [go] | msg [filters] (new line) <message> | msg go | stop <campaign> | limit <per day> | hours <10:00-21:00> | list",
-    examples: [".blast 12", ".blast 12 go", ".blast 12 drop", ".blast 12 drop go", ".blast msg\nكل سنة وانت طيب يا {name} 🌙", ".blast msg التجمع شقة\nعندنا وحدات جديدة في التجمع", ".blast msg go", ".campaigns", ".blast stop 3", ".blast limit 30", ".blast hours 11:00-20:00"],
+      "حملة إرسال عقار — sends a listing to every saved client it suits (type, sale/rent, area, budget, rooms), one at a time: a random 45–90 s gap, only 10:00–21:00, at most 40 a day across all campaigns, so your number isn't flagged as spam. Clients who already got the listing or sent \"وقف\" are skipped; every message tells them how to stop. Shows the list first; \"go\" starts it. \"drop\" after a price cut tells every client the new price fits, including those who had it before (once per price). “back”, when a reserved or sold unit is available again (within 30 days), tells the clients who asked about it, booked a viewing or liked it (once each time it comes back). \"msg\" sends your own message (an occasion greeting, an announcement, optionally with a picture) to all clients or a filtered group, the same paced way. Owner and sudo users.",
+    usage: "<listing> [go] | <listing> drop [go] | <listing> back [go] | msg [filters] (new line) <message> | msg go | stop <campaign> | limit <per day> | hours <10:00-21:00> | list",
+    examples: [".blast 12", ".blast 12 go", ".blast 12 drop", ".blast 12 drop go", ".blast 12 back", ".blast 12 back go", ".blast msg\nكل سنة وانت طيب يا {name} 🌙", ".blast msg التجمع شقة\nعندنا وحدات جديدة في التجمع", ".blast msg go", ".campaigns", ".blast stop 3", ".blast limit 30", ".blast hours 11:00-20:00"],
     permission: "sudo",
     cooldown: 3,
     async run(ctx) {
@@ -191,17 +192,40 @@ module.exports = [
       if (listing.status !== "available") throw new UserError(`#${listing.id} is not available (${re.STATUS_AR[listing.status]}).`);
 
       // ".blast 12 drop [go]": tell clients the listing now fits about its new price.
-      const mode = /^(drop|تخفيض|خصم)$/.test(arg) ? "drop" : undefined;
+      // ".blast 12 back [go]": tell the clients who were interested that it is available again.
+      const mode = /^(drop|تخفيض|خصم)$/.test(arg) ? "drop" : /^(back|again|رجع|رجوع|متاح)$/.test(arg) ? "back" : undefined;
       const goWord = mode ? String(ctx.args[2] || "").toLowerCase() : arg;
-      const cut = mode && re.discount(listing);
-      if (mode && !cut) throw new UserError(`#${listing.id} has no price cut in the last 30 days. Lower it first: ${ctx.prefix}listing edit ${listing.id} السعر: …`);
+      const cut = mode === "drop" && re.discount(listing);
+      if (mode === "drop" && !cut) throw new UserError(`#${listing.id} has no price cut in the last 30 days. Lower it first: ${ctx.prefix}listing edit ${listing.id} السعر: …`);
+      const back = mode === "back" && re.backOnMarket(listing);
+      if (mode === "back" && !back) throw new UserError(`#${listing.id} hasn't come back on the market in the last 30 days. When a reserved or sold unit is available again: ${ctx.prefix}listing status ${listing.id} available`);
       if (/^(go|start|yes|ابدأ|ابدا|نعم|تمام)$/.test(goWord)) {
         const c = campaigns.start(ctx.state, listing, { by: ctx.sender, chat: ctx.chatId, mode });
         const e = campaigns.estimate(ctx.state, c.total);
-        return ctx.reply(`▶️ ${mode ? "Price-drop campaign" : "Campaign"} #${c.id} started: #${listing.id} to ${c.total} client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done.\n${ctx.prefix}campaigns — progress · ${ctx.prefix}blast stop ${c.id}`);
+        return ctx.reply(`▶️ ${mode === "drop" ? "Price-drop campaign" : mode === "back" ? "Back-on-the-market campaign" : "Campaign"} #${c.id} started: #${listing.id} to ${c.total} client(s).\n⏱️ About ${e.minutes} min of sending${e.days > 1 ? ` over ${e.days} days (daily limit)` : ""}. I'll tell you here when it's done.\n${ctx.prefix}campaigns — progress · ${ctx.prefix}blast stop ${c.id}`);
       }
 
       const people = campaigns.targets(ctx.state, listing, mode);
+      if (mode === "back") {
+        if (!people.length) return ctx.reply(`No client to tell that #${listing.id} is available again: nobody asked about it, booked a viewing or liked it (${ctx.prefix}listing who ${listing.id}), or they were all told already.`);
+        const e = campaigns.estimate(ctx.state, people.length);
+        const signs = new Map(interest.forListing(ctx.state, listing.id).map(({ lead, sign }) => [lead.id, sign]));
+        return ctx.reply(
+          [
+            `🔁 *Back on the market — #${listing.id}*: ${re.STATUS_AR[back.from] || back.from} → ✅ متاح (${interest.ago(back.at)})`,
+            "",
+            `Goes to ${people.length} client(s) who were interested:`,
+            ...people.slice(0, 15).map((l) => `▫️ #${l.id} ${l.name || ""} (+${l.phone}) — ${signs.get(l.id)?.label || ""}`.trim()),
+            people.length > 15 ? `… and ${people.length - 15} more` : null,
+            "",
+            `It starts with "🔁 خبر حلو! العقار اللي كنت مهتم بيه رجع متاح تاني", then the card. ⏱️ About ${e.minutes} min of sending.`,
+            "",
+            `Start: ${ctx.prefix}blast ${listing.id} back go`,
+          ]
+            .filter((x) => x !== null)
+            .join("\n"),
+        );
+      }
       if (!people.length) {
         return ctx.reply(
           mode

@@ -371,8 +371,12 @@ module.exports = [
       if (sub === "status") {
         const status = statusFrom(String(ctx.args[2] || "").toLowerCase());
         if (!status) throw new UserError("Status: available, reserved, sold or rented (متاح، محجوز، مباع، مؤجر).");
-        re.update(ctx.state, id, { status });
-        return ctx.reply(`🔖 #${id}: ${re.STATUS_AR[status]}`);
+        const was = re.get(ctx.state, id)?.status;
+        const l = re.update(ctx.state, id, { status });
+        // Available again: who was interested meanwhile (a count only, names are in .blast's preview).
+        const told = status === "available" && was !== "available" ? campaigns.targets(ctx.state, l, "back").length : 0;
+        const backLine = told ? `\n\n🔁 ${told} client(s) asked about it, booked a viewing or liked it. Tell them it's available again: ${ctx.prefix}blast ${id} back` : "";
+        return ctx.reply(`🔖 #${id}: ${re.STATUS_AR[status]}${backLine}`);
       }
       if (sub === "del" || sub === "delete" || sub === "remove") {
         const l = re.remove(ctx.state, ctx.config, id);

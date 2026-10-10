@@ -390,12 +390,19 @@ function update(state, id, changes, now = Date.now()) {
     if (!l) throw new UserError(`There is no listing #${id}.`);
     // Price history (the last 10 earlier prices), for "📉 was … — x% off".
     if (changes.price && l.price && changes.price !== l.price) l.priceHistory = [...(l.priceHistory || []), { price: l.price, at: now }].slice(-10);
+    // Back on the market (a reservation fell through, a sale was cancelled): when, and from what,
+    // so the clients who were interested meanwhile can be told (".blast 12 back").
+    if (changes.status === "available" && l.status && l.status !== "available") l.back = { at: now, from: l.status };
     Object.assign(l, changes, { updated: now });
     return l;
   });
 }
 
 const DISCOUNT_DAYS = 30;
+const BACK_DAYS = 30;
+
+/** Available again within the last 30 days: { at, from } (from: "reserved", "sold" or "rented"), or null. */
+const backOnMarket = (l, now = Date.now()) => (l.status === "available" && l.back && now - l.back.at <= BACK_DAYS * 86400000 ? l.back : null);
 
 /** A price cut within the last 30 days: { was, pct }, or null. */
 function discount(l, now = Date.now()) {
@@ -571,6 +578,6 @@ module.exports = {
   parseAmount, latinDigits, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
-  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, count, addFeedback, stale,
+  add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, backOnMarket, count, addFeedback, stale,
   STATUS_AR, MAX_PHOTOS,
 };
