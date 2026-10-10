@@ -130,9 +130,15 @@ function parseLeadText(text, ownerNumber) {
     const f = re.extractFree(free);
     if (out.rooms === undefined && f.rooms) out.rooms = f.rooms;
     if (!out.location && f.location) out.location = f.location.slice(0, 80);
+    const by = deliveryBy(free);
+    if (by) out.deliveryBy = by;
     // "معايا مقدم مليون": what they can put down, not the price they can pay.
     if (out.downMax === undefined && f.down) out.downMax = f.down;
-    const budgetText = out.downMax ? free.replace(/(?:بمقدم|مقدم)\s*:?\s*(?:حدود|في حدود|لحد|حتى)?\s*\d[\d,.]*\s*(?:مليون|ملايين|million|m|ألف|الف|k)?/giu, " ") : free;
+    // The budget is read without the down payment and the delivery ("استلام لحد 2028" isn't 2,028).
+    const budgetText = (out.downMax ? free.replace(/(?:بمقدم|مقدم)\s*:?\s*(?:حدود|في حدود|لحد|حتى)?\s*\d[\d,.]*\s*(?:مليون|ملايين|million|m|ألف|الف|k)?/giu, " ") : free).replace(
+      /(?:استلام|الاستلام|تسليم|التسليم|delivery)\s*:?\s*(?:قبل|لحد|حتى|في|خلال|before|by|in)?\s*(?:[\p{L}]+\s+)?20\d{2}/giu,
+      " ",
+    );
     if (out.min === undefined && out.max === undefined) Object.assign(out, budgetIn(budgetText));
   }
   if (notes.length) out.notes = notes.join("\n").slice(0, 500);
@@ -141,6 +147,20 @@ function parseLeadText(text, ownerNumber) {
   if (features.length) out.features = features;
   for (const k of Object.keys(out)) if (out[k] === undefined) delete out[k];
   return out;
+}
+
+/**
+ * The latest delivery a buyer accepts: "استلام قبل 2027" (by 2026), "استلام لحد 2027" / "في 2027"
+ * (by 2027), "استلام خلال سنتين" (two years from now). @returns {number|undefined} a year
+ */
+function deliveryBy(text, now = Date.now()) {
+  const t = re.latinDigits(String(text || ""));
+  const year = new Date(now).getFullYear();
+  let m = t.match(/(?:استلام|الاستلام|تسليم|التسليم|delivery)\s*(قبل|لحد|حتى|في|خلال|before|by|in)\s*(20\d{2})/iu);
+  if (m) return Number(m[2]) - (/قبل|before/iu.test(m[1]) ? 1 : 0);
+  m = t.match(/(?:استلام|الاستلام|تسليم|التسليم)\s*(?:خلال|في خلال|قبل)\s*(سنتين|سنه|سنة|(\d{1,2})\s*(?:سنين|سنوات|سنة))/u);
+  if (m) return year + (m[1] === "سنتين" ? 2 : m[2] ? Number(m[2]) : 1);
+  return undefined;
 }
 
 // ---- the leads ----------------------------------------------------------------------------
@@ -358,10 +378,12 @@ const locationWords = (s) => re.latinDigits(String(s || "")).toLowerCase().split
 function fits(lead, listing) {
   if (listing.status !== "available") return null;
   // A client without any wishes yet (e.g. saved from a contact card) matches nothing, not everything.
-  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax && !lead.features?.length) return null;
+  if (!lead.type && !lead.deal && !lead.location && !lead.min && !lead.max && !lead.rooms && !lead.downMax && !lead.features?.length && !lead.deliveryBy) return null;
   if (lead.deal && listing.deal && lead.deal !== listing.deal) return null;
   if (lead.type && listing.type && lead.type !== listing.type) return null;
   if (lead.rooms && listing.rooms && listing.rooms < lead.rooms) return null;
+  // Delivered by when they need it (a listing without a delivery year is ready: a resale).
+  if (lead.deliveryBy && listing.delivery && listing.delivery > lead.deliveryBy) return null;
   // Must-haves the client named (صف أول، حمام سباحة …): the unit has them all.
   if (lead.features?.length && !lead.features.every((f) => re.featuresOf(listing).includes(f))) return null;
   // A buyer with a down payment ("معايا مقدم مليون") fits a unit sold in instalments whose down
@@ -405,7 +427,7 @@ const budgetText = (l, cur) => {
 const phoneText = (p) => (p ? `+${p}` : null);
 
 function card(lead, { currency = "جنيه", timeZone = "UTC", matches = [] } = {}) {
-  const wants = [lead.type, lead.deal && `لل${lead.deal}`, lead.rooms && `${lead.rooms} غرف`, lead.location && `في ${lead.location}`, lead.features?.length && `(${lead.features.join("، ")})`].filter(Boolean).join(" ");
+  const wants = [lead.type, lead.deal && `لل${lead.deal}`, lead.rooms && `${lead.rooms} غرف`, lead.location && `في ${lead.location}`, lead.features?.length && `(${lead.features.join("، ")})`, lead.deliveryBy && `استلام لحد ${lead.deliveryBy}`].filter(Boolean).join(" ");
   const lines = [
     `👤 *${lead.name || "عميل"}* — #${lead.id}`,
     lead.phone && `📞 ${phoneText(lead.phone)}`,

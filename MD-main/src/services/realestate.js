@@ -119,6 +119,7 @@ const LABELS = {
   // Resale with instalments: the down payment (an amount or a %) and the years left.
   down: ["المقدم", "مقدم", "الدفعة المقدمة", "down payment", "down"],
   years: ["التقسيط", "تقسيط", "مدة التقسيط", "الأقساط", "الاقساط", "الباقي", "installments", "installment"],
+  delivery: ["الاستلام", "استلام", "التسليم", "تسليم", "موعد الاستلام", "delivery", "handover"],
   notes: ["ملاحظات", "تفاصيل", "مميزات", "الوصف", "وصف", "notes", "details", "features", "description"],
   // The location in English, for the English card and designs (.listing 12 en).
   locationEn: ["location en", "location (en)", "english location", "المنطقة بالانجليزي", "المنطقة بالإنجليزي", "العنوان بالانجليزي", "العنوان بالإنجليزي"],
@@ -141,7 +142,7 @@ const dealIn = (text) => DEAL_RES.find(([, res]) => res.some((r) => r.test(Strin
 const FINISHING = ["ألترا سوبر لوكس", "الترا سوبر لوكس", "سوبر لوكس", "نص تشطيب", "نصف تشطيب", "على المحارة", "علي المحارة", "تشطيب كامل", "متشطب", "بدون تشطيب", "لوكس", "fully finished", "semi finished", "core and shell"];
 const ARABIC_COUNTS = { غرفتين: ["rooms", 2], غرفتان: ["rooms", 2], أوضتين: ["rooms", 2], اوضتين: ["rooms", 2], حمامين: ["baths", 2], حمامان: ["baths", 2] };
 // Words that end a location written in a sentence ("في التجمع الخامس 150 متر …").
-const LOCATION_STOP = /\s(?:\d|معايا|معاي|معي|ومعايا|ومعي|صف|الصف|بحمام|حمام سباحة|بيسين|ببيسين|جاردن|بجاردن|جنينة|بجنينة|حديقة|بحديقة|روف|بروف|ناصية|كورنر|مفروش|مفروشة|مفروشه|جراج|بجراج|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
+const LOCATION_STOP = /\s(?:\d|تسليم|التسليم|الاستلام|معايا|معاي|معي|ومعايا|ومعي|صف|الصف|بحمام|حمام سباحة|بيسين|ببيسين|جاردن|بجاردن|جنينة|بجنينة|حديقة|بحديقة|روف|بروف|ناصية|كورنر|مفروش|مفروشة|مفروشه|جراج|بجراج|مساحة|مساحه|متر|بسعر|سعر|السعر|غرف|غرفة|اوض|أوض|حمام|دور|الدور|تشطيب|للبيع|للإيجار|للايجار|بمقدم|مقدم|استلام|فيو|بجوار|قريب|في حدود|حدود|ميزانية|ميزانيه|بميزانية|لحد|حتى|عايز|عاوز|budget|for\s)|[،,.!؟\n(]/u;
 
 /**
  * Details written as a sentence, the way most broker posts are:
@@ -180,6 +181,11 @@ function extractFree(text) {
   }
   if ((m = t.match(/(?:على|تقسيط|أقساط|اقساط|over)\s*(?:على\s*)?(\d{1,3})\s*(سنين|سنوات|سنة|سنه|years?|شهر|شهور|months?)/iu))) {
     out.years = /شهر|شهور|month/iu.test(m[2]) ? Math.round((Number(m[1]) / 12) * 10) / 10 : Number(m[1]);
+  }
+  // Off-plan resale: "استلام 2027", "تسليم ديسمبر 2026", "استلام بعد سنتين" (worked out from this year).
+  if ((m = t.match(/(?:استلام|الاستلام|تسليم|التسليم|delivery)\s*:?\s*(?:[\p{L}]+\s+){0,2}(20\d{2})(?![\d])/iu))) out.delivery = Number(m[1]);
+  else if ((m = t.match(/(?:استلام|الاستلام|تسليم|التسليم)\s*:?\s*(?:بعد|خلال)\s*(سنتين|سنه|سنة|(\d{1,2})\s*(?:سنين|سنوات|سنة))/u))) {
+    out.delivery = new Date().getFullYear() + (m[1] === "سنتين" ? 2 : m[2] ? Number(m[2]) : 1);
   }
   if ((m = t.match(/(?:^|\s)(?:في|بـ?منطقة|منطقة|بكمبوند|كمبوند|بمدينة|in)\s+(.{3,60})/u))) {
     const loc = m[1].split(LOCATION_STOP)[0].trim();
@@ -225,6 +231,11 @@ function parseListingText(text, ownerNumber) {
     else if (key === "notes") notes.push(value);
     else if (key === "owner") out.owner = ownerFrom(value, ownerNumber) || out.owner;
     else if (key === "down" || key === "years") Object.assign(out, extractFree(`${key === "down" ? "مقدم" : "على"} ${value}`));
+    else if (key === "delivery") {
+      const d = extractFree(`استلام ${value}`).delivery;
+      if (d) out.delivery = d;
+      else if (/فور|جاهز|ready/iu.test(value)) out.features = ["استلام فوري"];
+    }
     else out[key] = value.slice(0, key === "location" ? 120 : 60);
   }
   const all = String(text || "").replace(places.MAP_LINKS, " ");
@@ -238,7 +249,7 @@ function parseListingText(text, ownerNumber) {
     if (rest.length) out.notes = rest.join("\n").slice(0, 600);
   }
   Object.assign(out, planFields(out));
-  const features = featuresIn(all);
+  const features = [...new Set([...featuresIn(all), ...(out.features || [])])]; // with "الاستلام: فوري"
   if (features.length) out.features = features;
   for (const k of Object.keys(out)) if (out[k] === undefined || out[k] === null) delete out[k];
   return out;
@@ -254,6 +265,9 @@ function planFields(f) {
   if (!down && f.downPct > 0 && f.downPct < 100 && f.price) down = Math.round((f.price * f.downPct) / 100);
   out.down = down && down >= 1000 && (!f.price || down < f.price) ? down : undefined;
   out.years = f.years > 0 && f.years <= 15 ? f.years : undefined;
+  // A delivery year that has come is no longer "off-plan"; one 15+ years away is a misreading.
+  const year = new Date().getFullYear();
+  if (f.delivery !== undefined) out.delivery = f.delivery > year && f.delivery <= year + 15 ? f.delivery : undefined;
   return out;
 }
 
@@ -458,6 +472,7 @@ function card(l, a) {
     l.price && `💰 *${money(l.price, cur)}*${l.price >= 1e5 ? ` (${shortAr(l.price)})` : ""}${l.deal === "إيجار" ? " شهرياً" : ""}`,
     cut && `📉 كان ${money(cut.was, cur)} — خصم ${cut.pct}%`,
     l.deal !== "إيجار" && planLine(l, cur),
+    l.delivery > new Date().getFullYear() && `🔑 الاستلام: ${l.delivery}`,
     specs || null,
     featuresOf(l).length ? `⭐ ${featuresOf(l).join(" · ")}` : null,
     l.finishing && `✨ التشطيب: ${l.finishing}`,
@@ -488,6 +503,11 @@ function search(state, query, pool = all(state)) {
   // budget, so "مقدم حتى 1m" isn't read as the price.
   if ((r = q.match(new RegExp(`(?:بمقدم|مقدم)\\s*(?:حتى|<)?\\s*${amount}`)))) {
     [f.plan, f.downMax] = [true, toN(r[1], r[2])];
+    q = q.replace(r[0], " ");
+  }
+  // "استلام 2026": delivered by then (a listing without a delivery year is ready).
+  if ((r = q.match(/(?:استلام|تسليم|delivery)\s*(?:قبل|لحد|حتى|في|by)?\s*(20\d{2})/u))) {
+    f.deliveryBy = Number(r[1]);
     q = q.replace(r[0], " ");
   }
   if ((r = q.match(/(?:بالتقسيط|تقسيط|اقساط|أقساط|installments?)/u))) {
@@ -522,6 +542,7 @@ function search(state, query, pool = all(state)) {
     if (f.rooms && l.rooms !== f.rooms) return false;
     if (f.features.length && !f.features.every((x) => featuresOf(l).includes(x))) return false;
     if (f.plan && !l.down) return false;
+    if (f.deliveryBy && l.delivery > f.deliveryBy) return false;
     if (f.downMax && !(l.down <= f.downMax)) return false;
     const where = `${l.location || ""} ${l.notes || ""}`.toLowerCase();
     return words.every((w) => where.includes(w));

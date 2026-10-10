@@ -8,6 +8,7 @@ const leads = require("../../services/leads");
 const places = require("../../services/places");
 const health = require("../../services/listinghealth");
 const interest = require("../../services/interest");
+const market = require("../../services/market");
 const { redactPhones } = require("../../services/phones");
 const { limiterFor } = require("../../core/ratelimit");
 
@@ -173,6 +174,19 @@ async function nearby(ctx, text) {
 }
 
 /**
+ * After adding a listing: its price per m² against similar ones (same type and deal, a shared
+ * area word, at least 3), so a price far from the market is seen before it's marketed.
+ */
+function vsMarket(ctx, l) {
+  if (l.deal === "إيجار") return "";
+  const m = market.compareToMarket(ctx.state, l);
+  if (!m.stats) return "";
+  const cur = re.agent(ctx.state).currency;
+  const vs = m.diffPct >= 10 ? `أعلى من المتوسط بـ ${m.diffPct}% ⚠️` : m.diffPct <= -10 ? `أقل من المتوسط بـ ${-m.diffPct}% 👍` : "في حدود المتوسط ✅";
+  return `\n\n📈 سعر المتر ${re.money(Math.round(m.ppm), cur)} — ${vs} (متوسط ${m.similar.length} عقار مشابه: ${re.money(Math.round(m.stats.median), cur)}) · ${ctx.prefix}market ${l.id}`;
+}
+
+/**
  * ".listings check": available listings with something missing (photos, price, size, area,
  * rooms, map pin, owner number) or not updated for 30 days, the most incomplete first, each with
  * the command that fills its biggest gap. Staff only (it's about running the catalogue).
@@ -239,7 +253,8 @@ module.exports = [
         const l = re.add(ctx.state, fields, ctx.sender);
         const dupLine = dup ? `\n\n⚠️ This looks like #${dup.id}, already saved. If it's the same property: ${ctx.prefix}listing del ${l.id}` : "";
         const autoLine = dup ? "" : autoblast(ctx, l);
-        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${clientsLine(ctx, l, await ctx.isStaffOnlyChat())}${autoLine}${dupLine}`);
+        const priceLine = vsMarket(ctx, l);
+        return ctx.reply(`✅ Saved as *#${l.id}*\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}\n\nAdd photos: reply to a picture with ${ctx.prefix}listing photo ${l.id}${priceLine}${clientsLine(ctx, l, await ctx.isStaffOnlyChat())}${autoLine}${dupLine}`);
       }
       if (sub === "ask") {
         // ".listing ask 12 15 18": ask each owner whether it's still available (at most 5 at once).
