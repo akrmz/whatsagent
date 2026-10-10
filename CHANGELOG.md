@@ -2,6 +2,24 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.70.0 — 2026-10-11
+
+### Security — no phone number in a listing's description reaches clients (B-28 follow-up)
+- **The problem:** a pasted broker's post usually ends "للتواصل 0100… واتساب", and that line went into the listing's notes, which the card shows to clients (`#12`, campaigns, the catalogue). B-28 fixed one way in (`.feed add`), but there were others.
+- **The fix:** `re.add` and `re.update`, which every listing goes through, now move phone numbers in the notes to the listing's private source ("🔗 المصدر (خاص): رقم كان في الوصف · +2010…", shown only where the owner is). This covers `.listing add`/`edit`, `.import`, the AI reader, sellers' offers, drafts and the feed. The contact words left at the end of the line go too.
+  - Your own number and an owner already saved are just removed.
+  - Prices like "3,500,000" or "3 500 000" and sizes aren't touched.
+- **Existing listings** are cleaned when the bot starts, without changing their "updated" date.
+- **Caught before release:** the first version dropped those trailing words with a regex that took seconds on a line of "و و و …" (exponential, 22 words: 4.7 s). The B-25 timing rule caught it. It is now a word list removed from the end of the line (0.3 ms on 1,500 words), and the timing test has that input. Drafts use the same reader.
+
+### Checked
+- 3 tests (447 in total). They cover:
+  - a pasted post (the number out of the notes and the client's card, kept privately, "للتواصل" gone);
+  - an edit adding a number;
+  - your own and the owner's number just removed, prices untouched;
+  - the start-up clean-up once.
+- The timing test now includes the new reader with "و" and "واتساب او" runs. The B-28 migration test now writes the old notes straight to the file, since adding them cleans them already.
+
 ## 3.69.0 — 2026-10-11
 
 ### Added — ask brokers for what your clients want
