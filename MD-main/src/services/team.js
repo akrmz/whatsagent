@@ -19,6 +19,16 @@ const setTimeZone = (tz) => (timeZone = tz || timeZone);
 const monthOf = (now) => zoneNow(timeZone, now).day.slice(0, 7);
 const store = (state) => state.store("team-stats", {});
 
+/** A correction to what was recorded in the month of `at` (e.g. a commission shared afterwards); never below 0. */
+function adjust(state, by, kind, delta, at = Date.now()) {
+  if (!by || !KINDS.includes(kind) || !delta) return;
+  const mk = monthOf(at);
+  store(state).update((d) => {
+    const e = d[mk]?.[by];
+    if (e) e[kind] = Math.max(0, (e[kind] || 0) + delta);
+  });
+}
+
 function record(state, by, kind, amount = 1, now = Date.now()) {
   if (!by || !KINDS.includes(kind) || !(amount > 0)) return;
   const mk = monthOf(now);
@@ -34,4 +44,4 @@ function record(state, by, kind, amount = 1, now = Date.now()) {
 /** One month's counters, { [jid]: { … } }. */
 const month = (state, mk) => store(state).data[mk] || {};
 
-module.exports = { record, month, monthOf, setTimeZone, KINDS };
+module.exports = { record, adjust, month, monthOf, setTimeZone, KINDS };

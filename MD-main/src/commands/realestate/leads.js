@@ -126,8 +126,8 @@ module.exports = [
     aliases: ["client", "customer", "ameel"],
     description:
       "متابعة العملاء — a client tracker: save a client (labelled lines, or reply to a shared contact card), their budget and what they want; notes, pipeline status, follow-up reminders, the listings that match, and sending a listing to them on WhatsApp. Owner and sudo users.",
-    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | won <id> [#listing] [price] [rate %|عمولة amount] | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | merge <id> <other> | del <id>",
-    examples: [".lead add\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع", ".lead 5", ".lead follow 5 tomorrow at 10am يرد على العرض", ".lead send 5 12"],
+    usage: "add <details> | <id> | note <id> <text> | status <id> <status> | won <id> [#listing] [price] [rate %|عمولة amount] [split <your %>|مناصفة] | split <id> <your %> | follow <id> <when> [note] | send <id> <listing> | assign <id> @member|me|none | edit <id> <details> | merge <id> <other> | del <id>",
+    examples: [".lead add\nالاسم: أحمد\nالموبايل: 01001234567\nالميزانية: 2-3 مليون\nالنوع: شقة\nالمنطقة: التجمع", ".lead 5", ".lead follow 5 tomorrow at 10am يرد على العرض", ".lead send 5 12", ".lead won 5 #12 3.1m 2.5% split 50%", ".lead split 5 50%"],
     async run(ctx) {
       const sub = (ctx.args[0] || "").toLowerCase();
       const direct = idOf(sub);
@@ -164,15 +164,33 @@ module.exports = [
         leads.note(ctx.state, id, ctx.sender, rest);
         return ctx.reply(`📝 Note added to #${id}.`);
       }
+      if (sub === "split" || sub === "share" || sub === "شراكة") {
+        // ".lead split 5 50%": the last deal's commission was shared with another broker.
+        const pct = Number(re.latinDigits(String(ctx.args[2] || "")).replace(/%$/, ""));
+        const { deal, before } = deals.setSplit(ctx.state, id, pct, ctx.sender);
+        const cur = re.agent(ctx.state).currency;
+        return ctx.reply(
+          deal.split
+            ? `🤝 #${id}: عمولتك ${re.money(deal.commission, cur)} — ${deal.split}% من ${re.money(deal.gross, cur)} (كانت ${re.money(before, cur)})${deal.partner ? `\nمع السمسار +${deal.partner}` : ""}\n${ctx.prefix}deals`
+            : `🤝 #${id}: العمولة كلها ليك: ${re.money(deal.commission, cur)}`,
+        );
+      }
       if (sub === "won" || sub === "deal" || sub === "صفقة") {
         const { deal, listing } = deals.close(ctx.state, id, deals.parseDealArgs(ctx.args.slice(2)), ctx.sender);
         const cur = re.agent(ctx.state).currency;
+        // A unit from another broker: the commission is often shared.
+        const broker = !deal.split && listing?.source?.phones?.[0];
         return ctx.reply(
           [
             `✅ *صفقة* — #${id} ${lead.name || ""}`.trim(),
             listing ? `🏠 #${listing.id} ${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""} (${re.STATUS_AR[listing.status]})` : null,
             `💰 ${re.money(deal.price, cur)}`,
-            deal.commission ? `🧾 العمولة: ${re.money(deal.commission, cur)}${deal.rate ? ` (${deal.rate}%)` : ""}` : `🧾 Add the commission next time: ${ctx.prefix}lead won ${id} … 2.5%`,
+            deal.commission
+              ? deal.split
+                ? `🧾 عمولتك: ${re.money(deal.commission, cur)} — ${deal.split}% من ${re.money(deal.gross, cur)}${deal.rate ? ` (${deal.rate}%)` : ""}${deal.partner ? ` · 🤝 مع السمسار +${deal.partner}` : ""}`
+                : `🧾 العمولة: ${re.money(deal.commission, cur)}${deal.rate ? ` (${deal.rate}%)` : ""}`
+              : `🧾 Add the commission next time: ${ctx.prefix}lead won ${id} … 2.5%`,
+            broker && deal.commission ? `🤝 الوحدة دي من سمسار (+${broker}). لو العمولة مقسومة معاه: ${ctx.prefix}lead split ${id} 50%` : null,
             "",
             `${ctx.prefix}deals — this month's deals and commission`,
           ]

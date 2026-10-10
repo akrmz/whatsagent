@@ -15,7 +15,7 @@ module.exports = {
   aliases: ["sales", "safaqat", "revenue"],
   category: "realestate",
   description:
-    "الصفقات والعمولات — the deals you closed (.lead won): this month by default, \"last\" for last month, a month (2026-09) or a year (2026). Count, total value and commission, compared with the period before, each deal, by unit type (apartments, chalets, villas …) and by client source. Owner and sudo users.",
+    "الصفقات والعمولات — the deals you closed (.lead won): this month by default, \"last\" for last month, a month (2026-09) or a year (2026). Count, total value and commission (your share, for deals shared with another broker), compared with the period before, each deal, the shared ones and the brokers' part, by unit type (apartments, chalets, villas …) and by client source. Owner and sudo users.",
   usage: "[last | YYYY-MM | YYYY]",
   examples: [".deals", ".deals last", ".deals 2026-09", ".deals 2026"],
   permission: "sudo",
@@ -57,9 +57,15 @@ module.exports = {
         ...list.slice(0, 20).map(({ deal, lead }) => {
           const l = deal.listing && re.get(ctx.state, deal.listing);
           const what = l ? `#${l.id} ${l.type || "عقار"}${l.location ? ` ${l.location.slice(0, 20)}` : ""}` : deal.kind;
-          return `▫️ ${dayOf(deal.at, tz)} — #${lead.id} ${lead.name || ""} — ${what} — ${re.shortAr(deal.price)}${deal.commission ? ` — عمولة ${re.group(deal.commission)}` : ""}`;
+          return `▫️ ${dayOf(deal.at, tz)} — #${lead.id} ${lead.name || ""} — ${what} — ${re.shortAr(deal.price)}${deal.commission ? ` — عمولة ${re.group(deal.commission)}` : ""}${deal.split ? ` (🤝 ${deal.split}%)` : ""}`;
         }),
       );
+    }
+    // Shared with other brokers: the commission counted above is your share.
+    const shared = list.filter(({ deal }) => deal.split && deal.gross);
+    if (shared.length) {
+      const theirs = shared.reduce((a, { deal }) => a + (deal.gross - (deal.commission || 0)), 0);
+      lines.push(`🤝 ${shared.length} صفقة مع سماسرة: العمولة فوق نصيبك بس · نصيب السماسرة ${re.money(theirs, cur)}`);
     }
     // Apartments, chalets and villas apart.
     const types = bytype.deals(ctx.state, list);
