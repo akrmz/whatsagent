@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.61.0 — 2026-10-10
+
+### Added — a listing's payment plan, and figures for negotiating
+- **`.installments 12`** uses listing #12's price. It shows the listing's own plan (down payment, years and monthly instalment), or that it is cash.
+  - **A sum of your own:** a down payment and years after the number (`.installments 12 20% 7`, `.installments 12 2 مليون 7`) give "🧮 حسابك". Without the years, the owner's years are used.
+  - **For the owner and sudo users only:**
+    - **the grid:** the monthly instalment with 10/20/30% down over 5/7/10 years;
+    - **a target instalment:** with `قسط 40 ألف`, the down payment that brings the instalment to 40k a month over 5, 7 and 10 years and the owner's own years ("من غير مقدم" when none is needed). Useful with buyers who said "أقدر أدفع 40 ألف في الشهر" (3.60).
+  - **Clients see** the real plan and their own sum only. A table of 10-year plans for a unit sold over 5 years, or for cash, could read as an offer. The team's figures say they are what-ifs, not the owner's offer.
+  - Rentals have no plan. All without interest.
+- `.installments 2 مليون 300 ألف 5` (a price, not a listing) works as before.
+
+### Checked
+- 3 tests (414 in total). They cover the team's view (the plan, the grid, the target with the owner's years and "no down payment", their own sum in % and in millions, a cash unit, a rental, a missing listing), the client's view (no grid, no target), plain prices still read as before, and the arithmetic.
+
 ## 3.60.0 — 2026-10-10
 
 ### Added — buyers' monthly instalment
