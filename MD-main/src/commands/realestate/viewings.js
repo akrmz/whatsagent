@@ -6,6 +6,9 @@ const leads = require("../../services/leads");
 const re = require("../../services/realestate");
 const { parseWhen } = require("../../services/reminders");
 const { UserError } = require("../../core/errors");
+const route = require("../../services/viewingroute");
+const { zoneNow } = require("../../services/gcschedule");
+const { staffOnlyChat } = require("../../services/listingview");
 
 const idOf = (s) => {
   const n = Number(re.latinDigits(String(s || "")).replace(/^#/, ""));
@@ -98,9 +101,9 @@ module.exports = [
     clientData: true,
     aliases: ["appointments", "mawaeed"],
     category: "realestate",
-    description: "المعاينات القادمة — upcoming viewings, soonest first (today's past ones too, with their outcome), the ones still without an outcome, and \"ics\": a calendar file of the upcoming ones for Google Calendar or your phone. Owner and sudo users.",
-    usage: "[ics]",
-    examples: [".viewings", ".viewings ics"],
+    description: "المعاينات القادمة — upcoming viewings, soonest first (today's past ones too, with their outcome), the ones still without an outcome, and \"ics\": a calendar file of the upcoming ones for Google Calendar or your phone. “today” / “tomorrow” plans the day: the viewings in order with each client, the distance from the one before and a warning when there isn't time to drive it, and one Google Maps link through every stop in order. Owner and sudo users.",
+    usage: "[today|tomorrow] | ics",
+    examples: [".viewings", ".viewings today", ".viewings tomorrow", ".viewings ics"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -109,6 +112,14 @@ module.exports = [
         const { text, count } = viewings.ics(ctx.state, zone);
         if (!count) return ctx.reply(`No upcoming viewings to export. ${ctx.prefix}viewing add <client> <listing> tomorrow at 4pm`);
         return ctx.reply({ document: Buffer.from(text, "utf8"), mimetype: "text/calendar", fileName: "viewings.ics", caption: `🗓️ ${count} viewing(s) — open the file to add them to your calendar (Google Calendar, iPhone, Outlook), with a reminder an hour before each.` });
+      }
+      const day = /^(today|route|day|النهارده|النهاردة|اليوم)$/i.test(ctx.args[0] || "") ? 0 : /^(tomorrow|بكرة|بكره|غدا|غداً)$/i.test(ctx.args[0] || "") ? 1 : null;
+      if (day !== null) {
+        const date = zoneNow(zone, Date.now() + day * 86400000).day;
+        const plan = route.dayPlan(ctx.state, zone, date);
+        const name = day ? "بكرة" : "النهارده";
+        if (!plan.stops.length) return ctx.reply(`No viewings ${day ? "tomorrow" : "today"} (${date}). All upcoming: ${ctx.prefix}viewings`);
+        return ctx.reply(route.text(ctx.state, plan, zone, { title: `🗓️ *معاينات ${name}* — ${date} (${plan.stops.length})`, p: ctx.prefix, showOwner: staffOnlyChat(ctx) }));
       }
       const list = viewings.upcoming(ctx.state);
       const open = viewings.pending(ctx.state).filter((v) => !list.includes(v));

@@ -3,6 +3,7 @@
 const re = require("./realestate");
 const leads = require("./leads");
 const viewings = require("./viewings");
+const route = require("./viewingroute");
 const rentals = require("./rentals");
 const hotleads = require("./hotleads");
 const weekly = require("./weekly");
@@ -48,6 +49,13 @@ function build(state, timeZone, now = Date.now()) {
   const lines = [`📋 *ملخص اليوم* — ${today}`];
   lines.push("", `🗓️ *المعاينات اليوم (${todaysViewings.length})*`);
   lines.push(...(todaysViewings.length ? todaysViewings.map((v) => viewings.line(state, v, timeZone)) : ["لا توجد"]));
+  if (todaysViewings.length >= 2) {
+    // Several viewings: one link through them in order, and a warning when two are too close in time.
+    const plan = route.dayPlan(state, timeZone, today, now);
+    const tight = plan.stops.filter((x) => x.leg?.tight).length;
+    if (plan.url) lines.push(`🗺️ الطريق بالترتيب: ${plan.url}`);
+    if (tight) lines.push(`⚠️ ${tight === 1 ? "معاينة الوقت قبلها مش مكفي المشوار" : `${tight} معاينات الوقت قبلها مش مكفي المشوار`} — .viewings today`);
+  }
   const open = viewings.pending(state, now).filter((v) => !isToday(v.at));
   if (open.length) lines.push(`📝 بدون نتيجة: ${open.slice(0, 6).map((v) => `#${v.id}`).join("، ")} — .viewing done <رقم> liked|thinking|no`);
   lines.push("", `⏰ *متابعات اليوم (${followUps.length})*`);
