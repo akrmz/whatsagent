@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.51.0 — 2026-10-10
+
+### Added — who is interested in a listing
+- **`.listing who 12`** lists every client with a sign of interest in a listing:
+  - a viewing and how it went;
+  - a viewing booked (by you or by the client);
+  - a question about it (`#12`, the menu, the assistant);
+  - being sent it (campaigns, `.lead send`, offers, revive, automatic answers).
+- **Order:** the strongest sign first: liked at the viewing, thinking, booked, asked, sent. Then no-shows and "didn't like it", and clients won or lost after the active ones.
+  - Each line shows the client's number and phone, the sign, how long ago, and their stage.
+  - The footer suggests `.blast 12 drop` after a price cut, `.lead send`, and `.listing match` for new clients it suits.
+- **How it's read:** from what the bot already notes in clients' histories, plus their sent listings, which are kept when old notes are trimmed. Nothing new is stored. Names and numbers: private chat or a staff-only group.
+
+### Checked
+- 1 test (388 in total). It covers:
+  - a liked viewing, a question from a client saved by autoleads, a campaign send, a no-show, and a lost client, in that order;
+  - the lines (sign, how long ago, stage) and closed clients last;
+  - refused in a mixed group;
+  - a send known only from the sent list, and a listing nobody has seen.
+
 ## 3.50.0 — 2026-10-10
 
 ### Added — comparisons as a picture to send a client
