@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.57.0 — 2026-10-10
+
+### Added — a day plan for viewings, with the route
+- **`.viewings today` / `.viewings tomorrow`** list the day's viewings in time order. Each shows the listing and the client with their number. The listing owner's number is shown only in your own chat with the bot.
+  - **Between two viewings:** the distance and a rough drive time ("🚗 5.9 كم · حوالي 15 دقيقة"), from the listings' map pins (the straight line × 1.3, at 30 km/h).
+  - **A warning when it's too tight:** if the time left after the viewing before (its length from `.viewing length`) is shorter than the drive. For example "⚠️ 53 كم (حوالي 139 دقيقة سواقة) وقدامك 0 دقيقة بس".
+  - **One Google Maps link** through every stop in order, starting from where you are (up to 10 stops). The listings without a pin are listed to add.
+- **The morning summary**, with two or more viewings today, adds the route link and says how many viewings don't have enough time before them.
+
+### Checked
+- 3 tests (403 in total). They cover the order, the distances and drive times, the warning, the link, the unit without a pin, today and tomorrow, an empty day, owner numbers kept out of a group, the summary's link and warning, the 10-stop limit, and the drive estimate.
+
 ## 3.56.0 — 2026-10-10
 
 ### Added — why a unit isn't selling
