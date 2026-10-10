@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.53.0 — 2026-10-10
+
+### Added — the payment plan, delivery and features on marketing images
+- **`.flyer`, `.story` and `.collage`** (Arabic and English) now show:
+  - a gold line with the payment plan, when the listing has one: "مقدم 2 مليون · الباقي على 5 سنين · استلام 2027" (English "EGP 2M down · the rest over 5 years · delivery 2027"). Each part appears only if set, a delivery year only if it is still to come, and rentals get no plan line;
+  - up to 4 of the unit's features on a translucent band across the bottom of the photo ("صف أول · فيو بحر · حمام سباحة").
+  - A cash unit without features looks as before. In the story, the "للاستفسار" box moved down to make room.
+
+### Changed
+- The English name of the feature "حمام سباحة" is "pool", not "private pool", since it may be a shared pool.
+
+### Checked
+- 1 test (392 in total): the Arabic and English plan and feature lines, no plan for rentals, nothing extra for a plain unit, the delivery year alone, and the flyer, story and English flyer still render at their sizes. Every design was also rendered and checked by eye.
+- A benchmark with 800 listings and 3,000 clients: matching leads 9 ms, the hot-leads list 85 ms, the digest 94 ms, revive 0.6 s, and a warm search under 1 ms. No change needed.
+
 ## 3.52.1 — 2026-10-10
 
 ### Changed
