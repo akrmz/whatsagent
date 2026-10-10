@@ -9,6 +9,7 @@ const places = require("../../services/places");
 const health = require("../../services/listinghealth");
 const interest = require("../../services/interest");
 const market = require("../../services/market");
+const { alternatives } = require("../../services/alternatives");
 const { redactPhones } = require("../../services/phones");
 const { limiterFor } = require("../../core/ratelimit");
 
@@ -224,9 +225,9 @@ module.exports = [
     aliases: ["property", "aqar"],
     category: "realestate",
     description:
-      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | who <id> | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send", ".listing who 12"],
+      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). “similar 12” lists available units like it (same type and deal, the same area first, price within 40%); a client asking “#12” about a sold, rented or reserved unit gets up to 3 of them. Anyone can view; the owner and sudo users manage.",
+    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | who <id> | similar <id> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send", ".listing who 12", ".listing similar 12"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -241,6 +242,16 @@ module.exports = [
       if (SHOW_MAP.test(sub) && idOf(arg)) {
         const l = re.get(ctx.state, idOf(arg));
         return l ? sendPin(ctx, l) : ctx.reply(`There is no listing #${idOf(arg)}.`);
+      }
+      if ((sub === "similar" || sub === "alt" || sub === "بدائل" || sub === "شبه") && idOf(arg)) {
+        // ".listing similar 12": available units of the same type and deal, the same area first.
+        const l = re.get(ctx.state, idOf(arg));
+        if (!l) return ctx.reply(`There is no listing #${idOf(arg)}.`);
+        const alts = alternatives(ctx.state, l, { max: 5 });
+        if (!alts.length) return ctx.reply(`No available ${l.type || "عقار"} لل${l.deal || "بيع"} close to #${l.id} in price (within 40%).`);
+        const cur = re.agent(ctx.state).currency;
+        const tip = ctx.isSudoOrOwner ? `Send one to a client: ${ctx.prefix}lead send <client> ${alts[0].id}` : `للتفاصيل ابعت رقم العقار، مثلاً #${alts[0].id}`;
+        return ctx.reply(`🔄 *Similar to #${l.id}* — ${l.type || "عقار"} لل${l.deal || "بيع"}${l.location ? ` ${l.location.slice(0, 30)}` : ""}\n\n${alts.map((a) => `▫️ ${re.line(a, cur)}`).join("\n")}\n\n${tip}`);
       }
       if (!ctx.isSudoOrOwner) return ctx.reply("Only the owner and sudo users manage listings. Anyone can view them: .listing <number> · .listings");
 

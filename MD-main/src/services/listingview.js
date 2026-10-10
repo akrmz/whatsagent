@@ -42,15 +42,18 @@ async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
 /**
  * With ".agent autoleads on": someone (not the owner or a sudo user) who asks about a
  * listing in a private chat is saved as a client — or the existing client gets a note —
- * and the owner is told. @returns {{ lead, isNew } | null}
+ * and the owner is told. alts: the similar units the client was offered instead of one that is
+ * sold, rented or reserved, noted on the client and in the notice. @returns {{ lead, isNew } | null}
  */
-async function captureInquiry(ctx, listing) {
+async function captureInquiry(ctx, listing, { alts = [] } = {}) {
   const agent = re.agent(ctx.state);
   if (!agent.autoleads || ctx.isGroup || ctx.isSudoOrOwner || ctx.fromMe) return null;
   const pn = ctx.app.identity.toPn(ctx.sender);
   const phone = pn ? pn.split("@")[0] : null;
   const existing = leads.byPhone(ctx.state, phone);
-  const text = `سأل عن العقار #${listing.id} (${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""})`;
+  const gone = listing.status && listing.status !== "available" ? ` — ${re.STATUS_AR[listing.status]}` : "";
+  const offered = alts.length ? `، واتبعتله بدائل: ${alts.map((l) => `#${l.id}`).join("، ")}` : "";
+  const text = `سأل عن العقار #${listing.id} (${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""}${gone})${offered}`;
   let lead;
   if (existing) {
     // The same question again within a day adds nothing (and doesn't notify again).
@@ -88,7 +91,7 @@ async function captureInquiry(ctx, listing) {
   if (owner && notifyOwner(ctx.state, String(lead.id))) {
     const who = `${lead.name || "عميل"}${phone ? ` (+${phone})` : ""}`;
     await ctx.sock
-      .sendMessage(rotation.notifyJid(ctx.app, lead), { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}\n${ctx.prefix}lead ${lead.id}` })
+      .sendMessage(rotation.notifyJid(ctx.app, lead), { text: `🔔 ${existing ? "استفسار من عميل" : "عميل جديد"}: ${who} سأل عن #${listing.id}${gone}${offered}\n${ctx.prefix}lead ${lead.id}` })
       .catch(() => {});
   }
   return { lead, isNew: !existing };

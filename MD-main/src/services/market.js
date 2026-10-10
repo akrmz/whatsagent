@@ -105,4 +105,4 @@ function compareToMarket(state, listing) {
   };
 }
 
-module.exports = { report, compareToMarket, summarize, ppm, areaOf, quantile, MIN_SIMILAR };
+module.exports = { report, compareToMarket, summarize, ppm, areaOf, placeWords, quantile, MIN_SIMILAR };
