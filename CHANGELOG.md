@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.60.0 — 2026-10-10
+
+### Added — buyers' monthly instalment
+- **On the client:** "قسط 40 ألف", "القسط الشهري في حدود 50 ألف", "أقدر أدفع 40 ألف في الشهر", "monthly 40k" or the line `القسط: 40 ألف` saves the most a buyer can pay a month. It shows on the client card as "قسط حتى 40 ألف جنيه شهرياً".
+  - It is no longer read as the budget: "50 ألف في الشهر" isn't a 50,000 price.
+  - In a rental request, "15 ألف في الشهر" stays the rent.
+- **Matching:** such a buyer is matched with units sold in instalments whose monthly instalment ((price − down payment) ÷ months, no interest, as on the card) is within it.
+  - 10% over is still shown, marked over budget.
+  - With a down payment too, both must fit. With a cash budget too, either way fits.
+  - A unit with a down payment but no years has no known instalment, so it isn't matched.
+  - This works everywhere matching is used: `.listing match`, campaigns, written requests, the client menu and the assistant.
+- **Search:** `.listings شاليه قسط 40 ألف` lists the units whose instalment is at most that.
+- **The assistant** saves it from the conversation (`[WANTS monthly=40000]`), and its instructions say the instalment matters to such clients.
+
+### Checked
+- 3 tests (411 in total). They cover reading it (a sentence, with a down payment, a label, the assistant, rent left alone, a budget not mistaken), the client card text, matching both ways (the limit, +10% marked over, both limits, with a cash budget, a plan without years, a cash unit), and the search.
+
 ## 3.59.0 — 2026-10-10
 
 ### Added — what runs automatically in each group
