@@ -150,17 +150,18 @@ function createDispatcher(app) {
     if (!msg?.message || !msg.key?.remoteJid) return;
     if (app.sentIds.has(msg.key.id)) return; // our own outgoing message echoed back
     app.health.lastMessageAt = Date.now();
+    const jid = msg.key.remoteJid;
+    if (jid.endsWith("@newsletter")) {
+      // Channel posts never run commands; only channels the owner added are read (services/channels.js).
+      // Not kept in the message store either, so a busy channel doesn't push chats' messages out of it.
+      await handleEvent("newsletter", sock, msg);
+      return;
+    }
     app.store.add(msg);
     app.identity.learnFromKey(msg.key);
 
-    const jid = msg.key.remoteJid;
     if (jid === "status@broadcast") {
       await handleEvent("status", sock, msg);
-      return;
-    }
-    if (jid.endsWith("@newsletter")) {
-      // Channel posts never run commands; only channels the owner added are read (services/channels.js).
-      await handleEvent("newsletter", sock, msg);
       return;
     }
     if (jid.endsWith("@broadcast")) return;

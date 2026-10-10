@@ -99,8 +99,21 @@ function autoblast(env, listing, { by, chat }) {
  * The lines after a listing is added: price check, matching clients, the automatic campaign
  * (not for a likely duplicate). @returns {string}
  */
-function afterAdd(env, l, { by, chat, showNames, duplicate }) {
-  return `${vsMarket(env, l)}${clientsLine(env, l, showNames)}${duplicate ? "" : autoblast(env, l, { by, chat })}`;
+function afterAdd(env, l, { by, chat, showNames, duplicate, campaign = true }) {
+  return `${vsMarket(env, l)}${clientsLine(env, l, showNames)}${duplicate || !campaign ? "" : autoblast(env, l, { by, chat })}`;
 }
 
-module.exports = { aiFields, shortLinkGeo, vsMarket, clientsLine, autoblast, afterAdd, AUTOBLAST_DELAY };
+/**
+ * Links in outside text that no one has looked at (a channel's post added with auto, B-27) are
+ * left out: only Maps links stay (they become the pin), anything else could send clients anywhere.
+ */
+const withoutLinks = (text) =>
+  String(text || "")
+    .replace(/(?:https?:\/\/|www\.)[^\s<>"]+/giu, (u) => (places.MAP_LINK.test(u) ? u : ""))
+    .replace(/[ \t]{2,}/g, " ")
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .join("\n");
+
+module.exports = { aiFields, shortLinkGeo, vsMarket, clientsLine, autoblast, afterAdd, withoutLinks, AUTOBLAST_DELAY };

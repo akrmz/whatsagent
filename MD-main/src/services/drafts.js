@@ -69,6 +69,18 @@ function expire(state, config, now = Date.now()) {
 }
 
 /**
+ * Whether a message from this source would be kept, before anything is downloaded (B-26):
+ * { photo, text } — a photo joins the collecting draft if it has fewer than 10, or starts one if
+ * fewer than 50 wait; text likewise.
+ */
+function room(state, key, now = Date.now()) {
+  const all = open(state);
+  const current = all.filter((d) => d.source.key === key && !d.reviewed && now - d.updated < IDLE).at(-1);
+  const space = all.length < MAX_OPEN;
+  return { photo: current ? current.photos < MAX_PHOTOS : space, text: Boolean(current) || space };
+}
+
+/**
  * Adds a message (text and/or a re-encoded JPEG) to the draft collecting for this source, or
  * starts one. @returns {{ draft, isNew } | { full: true } | { skipped: "photos" }}
  */
@@ -200,17 +212,20 @@ async function runDue(app, now = Date.now()) {
     if (!to) continue;
     if (d.source.auto) {
       try {
-        // As any new listing: a short Maps link opened (limited: this is outside text), then the
-        // price check, the clients it suits and, with autoblast on, the campaign.
+        // As any new listing: a short Maps link opened (limited: this is outside text), the price
+        // check and the clients it suits. Nobody has looked at it (B-27): links other than Maps are
+        // left out of its description, and no campaign goes to clients until the owner sends one.
         const base = await newlisting.shortLinkGeo(fieldsOf(d, ownerNumber), d.texts.join("\n"), { state: app.state });
+        if (base.notes) base.notes = newlisting.withoutLinks(base.notes) || undefined;
         const dup = re.findDuplicate(app.state, base);
         const photoMatches = await photoMatchesOf(app.state, app.config, d);
         const l = save(app.state, app.config, d.id, { by: d.by || "channel", ownerNumber, base });
         const env = { state: app.state, config: app.config, prefix: p };
-        const more = newlisting.afterAdd(env, l, { by: d.by, chat: to, showNames: !to.endsWith("@g.us"), duplicate: dup });
+        const more = newlisting.afterAdd(env, l, { by: d.by, chat: to, showNames: !to.endsWith("@g.us"), duplicate: dup, campaign: false });
+        const suits = more.includes("🎯") ? `\n📣 بعد ما تراجعها ابعتها للعملاء: ${p}blast ${l.id}` : "";
         if (notifyBudget(app.state)) {
           await app.sock
-            .sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}${dup ? `\n⚠️ شكله زي #${dup.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}${more}` })
+            .sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}${dup ? `\n⚠️ شكله زي #${dup.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}${more}${suits}` })
             .catch(() => {});
         }
         sent++;
@@ -252,4 +267,4 @@ function startDraftsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { runDue, startDraftsLoop, photoMatchesOf, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, EXPIRE_AFTER };
+module.exports = { runDue, startDraftsLoop, photoMatchesOf, room, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, EXPIRE_AFTER };

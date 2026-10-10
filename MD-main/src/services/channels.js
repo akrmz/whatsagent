@@ -7,6 +7,7 @@ const { getText } = require("../core/context");
 const drafts = require("./drafts");
 const img = require("./reimages");
 const { UserError } = require("../core/errors");
+const { limiterFor } = require("../core/ratelimit");
 
 /**
  * WhatsApp channels read as listings (.channel): the owner adds a channel by its link, the bot
@@ -106,8 +107,17 @@ async function intake(app, msg, { download } = {}) {
   if (!firstTime(app.state, jid, msg.key.id)) return null;
   const content = unwrap(msg.message);
   const text = getText(content).trim();
+  // B-26: nothing is downloaded for a post that wouldn't be kept, and a channel brings at most
+  // POSTS_PER_HOUR posts; the owner hears once in a while that some were left.
+  const at = msg.messageTimestamp ? Math.min(Date.now(), Number(msg.messageTimestamp) * 1000) : Date.now();
+  const space = drafts.room(app.state, `ch:${jid}`, at);
+  const wanted = (content?.imageMessage && space.photo) || (text && space.text);
+  if (!wanted || !postBudget(app.state, jid)) {
+    if (content?.imageMessage || text) await tellLeft(app, c, jid);
+    return null;
+  }
   let jpeg = null;
-  if (content?.imageMessage) {
+  if (content?.imageMessage && space.photo) {
     try {
       jpeg = await photoOf(content.imageMessage, download || (() => Promise.reject(new Error("no download"))));
     } catch (err) {
@@ -125,8 +135,21 @@ async function intake(app, msg, { download } = {}) {
       by: c.by,
       ownerNumber: app.config.owners.numbers[0],
     },
-    msg.messageTimestamp ? Math.min(Date.now(), Number(msg.messageTimestamp) * 1000) : Date.now(),
+    at,
   );
+}
+
+const POSTS_PER_HOUR = 120;
+const postBudget = (state, jid) => limiterFor(state, "channel-posts", { max: POSTS_PER_HOUR, windowMs: 3600 * 1000 })(jid);
+const leftNote = (state, jid) => limiterFor(state, "channel-left-note", { max: 1, windowMs: 6 * 3600 * 1000 })(jid);
+
+/** Once every 6 hours per channel: posts are being left (the drafts are full, or too many posts). */
+async function tellLeft(app, c, jid) {
+  if (!c.notify || !app.sock || !leftNote(app.state, jid)) return;
+  const p = app.config.bot.prefix;
+  await app.sock
+    .sendMessage(c.notify, { text: `📥 بوستات من قناة "${c.name}" مش بتتجمع دلوقتي: المسودات المستنية وصلت ${drafts.MAX_OPEN}، أو القناة نزّلت أكتر من ${POSTS_PER_HOUR} بوست في الساعة.\nراجع واحفظ أو امسح: ${p}drafts · ${p}drafts save all · ${p}drafts del all` })
+    .catch(() => {});
 }
 
 /**
