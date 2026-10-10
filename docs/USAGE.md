@@ -241,6 +241,8 @@ For a messy post, `.listing add ai` (or reply with it) lets the configured AI re
 
 **From your WhatsApp channel.** `.channel add https://whatsapp.com/channel/…` (the channel's Share link) makes the bot follow the channel and read it. Owner only.
 - Each new post (text and photos) becomes a draft you get to check, or, with `.channel add <link> auto`, a listing straight away. A post that doesn't read as a property, such as a greeting, stays a draft.
+  - Since nobody has looked at an `auto` post, it never starts a campaign by itself (even with `.agent autoblast on`). The notice gives `.blast 12` to send it after a look. Links in it other than Google Maps are left out of its description.
+- A channel brings at most 120 posts an hour. When posts are being left (the drafts full, or more than that), you're told once every 6 hours.
 - `.channel import 1 30` brings in the channel's latest posts (up to 50).
 - `.channel list`, `.channel auto 1 on|off`, and `.channel del 1` stops reading it.
 - New posts come in live. As a fallback, every 10 minutes the latest are fetched again, and a post is never taken twice.

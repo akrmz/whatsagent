@@ -2,6 +2,21 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.68.1 — 2026-10-11
+
+### Security — review of the channel, forwarding and broker features (3.63–3.68)
+- **B-27 (Medium): an unreviewed channel post could reach clients.**
+  - **The problem:** with a channel on `auto` and `.agent autoblast on`, a post that read as a property became a listing and a campaign to matching clients 30 minutes later, links included. Whoever posts in that channel could send your clients a payment link under your name.
+  - **The fix:** posts added by `auto` never start a campaign by themselves; the notice gives `.blast 12` to send it after a look. Links other than Google Maps are removed from their description. Drafts you save yourself are unchanged, because you saw them.
+- **B-26 (Low): channel photos were fetched before checking there was room.**
+  - **The problem:** a photo (up to 15 MB) was downloaded and re-encoded, then thrown away when the drafts were full or the draft had its 10 photos, and a channel had no limit.
+  - **The fix:** room is checked first, each channel brings at most 120 posts an hour, and you're told once every 6 hours when posts are being left.
+  - Channel messages also no longer go into the message store, so a busy channel can't push your chats' messages out of it (anti-delete).
+- **Reviewed and found sound:** the forwarded-post intake (only your own chat), the broker questions (only the number asked), the shared commissions (staff only), the private source (owner rules), and the photo fingerprints (bounded image decoding). Details in docs/SECURITY_AUDIT.md.
+
+### Checked
+- 3 tests (441 in total), each failing on the code before the fix. They cover: no fetch when the drafts are full and one notice; the hourly limit and the next hour; an `auto` post with a payment link and a Maps link (no campaign, link gone, pin kept); and channel posts out of the message store.
+
 ## 3.68.0 — 2026-10-11
 
 ### Added — commissions shared with another broker

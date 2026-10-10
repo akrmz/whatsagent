@@ -24,6 +24,8 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-27 an unreviewed channel post could reach clients (campaign, links) | Fixed in 3.68.1: auto-added posts start no campaign and keep no links but Maps |
+| **Found in a later review:** B-26 channel photos fetched before checking there was room, no limit per channel | Fixed in 3.68.1: checked first, at most 120 posts an hour, the owner told once |
 | **Found in a later review:** B-25 a long run of spaces froze the bot for seconds (regex backtracking) | Fixed in 3.61.1: whitespace is squeezed before every parser of outside text; a timing test guards it |
 | **Found in a later review:** B-24 strangers could fill the disk with seller-offer photos | Fixed in 3.49.1: at most 100 waiting offers and 400 photos, expired after 30 days |
 | **Found in a later review:** B-23 clients' notices kept reaching a member after their sudo was removed | Fixed in 3.43.1: notices, reminders and the rotation only use members who are still the owner or sudo |
@@ -98,6 +100,8 @@ How this was verified:
 | B-23 | Medium | Bot | A team member whose sudo was removed kept getting the notices of clients assigned to them (names, numbers, what they wrote, handoffs, self-booked viewings and their reminders), and the rotation kept giving them new clients (found in the 3.43.1 review; fixed) |
 | B-24 | Medium | Bot | Seller intake (3.45) let anyone start an offer and send photos; offers waiting for the agent were never trimmed or expired, so new numbers could keep adding about 160 photos an hour until the disk filled (found in the 3.49.1 review; fixed) |
 | B-25 | High | Bot | Catastrophic regex backtracking: optional words between `s*` in the text parsers made a message with a property word and ~290 spaces take seconds to parse (6 s for "عايز شقة قسط" in 3.60), freezing the whole bot. Anyone could send it with `.agent requests on`, in a watched brokers group, or in a lead-ad form (found in the 3.61.1 review; fixed) |
+| B-26 | Low | Bot | A channel post's photo (up to 15 MB) was downloaded and re-encoded before checking there was room for it, and a channel had no limit on posts: a busy or hostile channel the owner added could keep the bot fetching and processing images that were then thrown away (found in the 3.68.1 review; fixed) |
+| B-27 | Medium | Bot | A channel added with `auto`, with `.agent autoblast on`, turned any post that read as a property into a listing and a campaign to matching clients without anyone looking at it, links in the post included: whoever posts in that channel could send clients a payment link under the agent's name (found in the 3.68.1 review; fixed) |
 
 ---
 
@@ -366,6 +370,22 @@ Locations only (values intentionally omitted):
   - After the fix: 0–11 ms for the same inputs. A sweep of the other parsers of outside text (seller intent, "talk to a human", owner answers, report words, locations, booking) found none slower than 30 ms.
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
+
+### B-26 — Channel photos were fetched before checking there was room (found in the 3.68.1 review)
+- **Where:** `services/channels.js` `intake` (3.63.0).
+- **What was wrong:** each channel post's photo was downloaded (up to 15 MB) and re-encoded with sharp first, and only then offered to the drafts. When 50 drafts were already waiting, or the collecting draft had its 10 photos, the work was thrown away. A channel had no limit on posts, so a busy or hostile channel the owner had added could keep the bot downloading and processing images. Channel posts also went into the message store, pushing chats' messages (anti-delete, quotes) out of it.
+- **Fix:**
+  - `drafts.room` says whether a post's text or photo would be kept before anything is fetched;
+  - each channel brings at most 120 posts an hour;
+  - when posts are left, the owner is told once every 6 hours per channel, so they aren't lost silently;
+  - channel messages are routed before the message store.
+- **Tests:** `test/channelsafety.test.js` (the first two fail on the code before the fix).
+
+### B-27 — An unreviewed channel post could reach clients (found in the 3.68.1 review)
+- **Where:** `services/drafts.js` `runDue` (channels with `auto`, 3.63.0/3.64.0).
+- **What was wrong:** with `.channel add <link> auto` and `.agent autoblast on`, any post that read as a property became a listing, then a campaign to matching clients 30 minutes later, with no one looking at it. The description kept the post's links. Whoever posts in that channel (its admins, perhaps not the agent) could send the agent's clients a payment link, or show it to anyone who asked for the listing (`#12`, the catalogue).
+- **Fix:** a post added by `auto` never starts a campaign. The notice says "📣 بعد ما تراجعها ابعتها للعملاء: .blast 12". Links other than Google Maps are removed from its description (`newlisting.withoutLinks`; a Maps link still becomes the pin). Drafts saved by hand (`.drafts save`) keep their text, since the owner saw it in the review.
+- **Tests:** `test/channelsafety.test.js` (fails on the code before the fix).
 
 ### Design note — listings from forwarded posts and WhatsApp channels (`.drafts`, `.channel`, 3.63.0)
 - **What comes in:** posts the owner or a sudo user forwards to the bot in their own private chat, and posts in channels the owner adds. A channel's admin is someone else, so its posts are outside content.
