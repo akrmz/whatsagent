@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-28 a co-broker's name and number in a listing's public notes | Fixed in 3.69.0: kept as the private source; existing listings moved at start-up |
 | **Found in a later review:** B-27 an unreviewed channel post could reach clients (campaign, links) | Fixed in 3.68.1: auto-added posts start no campaign and keep no links but Maps |
 | **Found in a later review:** B-26 channel photos fetched before checking there was room, no limit per channel | Fixed in 3.68.1: checked first, at most 120 posts an hour, the owner told once |
 | **Found in a later review:** B-25 a long run of spaces froze the bot for seconds (regex backtracking) | Fixed in 3.61.1: whitespace is squeezed before every parser of outside text; a timing test guards it |
@@ -102,6 +103,7 @@ How this was verified:
 | B-25 | High | Bot | Catastrophic regex backtracking: optional words between `s*` in the text parsers made a message with a property word and ~290 spaces take seconds to parse (6 s for "عايز شقة قسط" in 3.60), freezing the whole bot. Anyone could send it with `.agent requests on`, in a watched brokers group, or in a lead-ad form (found in the 3.61.1 review; fixed) |
 | B-26 | Low | Bot | A channel post's photo (up to 15 MB) was downloaded and re-encoded before checking there was room for it, and a channel had no limit on posts: a busy or hostile channel the owner added could keep the bot fetching and processing images that were then thrown away (found in the 3.68.1 review; fixed) |
 | B-27 | Medium | Bot | A channel added with `auto`, with `.agent autoblast on`, turned any post that read as a property into a listing and a campaign to matching clients without anyone looking at it, links in the post included: whoever posts in that channel could send clients a payment link under the agent's name (found in the 3.68.1 review; fixed) |
+| B-28 | Medium | Bot | `.feed add` wrote "مشاركة مع السمسار <name> +<number>" into the listing's public notes, so clients saw the other broker's name and number on the card (`#12`, campaigns, the assistant's cards) and could deal with them directly (found in the 3.69.0 review; fixed) |
 
 ---
 
@@ -370,6 +372,12 @@ Locations only (values intentionally omitted):
   - After the fix: 0–11 ms for the same inputs. A sweep of the other parsers of outside text (seller intent, "talk to a human", owner answers, report words, locations, booking) found none slower than 30 ms.
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
+
+### B-28 — A co-broker's name and number in a listing's public notes (found in the 3.69.0 review)
+- **Where:** `commands/realestate/feed.js` `.feed add` (brokers' groups feed).
+- **What was wrong:** copying a broker's offer into the catalogue wrote "مشاركة مع السمسار <name> +<number> (F<id>)" into the listing's notes, and numbers in the offer's text stayed there too. Notes are public: the card a client gets for `#12`, campaign messages and the assistant's catalogue all show them. Clients could see who really has the unit and deal with that broker directly, and the other broker's number was handed out under the agent's name.
+- **Fix:** the broker's name and number, and the numbers in the post, go into the listing's private `source` (3.66: shown only in the owner's own chat, the export and the viewing plan). The notes keep the text without the numbers. At start-up, `feed.moveBrokerNotes` moves the line out of listings added before. It is idempotent and leaves their "updated" date alone.
+- **Tests:** `test/feed.test.js` (the old test asserted the line in the notes), `test/wanted.test.js` (the migration).
 
 ### B-26 — Channel photos were fetched before checking there was room (found in the 3.68.1 review)
 - **Where:** `services/channels.js` `intake` (3.63.0).

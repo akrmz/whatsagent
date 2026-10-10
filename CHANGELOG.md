@@ -2,6 +2,25 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.69.0 — 2026-10-11
+
+### Added — ask brokers for what your clients want
+- **`.wanted`** lists your active clients' wishes that no listing matches, grouped by type, sale/rent and area: how many clients, the highest budget, the rooms and must-haves ("• فيلا للبيع في الشيخ زايد · 4 غرف — حتى 15 مليون جنيه — 👥 2"). Below it is a ready post, "🔎 *مطلوب لعملاء جاهزين*", with your contact and **no client's name or number**.
+- **`.wanted post`** sends it to the brokers' groups you watch (`.watch on`), and **`.wanted post here`** to the group you're in, each group at most once a day. Brokers' offers in answer are read by the feed, which tells you which clients they suit.
+- `.watch`'s description now says the bot posts in a watched group only when you send this.
+
+### Security — B-28 (Medium): a co-broker's name and number on a public card
+- **The problem:** `.feed add` (copying a broker's offer into your catalogue) wrote "مشاركة مع السمسار <name> +<number>" into the listing's notes. Notes are public, so clients saw who really has the unit on the card (`#12`, campaigns, the assistant) and could deal with them directly.
+- **The fix:** the broker is now kept as the listing's private source (3.66), like a draft's. Numbers in the offer's text are taken out of the notes too.
+- **Existing listings:** listings added this way before are fixed when the bot starts, without changing their "updated" date.
+
+### Checked
+- 3 tests (444 in total). They cover:
+  - `.wanted` grouping (not what matches, not lost clients) and a post with no client in it;
+  - posting to watched groups once a day, and "here";
+  - the start-up fix moving the broker out of the notes once.
+- The `.feed add` test now checks the broker is private, not in the notes (it used to assert the line in the notes).
+
 ## 3.68.1 — 2026-10-11
 
 ### Security — review of the channel, forwarding and broker features (3.63–3.68)
