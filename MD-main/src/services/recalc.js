@@ -62,6 +62,29 @@ function installments(text) {
   };
 }
 
+// ---- a listing's plan, and what-ifs for negotiating (.installments 12) ---------------------
+
+const GRID_DOWN = [10, 20, 30]; // % down
+const GRID_YEARS = [5, 7, 10];
+
+/** The monthly instalment of a price with this down payment over these years (no interest). */
+const monthlyFor = (price, down, years) => (price - down) / (years * 12);
+
+/** Monthly instalments for 10/20/30% down × 5/7/10 years: [{ pct, down, cells: [{ years, monthly }] }] */
+const planGrid = (price) => GRID_DOWN.map((pct) => ({ pct, down: (price * pct) / 100, cells: GRID_YEARS.map((years) => ({ years, monthly: monthlyFor(price, (price * pct) / 100, years) })) }));
+
+/**
+ * The down payment that brings the instalment to `monthly` over each number of years
+ * (`also`: the listing's own years too). [{ years, down, pct }] (down 0 when none is needed)
+ */
+function downFor(price, monthly, also = []) {
+  const years = [...new Set([...also, ...GRID_YEARS])].filter((y) => y > 0 && y <= 30).sort((a, b) => a - b);
+  return years.map((y) => {
+    const down = Math.max(0, price - monthly * y * 12);
+    return { years: y, down, pct: (down / price) * 100 };
+  });
+}
+
 /** Bank loan (annuity): ".mortgage 3.5m 20% 25% 15" → price, down %, yearly interest %, years. */
 function mortgage(text) {
   const t = words(text);
@@ -98,4 +121,4 @@ function roi(text) {
   return { price, rent, yearly, yieldPct: (yearly / price) * 100, payback: price / yearly };
 }
 
-module.exports = { installments, mortgage, ppm, roi };
+module.exports = { installments, mortgage, ppm, roi, share, monthlyFor, planGrid, downFor, GRID_DOWN, GRID_YEARS };

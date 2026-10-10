@@ -20,6 +20,64 @@ function listingArg(ctx) {
 }
 const usageFor = (ctx, name) => ctx.reply(`Usage: ${ctx.prefix}${name} <listing number> (see ${ctx.prefix}listings)`);
 
+const AMOUNT_UNIT = /^(مليون|ملايين|million|ألف|الف|آلاف|الاف|thousand|k|m)$/i;
+/** ".installments 12 …" (a listing) rather than ".installments 12 مليون …" (a price). */
+function planListing(ctx) {
+  const first = re.latinDigits(ctx.args[0] || "");
+  const m = first.match(/^(#)?(\d{1,5})$/);
+  if (!m || (!m[1] && AMOUNT_UNIT.test(ctx.args[1] || ""))) return null;
+  const l = re.get(ctx.state, Number(m[2]));
+  if (!l && m[1]) return { missing: Number(m[2]) };
+  return l ? { listing: l } : null;
+}
+
+/**
+ * ".installments 12 [down% years | قسط 40 ألف]": the listing's own plan, the client's own sum,
+ * and, for the team only (they are what-ifs, not the owner's offer), the instalment with other
+ * down payments and years, and the down payment that brings it to a monthly amount.
+ */
+function listingPlan(ctx, l) {
+  if (l.deal === "إيجار") return ctx.reply(`#${l.id} is for rent: there is no payment plan. Rent and deposit are on its card: ${ctx.prefix}listing ${l.id}`);
+  if (!l.price) return ctx.reply(`#${l.id} has no price yet: ${ctx.prefix}listing edit ${l.id} السعر: …`);
+  const staff = ctx.isSudoOrOwner;
+  const short = (n) => `${re.shortAr(Math.round(n))}`;
+  const rest = ctx.args.slice(1);
+  const target = re.monthlyIn(rest.join(" "));
+  const lines = [`🧾 *خطة سداد #${l.id}* — ${l.type || "عقار"} لل${l.deal || "بيع"}${l.location ? ` — ${l.location.slice(0, 30)}` : ""}`, `💰 السعر: ${m(ctx, l.price)}`];
+  lines.push(l.down ? `${re.planLine(l, cur(ctx))}${l.years ? "" : " (المدة مش محددة)"}` : "💵 العقار ده كاش (من غير تقسيط من المالك)");
+
+  // Their own sum: ".installments 12 20% 7" (down payment, years).
+  if (!target && rest.length) {
+    const toks = rest.map((t) => re.latinDigits(t));
+    const unit = AMOUNT_UNIT.test(toks[1] || ""); // "2 مليون 7": the amount is two words
+    const yearsTok = toks
+      .slice(unit ? 2 : 1)
+      .map((t) => t.replace(/(سنين|سنوات|سنة|سنه|years?|y)$/i, ""))
+      .find((t) => /^\d{1,2}$/.test(t));
+    const down = calc.share(unit ? `${toks[0]} ${toks[1]}` : toks[0], l.price);
+    const years = Number(yearsTok || l.years || 0);
+    if (!(years >= 1 && years <= 30)) return ctx.reply(`Usage: ${ctx.prefix}installments ${l.id} <down payment % or amount> <years>, e.g. ${ctx.prefix}installments ${l.id} 20% 7`);
+    lines.push(`🧮 حسابك: مقدم ${m(ctx, Math.round(down.amount))} (${+down.pct.toFixed(1)}%) · على ${years} ${years > 10 || years < 3 ? "سنة" : "سنين"} ≈ *${m(ctx, Math.round(calc.monthlyFor(l.price, down.amount, years)))}* شهرياً`);
+  }
+  if (staff) {
+    if (target) {
+      lines.push("", `🎯 *عشان القسط يبقى ${short(target.value)} شهرياً:*`);
+      for (const d of calc.downFor(l.price, target.value, l.years ? [l.years] : [])) {
+        lines.push(`▫️ على ${d.years} ${d.years > 10 || d.years < 3 ? "سنة" : "سنين"}: ${d.down ? `مقدم ${short(d.down)} (${Math.round(d.pct)}%)` : "من غير مقدم"}${l.years === d.years ? " ← مدة المالك" : ""}`);
+      }
+    } else {
+      lines.push("", "📊 *للتفاوض* — القسط الشهري لو اتغير المقدم أو المدة:");
+      for (const row of calc.planGrid(l.price)) {
+        lines.push(`▫️ مقدم ${row.pct}% (${short(row.down)}): ${row.cells.map((c) => `${c.years} سنين ≈ ${short(c.monthly)}`).join(" · ")}`);
+      }
+    }
+    lines.push("", "_أرقام افتراضية للتفاوض، مش عرض المالك. والقسط بيتحسب من غير فوائد._");
+  } else {
+    lines.push("", NOT_ADVICE);
+  }
+  return ctx.reply(lines.join("\n"));
+}
+
 module.exports = [
   {
     name: "agent",
@@ -115,12 +173,16 @@ module.exports = [
     name: "installments",
     aliases: ["aqsat", "plan", "paymentplan"],
     category: "realestate",
-    description: "حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit.",
-    usage: "<price> <down % or amount> <years> [monthly|quarterly|semiannual|yearly] [maint <%>]",
-    examples: [".installments 3.5m 10% 8 quarterly maint 8%", ".installments 2 مليون 300 ألف 5 شهري"],
+    description:
+      "حساب الأقساط — a developer payment plan without interest: down payment, then monthly/quarterly/half-yearly/yearly installments, plus an optional maintenance deposit. With a listing number it uses that listing: its price and its own plan, and a client’s own sum (down payment and years). For the owner and sudo users it adds what-ifs for negotiating: the monthly instalment with 10/20/30% down over 5/7/10 years, or (“قسط 40 ألف”) the down payment that brings it to that a month.",
+    usage: "<price> <down % or amount> <years> [monthly|quarterly|semiannual|yearly] [maint <%>] | <listing> [down years | قسط <amount>]",
+    examples: [".installments 3.5m 10% 8 quarterly maint 8%", ".installments 2 مليون 300 ألف 5 شهري", ".installments 12", ".installments 12 20% 7", ".installments 12 قسط 40 ألف"],
     cooldown: 2,
     async run(ctx) {
-      if (!ctx.text) return ctx.reply(`Usage: ${ctx.prefix}installments 3.5m 10% 8 quarterly maint 8%`);
+      if (!ctx.text) return ctx.reply(`Usage: ${ctx.prefix}installments 3.5m 10% 8 quarterly maint 8%\nFor a listing: ${ctx.prefix}installments 12`);
+      const named = planListing(ctx);
+      if (named?.missing) return ctx.reply(`There is no listing #${named.missing}.`);
+      if (named) return listingPlan(ctx, named.listing);
       const r = calc.installments(ctx.text);
       const lines = [
         "🧾 *خطة السداد · Payment plan*",
