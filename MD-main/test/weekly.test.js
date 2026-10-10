@@ -63,7 +63,7 @@ test("the week in numbers against the week before, from real activity", async (t
   assert.deepEqual(c.outcomes, { liked: 1, thinking: 0, no: 0, noshow: 1 });
   assert.equal(
     weekly.build(s, "Africa/Cairo", now),
-    "📊 *ملخص الأسبوع* (3 أكتوبر – 9 أكتوبر)\n👥 عملاء جدد: 3 (+50%) — فيسبوك 2 · إحالة 1\n📤 رسائل للعملاء: 2 (+100%) · 💬 ردود: 1 (جديد)\n👀 معاينات اتحجزت: 2 (جديد) — 👍 1 · 🚫 1\n✅ صفقات: 1 (جديد) · 🧾 عمولة 60,000 جنيه\n🏠 عقارات جديدة: 1 · 📉 تخفيضات: 1",
+    "📊 *ملخص الأسبوع* (3 أكتوبر – 9 أكتوبر)\n👥 عملاء جدد: 3 (+50%) — فيسبوك 2 · إحالة 1\n📤 رسائل للعملاء: 2 (+100%) · 💬 ردود: 1 (جديد)\n👀 معاينات اتحجزت: 2 (جديد) — 👍 1 · 🚫 1\n✅ صفقات: 1 (جديد) · 🧾 عمولة 60,000 جنيه\n🏠 عقارات جديدة: 1 · 📉 تخفيضات: 1\n🏷️ حسب النوع: شقة: 1 صفقة",
   );
 
   // In the morning summary on Saturdays only (10 Oct 2026 is a Saturday).

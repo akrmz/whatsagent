@@ -48,7 +48,8 @@ function close(state, leadId, args, by, now = Date.now()) {
   const price = args.price || listing?.price;
   if (!price) throw new UserError(`What was the price? e.g. .lead won ${leadId} #12 3.1m 2.5% (or a listing with a price)`);
   const commission = args.commission ?? (args.rate ? Math.round((price * args.rate) / 100) : undefined);
-  const deal = { ...(listing ? { listing: listing.id } : {}), price, ...(commission ? { commission } : {}), ...(args.rate ? { rate: args.rate } : {}), kind: listing?.deal || lead.deal || "بيع", at: now };
+  const type = listing?.type || lead.type; // for the reports by unit type, even if the listing goes
+  const deal = { ...(listing ? { listing: listing.id } : {}), ...(type ? { type } : {}), price, ...(commission ? { commission } : {}), ...(args.rate ? { rate: args.rate } : {}), kind: listing?.deal || lead.deal || "بيع", at: now };
   leads.update(state, leadId, { status: "won", deals: [...(lead.deals || []), deal] }, now);
   team.record(state, by, "deals", 1, now);
   if (commission) team.record(state, by, "commission", commission, now);

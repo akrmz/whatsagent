@@ -83,7 +83,7 @@ test(".leads hot lists them; .lead won records a deal, marks the client won and 
   const l = leads.get(s, ahmed.id);
   assert.equal(l.status, "won");
   assert.ok(l.wonAt);
-  assert.deepEqual(l.deals.map(({ at: _at, ...d }) => d), [{ listing: 1, price: 3.1e6, commission: 77500, rate: 2.5, kind: "بيع" }]);
+  assert.deepEqual(l.deals.map(({ at: _at, ...d }) => d), [{ listing: 1, type: "شقة", price: 3.1e6, commission: 77500, rate: 2.5, kind: "بيع" }]);
   assert.match(l.history.at(-1).text, /✅ صفقة #1 بـ 3\.1 مليون جنيه — عمولة 77,500 جنيه/);
   assert.equal(re.get(s, 1).status, "sold");
 

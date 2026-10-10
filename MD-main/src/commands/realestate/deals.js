@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const deals = require("../../services/deals");
+const bytype = require("../../services/bytype");
 const rentals = require("../../services/rentals");
 const { UserError } = require("../../core/errors");
 
@@ -14,7 +15,7 @@ module.exports = {
   aliases: ["sales", "safaqat", "revenue"],
   category: "realestate",
   description:
-    "الصفقات والعمولات — the deals you closed (.lead won): this month by default, \"last\" for last month, a month (2026-09) or a year (2026). Count, total value and commission, compared with the period before, each deal, and by client source. Owner and sudo users.",
+    "الصفقات والعمولات — the deals you closed (.lead won): this month by default, \"last\" for last month, a month (2026-09) or a year (2026). Count, total value and commission, compared with the period before, each deal, by unit type (apartments, chalets, villas …) and by client source. Owner and sudo users.",
   usage: "[last | YYYY-MM | YYYY]",
   examples: [".deals", ".deals last", ".deals 2026-09", ".deals 2026"],
   permission: "sudo",
@@ -60,6 +61,9 @@ module.exports = {
         }),
       );
     }
+    // Apartments, chalets and villas apart.
+    const types = bytype.deals(ctx.state, list);
+    lines.push("", "🏷️ *حسب النوع*", ...types.map((e) => `▫️ ${e.type}: ${e.count} صفقة · 💰 ${re.shortAr(e.value)} ${cur}${e.commission ? ` · 🧾 عمولة ${re.money(e.commission, cur)}` : ""}`));
     const bySource = new Map();
     for (const { lead } of list) bySource.set(lead.source || "غير محدد", (bySource.get(lead.source || "غير محدد") || 0) + 1);
     lines.push("", `📣 حسب المصدر: ${[...bySource].sort((a, b) => b[1] - a[1]).map(([s, n]) => `${s} ${n}`).join(" · ")}`);

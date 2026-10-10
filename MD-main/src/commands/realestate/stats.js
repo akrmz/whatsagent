@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const leads = require("../../services/leads");
+const bytype = require("../../services/bytype");
 
 const pct = (a, b) => (b ? `${Math.round((a / b) * 100)}%` : "—");
 
@@ -35,7 +36,7 @@ module.exports = {
   aliases: ["mystats", "reportre", "ihsaat"],
   category: "realestate",
   description:
-    "تقرير التسويق — which listings clients ask about most (views, inquiries, sent, posted), recent price cuts, listings not updated for 30+ days, where your clients come from and how many of each source closed a deal, and the average days to a deal. Owner and sudo users.",
+    "تقرير التسويق — which listings clients ask about most (views, inquiries, sent, posted), each unit type on its own (available, reserved and sold units, views, inquiries, clients looking for it, deals, and a warning when clients want a type with nothing available), recent price cuts, listings not updated for 30+ days, where your clients come from and how many of each source closed a deal, and the average days to a deal. Owner and sudo users.",
   examples: [".restats"],
   permission: "sudo",
   cooldown: 5,
@@ -60,6 +61,16 @@ module.exports = {
     );
     const unseen = listings.filter((l) => l.status === "available" && !s(l).views && !s(l).inquiries).length;
     if (unseen) lines.push(`👻 ${unseen} عقار متاح لم يطلبه أحد بعد — جرّب ${ctx.prefix}flyer أو ${ctx.prefix}autolistings`);
+    // Apartments, chalets and villas apart: supply, interest, demand and deals of each.
+    const types = bytype.catalogue(ctx.state);
+    if (types.length > 1 || (types[0] && types[0].type !== bytype.UNKNOWN)) {
+      lines.push("", "🏷️ *حسب النوع*");
+      for (const r of types) {
+        const stock = [r.available && `✅ ${r.available} متاح`, r.reserved && `⏳ ${r.reserved} محجوز`, r.gone && `🔴 ${r.gone} مباع/مؤجر`].filter(Boolean).join(" · ") || "مفيش وحدات";
+        lines.push(`▫️ *${r.type}*: ${stock} · 👀 ${r.views} · ❓ ${r.inquiries} · 👥 ${r.clients} عميل بيدور · 🤝 ${r.deals} صفقة`);
+        if (r.clients > 0 && !r.available) lines.push(`   ⚠️ فيه ${r.clients} عميل بيدور على ${r.type} ومفيش متاح: ${ctx.prefix}sellers أو ${ctx.prefix}feed`);
+      }
+    }
     if (cuts.length) lines.push("", `📉 *تخفيضات آخر 30 يوماً (${cuts.length})*: ${cuts.slice(0, 8).map((l) => `#${l.id} (−${re.discount(l).pct}%)`).join("، ")}`);
     if (stale.length) lines.push("", `🕸️ *لم تُحدَّث منذ 30+ يوماً (${stale.length})*: ${stale.slice(0, 10).map((l) => `#${l.id}`).join("، ")} — هل ما زالت متاحة؟`);
 
