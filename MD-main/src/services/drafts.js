@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const re = require("./realestate");
 const { normalizePhone } = require("./phones");
+const newlisting = require("./newlisting");
 const { limiterFor } = require("../core/ratelimit");
 const { UserError } = require("../core/errors");
 
@@ -144,11 +145,11 @@ function reviewText(state, d, { p = ".", ownerNumber } = {}) {
  * The draft as a listing, with its photos; "edits" are listing lines that win ("السعر: 3.2 مليون",
  * "المالك: أبو أحمد 0100…"). @returns {object} the listing
  */
-function save(state, config, id, { edits = "", by, ownerNumber } = {}) {
+function save(state, config, id, { edits = "", by, ownerNumber, base } = {}) {
   const d = get(state, id);
   if (!d) throw new UserError(`There is no draft #${id} (.drafts).`);
   const extra = edits ? re.parseListingText(edits, ownerNumber) : {};
-  const fields = { ...fieldsOf(d, ownerNumber), ...extra };
+  const fields = { ...(base || fieldsOf(d, ownerNumber)), ...extra }; // base: read by the AI, or with a Maps pin
   if (!fields.type) throw new UserError(`What kind of property is it? .drafts save ${id} النوع: شقة (and any other missing details).`);
   const l = re.add(state, fields, by);
   let added = 0;
@@ -191,8 +192,18 @@ async function runDue(app, now = Date.now()) {
     if (!to) continue;
     if (d.source.auto) {
       try {
-        const l = save(app.state, app.config, d.id, { by: d.by || "channel", ownerNumber });
-        if (notifyBudget(app.state)) await app.sock.sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}` }).catch(() => {});
+        // As any new listing: a short Maps link opened (limited: this is outside text), then the
+        // price check, the clients it suits and, with autoblast on, the campaign.
+        const base = await newlisting.shortLinkGeo(fieldsOf(d, ownerNumber), d.texts.join("\n"), { state: app.state });
+        const dup = re.findDuplicate(app.state, base);
+        const l = save(app.state, app.config, d.id, { by: d.by || "channel", ownerNumber, base });
+        const env = { state: app.state, config: app.config, prefix: p };
+        const more = newlisting.afterAdd(env, l, { by: d.by, chat: to, showNames: !to.endsWith("@g.us"), duplicate: dup });
+        if (notifyBudget(app.state)) {
+          await app.sock
+            .sendMessage(to, { text: `✅ اتضاف *#${l.id}* من قناة "${d.source.name || "القناة"}" (📷 ${l.photos || 0})\n${re.line(l, re.agent(app.state).currency)}${dup ? `\n⚠️ شكله زي #${dup.id}` : ""}\n${p}listing ${l.id} · لو غلط: ${p}listing del ${l.id}${more}` })
+            .catch(() => {});
+        }
         sent++;
         continue;
       } catch {

@@ -4,6 +4,7 @@ const fs = require("node:fs");
 const re = require("../../services/realestate");
 const drafts = require("../../services/drafts");
 const channels = require("../../services/channels");
+const newlisting = require("../../services/newlisting");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -29,9 +30,9 @@ module.exports = [
     aliases: ["inbox", "draft", "musawadat"],
     category: "realestate",
     description:
-      "مسودات العقارات — units waiting for a look before they become listings: posts you forward to the bot in your private chat (the text and its photos, several units in a row are split), and posts from a channel added with .channel. Each draft shows the card it would make, its photos, phone numbers found in the post (kept private, never on the card), a possible duplicate and what is missing. “save 3” makes it a listing with its photos (add or fix details after it: “save 3 السعر: 3.2 مليون”), “save all” saves every draft that reads as a property, “del 3” deletes one. “off” stops collecting forwarded posts. Owner and sudo users.",
-    usage: "[<draft> | save <draft>|all [details] | del <draft>|all | off | on]",
-    examples: [".drafts", ".drafts 3", ".drafts save 3", ".drafts save 3 السعر: 3.2 مليون\nالمالك: أبو أحمد 0100 123 4567", ".drafts save all", ".drafts del 3", ".drafts off"],
+      "مسودات العقارات — units waiting for a look before they become listings: posts you forward to the bot in your private chat (the text and its photos, several units in a row are split), and posts from a channel added with .channel. Each draft shows the card it would make, its photos, phone numbers found in the post (kept private, never on the card), a possible duplicate and what is missing. “save 3” makes it a listing with its photos (add or fix details after it: “save 3 السعر: 3.2 مليون”; “save 3 ai” lets the AI read a messy post), and like .listing add it says how the price compares, which clients it suits, and with autoblast on queues the campaign; a short Maps link in the post becomes the pin. “save all” saves every draft that reads as a property, “del 3” deletes one. “off” stops collecting forwarded posts. Owner and sudo users.",
+    usage: "[<draft> | save <draft>|all [ai] [details] | del <draft>|all | off | on]",
+    examples: [".drafts", ".drafts 3", ".drafts save 3", ".drafts save 3 ai", ".drafts save 3 السعر: 3.2 مليون\nالمالك: أبو أحمد 0100 123 4567", ".drafts save all", ".drafts del 3", ".drafts off"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -51,24 +52,41 @@ module.exports = [
         if (arg === "all" || arg === "الكل") {
           const done = [];
           const left = [];
+          let queued = 0;
           for (const d of drafts.open(ctx.state)) {
             try {
-              const l = drafts.save(ctx.state, ctx.config, d.id, { by: ctx.sender, ownerNumber: owner(ctx) });
-              done.push(`#${l.id}`);
-            } catch {
+              const base = await newlisting.shortLinkGeo(drafts.fieldsOf(d, owner(ctx)), d.texts.join("\n"));
+              const dup = re.findDuplicate(ctx.state, base);
+              const l = drafts.save(ctx.state, ctx.config, d.id, { by: ctx.sender, ownerNumber: owner(ctx), base });
+              done.push(`#${l.id}${dup ? ` (⚠️ زي #${dup.id})` : ""}`);
+              if (!dup && newlisting.autoblast(ctx, l, { by: ctx.sender, chat: ctx.chatId }).includes("📣 Campaign")) queued++;
+            } catch (err) {
+              if (!(err instanceof UserError)) throw err;
               left.push(`#${d.id}`);
             }
           }
           if (!done.length && !left.length) return ctx.reply("No drafts waiting.");
-          return ctx.reply(`✅ ${done.length} saved as listings: ${done.join("، ") || "—"}${left.length ? `\n✏️ Not clear what kind of property (still drafts): ${left.join("، ")} — ${p}drafts save <number> النوع: شقة` : ""}`);
+          return ctx.reply(
+            `✅ ${done.length} saved as listings: ${done.join("، ") || "—"}${queued ? `\n📣 ${queued} campaign(s) queued to matching clients in 30 minutes (${p}campaigns)` : ""}${left.length ? `\n✏️ Not clear what kind of property (still drafts): ${left.join("، ")} — ${p}drafts save <number> النوع: شقة` : ""}`,
+          );
         }
         const id = idOf(arg);
         if (!id) throw new UserError(`Which draft? ${p}drafts save 3`);
         const d = drafts.get(ctx.state, id);
-        const dup = d && re.findDuplicate(ctx.state, drafts.fieldsOf(d, owner(ctx)));
-        const l = drafts.save(ctx.state, ctx.config, id, { edits: editsAfter(ctx), by: ctx.sender, ownerNumber: owner(ctx) });
+        if (!d) throw new UserError(`There is no draft #${id} (${p}drafts).`);
+        // ".drafts save 3 ai [details]": the AI reads a messy post (the details after it still win).
+        let edits = editsAfter(ctx);
+        const useAi = /^ai\b/i.test(edits);
+        if (useAi) edits = edits.replace(/^ai\b\s*/i, "");
+        const text = drafts.splitContacts(d.texts.join("\n"), owner(ctx)).clean;
+        const read = useAi ? await newlisting.aiFields(ctx, text) : drafts.fieldsOf(d, owner(ctx));
+        delete read.owner;
+        const base = await newlisting.shortLinkGeo(read, d.texts.join("\n"));
+        const dup = re.findDuplicate(ctx.state, base);
+        const l = drafts.save(ctx.state, ctx.config, id, { edits, by: ctx.sender, ownerNumber: owner(ctx), base });
+        const more = newlisting.afterAdd(ctx, l, { by: ctx.sender, chat: ctx.chatId, showNames: await ctx.isStaffOnlyChat(), duplicate: dup });
         return ctx.reply(
-          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}\n\nFlyer: ${p}flyer ${l.id} · clients it suits: ${p}listing match ${l.id}`,
+          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}${more}\n\nFlyer: ${p}flyer ${l.id}`,
         );
       }
       if (sub === "del" || sub === "delete" || sub === "remove" || sub === "مسح") {
@@ -121,7 +139,10 @@ module.exports = [
       const pick = (s) => all[(idOf(s) || 0) - 1] || null;
       if (sub === "add" || sub === "follow") {
         const auto = /\bauto\b|تلقائي/i.test(ctx.text);
-        const c = await channels.add(ctx.state, ctx.sock, ctx.args[1], { by: ctx.sender, notify: ctx.chatId, auto });
+        // Reviews carry the numbers in posts and the clients a unit suits: a group with outsiders
+        // doesn't get them, the owner's private chat does.
+        const notify = (await ctx.isStaffOnlyChat()) ? ctx.chatId : `${owner(ctx)}@s.whatsapp.net`;
+        const c = await channels.add(ctx.state, ctx.sock, ctx.args[1], { by: ctx.sender, notify, auto });
         return ctx.reply(
           `✅ Reading the channel *${c.name}*.\nEach new post (text and photos) ${auto ? "becomes a listing straight away (one that doesn't read as a property waits in .drafts)" : `becomes a draft; you get it here to check, then ${p}drafts save <number>`}.\nBring in its recent posts: ${p}channel import ${all.findIndex((x) => x.jid === c.jid) + 1 || all.length + 1} 20`,
         );

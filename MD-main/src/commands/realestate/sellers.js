@@ -2,6 +2,7 @@
 
 const re = require("../../services/realestate");
 const sellers = require("../../services/sellers");
+const newlisting = require("../../services/newlisting");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -51,7 +52,9 @@ module.exports = {
       if (!id) throw new UserError(`Which offer? ${p}sellers add 3`);
       const extra = ctx.text.replace(/^\s*\S+\s+\S+\s*/, ""); // what follows "add 3", lines kept
       const l = sellers.toListing(ctx.state, ctx.config, id, extra, ctx.sender);
-      return ctx.reply(`✅ Offer #${id} is now listing *#${l.id}*${l.photos ? ` with ${l.photos} photo(s)` : ""}; its owner is saved (private).\n\n${re.card(l, re.agent(ctx.state))}\n\nCheck and complete it: ${p}listing edit ${l.id} … · clients it suits: ${p}listing match ${l.id}`);
+      // As any new listing: the price check, the clients it suits, and with autoblast on the campaign.
+      const more = newlisting.afterAdd(ctx, l, { by: ctx.sender, chat: ctx.chatId, showNames: await ctx.isStaffOnlyChat() });
+      return ctx.reply(`✅ Offer #${id} is now listing *#${l.id}*${l.photos ? ` with ${l.photos} photo(s)` : ""}; its owner is saved (private).\n\n${re.card(l, re.agent(ctx.state))}${more}\n\nCheck and complete it: ${p}listing edit ${l.id} …`);
     }
     if (sub === "del" || sub === "delete" || sub === "dismiss") {
       const o = sellers.dismiss(ctx.state, ctx.config, idOf(arg));
