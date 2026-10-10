@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.54.0 — 2026-10-10
+
+### Added — alternatives for units already sold or reserved
+- **A client who asks about a gone unit** (`#12` or `#12 en` from an old post, for a listing that is sold, rented or reserved) gets the card, then up to 3 similar available units: "🔄 العقار #12 اتباع، بس عندنا بدائل قريبة منه:", one line each, and "ابعت رقم العقار للتفاصيل، مثلاً #15". The conversation goes on instead of ending.
+  - Similar means the same type and deal (a chalet for a chalet, never an apartment), those sharing an area word first, then the closest price, then the closest number of rooms. Only units within 40% of its price are offered.
+  - With `.agent autoleads on`, the client's history and the 🔔 notice say the unit was sold and which were offered ("سأل عن #12 — 🔴 تم البيع، واتبعتله بدائل: #15، #18").
+- **`.listing similar 12`** (or `.listing بدائل 12`) lists up to 5 of them. Anyone can use it, since it is the public catalogue. The team gets the `.lead send` command, a client the `#number` tip.
+- `.rehelp` and the Arabic guide explain both.
+
+### Checked
+- 3 tests (395 in total). They cover the ranking (the same area first, the closer price first; never another type, a rental, a reserved unit or one at twice the price), the Arabic and English messages, the `#12` flow with the client note and the notice, no alternatives for an available unit, a reserved unit in English, and `.listing similar` for the team, for a client and with nothing similar.
+
 ## 3.53.0 — 2026-10-10
 
 ### Added — the payment plan, delivery and features on marketing images
