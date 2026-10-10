@@ -105,4 +105,23 @@ function alertText(state, item, prefix) {
   return `🔔 طلب في "${group}": ${requests.describe(item.fields, cur)}\n🏠 عندك ${m.length} مناسب: ${ids}${m.length > 5 ? " …" : ""}\n👤 السمسار: ${item.name || ""} ${who}\n${prefix}feed ${item.id}`;
 }
 
-module.exports = { watch, unwatch, watched, groups, get, all, classify, save, hashOf, asListing, matchesFor, alertText, alertBudget, KEEP_DAYS, REPOST_DAYS, MAX_ITEMS };
+/**
+ * B-28: before 3.69, ".feed add" wrote "مشاركة مع السمسار <name> +<number> (F<id>)" into the
+ * listing's notes, which clients see. At start-up that line moves into the private source.
+ * Idempotent. @returns {number} listings fixed
+ */
+function moveBrokerNotes(state) {
+  const LINE = /^مشاركة مع السمسار ?(.*?)(?: \+(\d{8,15}))? \(F(\d+)\)$/mu;
+  let fixed = 0;
+  for (const l of re.all(state)) {
+    const m = String(l.notes || "").match(LINE);
+    if (!m) continue;
+    const notes = String(l.notes).replace(LINE, "").replace(/\n{2,}/g, "\n").trim();
+    const source = l.source || { kind: "feed", ...(m[1].trim() ? { name: m[1].trim() } : {}), ...(m[2] ? { phones: [m[2]] } : {}), feed: Number(m[3]) };
+    re.update(state, l.id, { notes: notes || undefined, source }, l.updated); // not a change of the listing
+    fixed++;
+  }
+  return fixed;
+}
+
+module.exports = { moveBrokerNotes, watch, unwatch, watched, groups, get, all, classify, save, hashOf, asListing, matchesFor, alertText, alertBudget, KEEP_DAYS, REPOST_DAYS, MAX_ITEMS };

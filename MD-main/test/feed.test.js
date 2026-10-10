@@ -107,7 +107,10 @@ test(".feed: search offers, requests, one post, and add an offer to the catalogu
   assert.match(b.text(), /✅ Added as \*#1\* \(shared with the broker/);
   const l = re.get(b.s, 1);
   assert.equal(l.price, 3.2e6);
-  assert.match(l.notes, /مشاركة مع السمسار Hassan \+201055554444 \(F1\)/);
+  // B-28: the broker is kept privately (the source), never in the notes clients see.
+  assert.deepEqual([l.source.kind, l.source.name, l.source.phones], ["feed", "Hassan", ["201055554444"]]);
+  assert.doesNotMatch(`${l.notes || ""}\n${re.card(l, re.agent(b.s))}`, /Hassan|1055554444|مشاركة مع السمسار/);
+  assert.match(b.text(), /🔗 المصدر \(خاص\): جروب السماسرة — Hassan · \+201055554444/, "shown to the agent in their own chat");
   await b.send(".feed add 3");
   assert.match(b.text(), /Which offer\?/, "a request can't be added as a listing");
   await b.send(".feed groups");

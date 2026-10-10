@@ -195,6 +195,13 @@ async function start() {
   const stopFollowUps = startFollowUpLoop(app);
   const stopAutoListings = startAutoListingsLoop(app);
   const stopViewings = startViewingsLoop(app);
+  // B-28: brokers once written into listings' public notes by .feed add move to the private source.
+  try {
+    const moved = require("./services/feed").moveBrokerNotes(app.state);
+    if (moved) log.info({ listings: moved }, "moved brokers from listing notes to their private source");
+  } catch (err) {
+    log.warn({ err: err.message }, "could not move brokers out of listing notes");
+  }
   const stopDrafts = startDraftsLoop(app);
   const stopChannels = startChannelsLoop(app);
   const stopPhotoHashes = startPhotoHashLoop(app);

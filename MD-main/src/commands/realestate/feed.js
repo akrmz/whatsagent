@@ -3,6 +3,9 @@
 const re = require("../../services/realestate");
 const feed = require("../../services/feed");
 const requests = require("../../services/requests");
+const wanted = require("../../services/wanted");
+const drafts = require("../../services/drafts");
+const { ownerLine } = require("../../services/listingview");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -53,7 +56,7 @@ module.exports = [
     aliases: ["brokergroup", "rasd"],
     category: "realestate",
     description:
-      "رصد جروب السماسرة — in a brokers' group: \"on\" makes the bot read other brokers' posts here. Offers (a property with a price) go into your feed (.feed); you get a private message when an offer suits your saved clients, or a request (\"مطلوب شقة …\") matches your listings. The bot never posts in the group. Reposts within a week are ignored; posts are kept 30 days. Owner and sudo users.",
+      "رصد جروب السماسرة — in a brokers' group: \"on\" makes the bot read other brokers' posts here. Offers (a property with a price) go into your feed (.feed); you get a private message when an offer suits your saved clients, or a request (\"مطلوب شقة …\") matches your listings. The bot never posts in the group by itself (only .wanted post, when you send it). Reposts within a week are ignored; posts are kept 30 days. Owner and sudo users.",
     usage: "on | off",
     examples: [".watch on", ".watch off", ".watch"],
     permission: "sudo",
@@ -99,10 +102,14 @@ module.exports = [
       if (sub === "add" || sub === "import") {
         const item = feed.get(ctx.state, idOf(arg));
         if (!item || item.kind !== "offer") throw new UserError(`Which offer? ${ctx.prefix}feed add <number> (from ${ctx.prefix}feed)`);
-        const source = `مشاركة مع السمسار ${item.name || ""}${item.poster ? ` +${item.poster}` : ""} (F${item.id})`.replace(/\s+/g, " ");
-        const notes = [item.fields.notes, source].filter(Boolean).join("\n");
-        const l = re.add(ctx.state, { ...item.fields, notes }, ctx.sender);
-        return ctx.reply(`✅ Added as *#${l.id}* (shared with the broker; noted on the listing)\n\n${re.card(l, re.agent(ctx.state))}`);
+        // B-28: the broker (name, number, and numbers in their post) is kept privately, as a draft's
+        // source, never in the notes that clients see on the card.
+        const owner = ctx.config.owners.numbers[0];
+        const { clean, contacts } = drafts.splitContacts(item.fields.notes || "", owner);
+        const phones = [...new Set([item.poster, ...contacts].filter(Boolean))].slice(0, 3);
+        const source = { kind: "feed", ...(item.name ? { name: item.name } : {}), ...(phones.length ? { phones } : {}), feed: item.id, at: Date.now() };
+        const l = re.add(ctx.state, { ...item.fields, notes: clean || undefined, source }, ctx.sender);
+        return ctx.reply(`✅ Added as *#${l.id}* (shared with the broker, who is kept privately on it)\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}`);
       }
       if (sub === "requests" || sub === "طلبات") {
         const list = feed.all(ctx.state, "request").slice(0, 15);
@@ -120,6 +127,62 @@ module.exports = [
         return `${re.line(feed.asListing(i), cur)} — ${ago(i.at)}${n ? ` · 🎯 ${n}` : ""}`;
       });
       return ctx.reply(`🏷️ *عروض السماسرة* (${offers.length}${offers.length > 15 ? `، أول 15` : ""})\n\n${lines.join("\n")}\n\n${ctx.prefix}feed <number> for the post and the broker · 🎯 = clients it suits`);
+    },
+  },
+  {
+    name: "wanted",
+    aliases: ["matloob", "demand"],
+    category: "realestate",
+    description:
+      "مطلوب لعملائك — what your active clients want that nothing in your catalogue matches, grouped by type, sale/rent and area (how many clients, the highest budget, rooms and must-haves), and a ready \"مطلوب\" post for brokers' groups. The post names no client: only what is wanted and your contact. “post” sends it to the brokers' groups you watch (.watch on), each at most once a day; “post here” in a group sends it there. Brokers' offers in answer come into your feed, which tells you which clients they suit. Owner and sudo users.",
+    usage: "[post | post here]",
+    examples: [".wanted", ".wanted post", ".wanted post here"],
+    permission: "sudo",
+    cooldown: 5,
+    async run(ctx) {
+      const p = ctx.prefix;
+      const list = wanted.gaps(ctx.state);
+      if (!list.length) return ctx.reply("✅ Every active client who said what they want has at least one matching listing. Nothing to ask brokers for.");
+      const post = wanted.postText(ctx.state, list);
+      const [sub = "", where = ""] = ctx.args.map((a) => a.toLowerCase());
+      if (sub === "post" || sub === "نشر") {
+        if (where === "here" || where === "هنا") {
+          if (!ctx.isGroup) throw new UserError(`In a brokers' group: ${p}wanted post here. From here: ${p}wanted post (to the groups you watch).`);
+          if (!wanted.dueGroups(ctx.state).some(([chat]) => chat === ctx.chatId) && feed.watched(ctx.state, ctx.chatId)) throw new UserError("Already posted in this group in the last 24 hours.");
+          await ctx.send(post);
+          wanted.markPosted(ctx.state, ctx.chatId);
+          return undefined;
+        }
+        const watchedGroups = Object.keys(feed.groups(ctx.state));
+        if (!watchedGroups.length) return ctx.reply(`No brokers' groups watched yet. In each one: ${p}watch on — then ${p}wanted post here, or ${p}wanted post from here.`);
+        const due = wanted.dueGroups(ctx.state).slice(0, 10);
+        if (!due.length) return ctx.reply("Every watched group already had the post in the last 24 hours.");
+        const done = [];
+        for (const [chat, g] of due) {
+          try {
+            await ctx.sock.sendMessage(chat, { text: post });
+            wanted.markPosted(ctx.state, chat);
+            done.push(g.name || chat);
+          } catch (err) {
+            ctx.log.warn({ err: err.message }, "wanted post not sent");
+          }
+        }
+        return ctx.reply(`📤 "مطلوب" posted in ${done.length} group(s): ${done.join("، ")}
+Brokers' offers in answer come to you as usual (${p}feed).`);
+      }
+      const cur = re.agent(ctx.state).currency || "جنيه";
+      return ctx.reply(
+        [
+          `🔎 *Wanted by your clients, with nothing matching* (${list.length})`,
+          "",
+          ...list.slice(0, 15).map((g) => `${wanted.line(g, cur)} — 👥 ${g.count}`),
+          "",
+          "*The post* (no client is named):",
+          post,
+          "",
+          `Send it to your watched brokers' groups: ${p}wanted post · in one group: ${p}wanted post here`,
+        ].join("\n"),
+      );
     },
   },
 ];
