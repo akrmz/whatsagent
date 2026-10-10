@@ -90,7 +90,7 @@ Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_S
 
 You can turn on a group's automatic posts (azkar, hadith, the Quran wird, tafsir, the listing of the day, schedules, welcome messages …) without writing anything in the group.
 
-1. **`.groups`** lists every group the bot is in, each with a number and its ID (`🆔 120363…@g.us`).
+1. **`.groups`** lists every group the bot is in, each with a number and its ID (`🆔 120363…@g.us`). **`.groups autos`** shows what already runs automatically in each one (azkar, hadith, the wird, tafsir, the listing of the day, schedules, announcements …), by number, and lists the groups with nothing automatic.
 2. **`.in <number or ID> <command>`** runs the command as if you had sent it in that group:
    - `.in 1 autoazkar on` — morning and evening azkar in group 1
    - `.in 1,2,3 autohadith every 6` — a hadith every 6 hours in three groups at once (up to 20)
@@ -816,7 +816,7 @@ This list is generated from the command files themselves.
 | `.delvar` | `.unset` `.resetvar` | Removes a setting made with .setvar, so the value from .env (or the default) is used again. | owner | `.delvar PREFIX` |
 | `.doctor` | `.diag` `.diagnose` `.status` | Health report: connection, memory, tools (yt-dlp, ffmpeg …) checked live, and which commands are disabled and why. | owner | `.doctor` |
 | `.greet` | `.welcomepm` `.firstmsg` | رسالة ترحيب لأول تواصل — a welcome sent the first time someone ever writes to you privately (e.g. who you are and how to ask about a listing). Who was greeted is kept as fingerprints, not phone numbers. | owner | `.greet on أهلاً بك في دار للتسويق العقاري 🏡 أرسل #رقم العقار لتفاصيله، أو اكتب طلبك وسنرد عليك.` |
-| `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with its number, ID, member count and whether the bot is an admin there. Use the number or the ID with .in to set a group up from your private chat, or with .leavegroup. | owner | `.groups` |
+| `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with its number, ID, member count and whether the bot is an admin there. Use the number or the ID with .in to set a group up from your private chat, or with .leavegroup. “autos” shows what runs automatically in each group (azkar, hadith, the wird, the listing of the day, schedules …). | owner | `.groups` |
 | `.in` | `.ingroup` `.ingc` | Runs a command in a group from your private chat, as if you had sent it there, so you set up a group without writing in it: daily azkar, the listing of the day, hadith, the Quran wird, schedules, welcome messages and so on. Name the group by its number in .groups or its ID (120363…@g.us), or several separated by commas. Its replies (the confirmations) come back to you, labelled with the group’s name; what it posts (the first hadith, the listing of the day) goes to the group, as do the scheduled posts it sets up. With “post”, its replies go to the group too (a hadith or a listing now). Owner only, from a private chat. | owner (private chat) | `.groups` |
 | `.join` | `.joingroup` | Makes the bot join a group from an invite link. | owner | `.join https://chat.whatsapp.com/AbCdEf123456` |
 | `.leave` | `.leavegc` `.exit` | Makes the bot leave this group. | owner (groups) | `.leave` |

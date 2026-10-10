@@ -2,6 +2,18 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.59.0 — 2026-10-10
+
+### Added — what runs automatically in each group
+- **`.groups autos`** (owner) lists every group, by its `.groups` number, with what runs there automatically: azkar, prayer alerts, tafsir, dua, hadith, the wird, Friday and fasting reminders, the khatma, the dhikr campaign, auto-downloads, the listing of the day, the morning summary, the open/close schedule, announcements and captcha. It ends with the groups with nothing automatic, and how to look at, stop or add to one with `.in`.
+- `.rehelp` (publishing) mentions setting up a group from the private chat.
+
+### Changed
+- The list `.autos` shows is now built in `services/autosoverview.js`, so `.autos` and `.groups autos` show the same thing. Nothing changes in `.autos`.
+
+### Checked
+- 1 test (408 in total): nothing automatic, two groups set up by `.in`, the hints left out, and a group going quiet after `off`.
+
 ## 3.58.0 — 2026-10-10
 
 ### Added — set up a group from your private chat
