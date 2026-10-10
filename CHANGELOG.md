@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.52.0 — 2026-10-10
+
+### Added — delivery dates for off-plan resale, and a price check when adding a listing
+- **Listings:** the delivery year is read like the other details: "استلام 2027", "تسليم ديسمبر 2028", "استلام بعد سنتين" (from this year), or the line `الاستلام: 2027`.
+  - The card shows "🔑 الاستلام: 2027" (English card: "Delivery 2027").
+  - `الاستلام: فوري` adds the feature استلام فوري.
+  - A year that has already come isn't kept (the unit is ready), and one 15+ years away is a misreading.
+- **Buyers:** "استلام قبل 2027" (by 2026), "استلام لحد 2028" / "في 2028", or "استلام خلال سنتين" is saved on the client and shown on the card ("استلام لحد 2028").
+  - They then match only units delivered by then. A listing without a delivery year counts as ready (a resale).
+  - Written requests and the assistant's `[WANTS delivery=2027]` save it too.
+  - "لحد 2028" is no longer read as a budget of 2,028.
+- **Search:** `.listings استلام 2027` lists units delivered by 2027 (or ready).
+- **`.listing add` checks the price:** with at least 3 similar listings (same type and deal, sharing an area word, with a price and size), the reply says how the new listing's price per m² compares. For example "📈 سعر المتر 25,000 جنيه — أعلى من المتوسط بـ 25% ⚠️ (متوسط 3 عقار مشابه: 20,000 جنيه)", or "في حدود المتوسط ✅", with `.market 12` for details. A price far from the market is seen before it's marketed.
+
+### Checked
+- 3 tests (391 in total). They cover:
+  - delivery parsing (a year, a month and year, "بعد سنتين", a labelled "فوري", a past year dropped), and the Arabic and English cards;
+  - buyers' delivery (before, by and within, and a year that isn't a budget), matching (resales ready, later units refused), the assistant's wishes, and the search;
+  - the price check (above the market, about average, and no similar listings).
+
 ## 3.51.0 — 2026-10-10
 
 ### Added — who is interested in a listing
