@@ -6,6 +6,7 @@ const drafts = require("../../services/drafts");
 const channels = require("../../services/channels");
 const newlisting = require("../../services/newlisting");
 const photohash = require("../../services/photohash");
+const { ownerLine } = require("../../services/listingview");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -89,7 +90,7 @@ module.exports = [
         const l = drafts.save(ctx.state, ctx.config, id, { edits, by: ctx.sender, ownerNumber: owner(ctx), base });
         const more = newlisting.afterAdd(ctx, l, { by: ctx.sender, chat: ctx.chatId, showNames: await ctx.isStaffOnlyChat(), duplicate: dup });
         return ctx.reply(
-          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}${more}\n\nFlyer: ${p}flyer ${l.id}`,
+          `✅ Draft #${id} is now listing *#${l.id}* with ${l.photos || 0} photo(s).\n\n${re.card(l, re.agent(ctx.state))}${ownerLine(ctx, l)}${dup ? `\n\n⚠️ It looks like #${dup.id}. If it's the same: ${p}listing del ${l.id}` : ""}${photohash.line(photoMatches, { p, listing: l.id })}${more}\n\nFlyer: ${p}flyer ${l.id}`,
         );
       }
       if (sub === "del" || sub === "delete" || sub === "remove" || sub === "مسح") {

@@ -60,7 +60,7 @@ test("the owner is private: shown only to staff in their own chat, never to clie
 
   await b.send(".export listings");
   const csv = b.sock.sent.at(-1).content.document.toString("utf8");
-  assert.match(csv, /,owner,created,/);
+  assert.match(csv, /,owner,source,created,/);
   assert.match(csv, /,أبو أحمد \+201001234567,/);
   const row = re.parseListingText("type: شقة\nowner: أبو أحمد +201001234567");
   assert.deepEqual(row.owner, { name: "أبو أحمد", phone: "201001234567" }, "an export imports back");

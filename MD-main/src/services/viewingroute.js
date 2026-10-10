@@ -72,7 +72,7 @@ function text(state, plan, timeZone, { title, p = ".", showOwner = false } = {})
     const c = s.lead;
     lines.push(
       `${s.v.outcome ? "✅" : "🕐"} *${clock(s.v.at, timeZone)}* — ${l ? `${l.type || "عقار"}${l.location ? ` ${l.location.slice(0, 30)}` : ""} (#${l.id})` : `#${s.v.listing}`}`,
-      `   👤 ${c ? `${c.name || "عميل"}${c.phone ? ` +${c.phone}` : ""} (#${c.id})` : `#${s.v.lead}`}${showOwner && l?.owner?.phone ? ` · 🔑 المالك +${l.owner.phone}` : ""}`,
+      `   👤 ${c ? `${c.name || "عميل"}${c.phone ? ` +${c.phone}` : ""} (#${c.id})` : `#${s.v.lead}`}${showOwner && l?.owner?.phone ? ` · 🔑 المالك +${l.owner.phone}` : showOwner && l?.source?.phones?.[0] ? ` · 🔗 السمسار +${l.source.phones[0]}` : ""}`,
     );
   }
   if (plan.url) lines.push("", `🗺️ الطريق بالترتيب: ${plan.url}`);

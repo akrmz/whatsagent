@@ -86,6 +86,9 @@ test("off by default and needs an AI; on: answers from the public catalogue only
   assert.equal(b.calls.length, 3, "not in groups, not for staff");
   await b.send("لسه متاح؟", { from: OWNER });
   assert.equal(b.calls.length, 3, "listings owners talk to the agent, not the assistant");
+  re.update(b.s, 1, { source: { kind: "channel", name: "قناة", phones: ["201077778888"] } });
+  await b.send("الشقة لسه معاك؟", { from: "201077778888@s.whatsapp.net" });
+  assert.equal(b.calls.length, 3, "nor do the brokers whose posts became listings");
 });
 
 test("handoff: the client is told someone will follow up and the agent is told once an hour; the agent replying takes over", async (t) => {

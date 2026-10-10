@@ -90,7 +90,10 @@ test("forwarded posts with their photos become drafts, split by unit, checked, t
   const l = re.get(b.s, 1);
   assert.deepEqual([l.type, l.deal, l.price, l.size, l.rooms, l.down, l.years, l.photos], ["شاليه", "بيع", 9e6, 120, 2, 2e6, 5, 2]);
   assert.deepEqual(re.featuresOf(l).sort(), ["صف أول", "فيو بحر"].sort());
-  assert.doesNotMatch(JSON.stringify(l), /01001234567|201001234567/, "no broker number on the listing");
+  const { source, ...shown } = l;
+  assert.doesNotMatch(JSON.stringify(shown), /01001234567|201001234567/, "no broker number in what can be shown");
+  assert.deepEqual([source.kind, source.phones], ["forward", ["201001234567"]], "kept privately: who to call about it");
+  assert.doesNotMatch(re.card(l, re.agent(b.s)), /1001234567/);
   assert.equal(re.photos(b.app.config, l).length, 2);
   assert.equal(drafts.get(b.s, 1), null);
   assert.equal(fs.existsSync(require("node:path").join(b.app.config.paths.data, "drafts", "1")), false, "the draft's photos are moved, not copied");

@@ -156,6 +156,9 @@ function save(state, config, id, { edits = "", by, ownerNumber, base } = {}) {
   const extra = edits ? re.parseListingText(edits, ownerNumber) : {};
   const fields = { ...(base || fieldsOf(d, ownerNumber)), ...extra }; // base: read by the AI, or with a Maps pin
   if (!fields.type) throw new UserError(`What kind of property is it? .drafts save ${id} النوع: شقة (and any other missing details).`);
+  // Where it came from and who posted it, kept private like the owner: who to call about it.
+  const phones = splitContacts(d.texts.join("\n"), ownerNumber).contacts.filter((p) => p !== fields.owner?.phone).slice(0, 3);
+  fields.source = { kind: d.source.kind, ...(d.source.kind === "channel" ? { name: d.source.name } : {}), ...(phones.length ? { phones } : {}), at: Date.now() };
   const l = re.add(state, fields, by);
   let added = 0;
   for (const file of photos(config, d)) {

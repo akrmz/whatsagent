@@ -584,7 +584,8 @@ async function handle(ctx, now = Date.now()) {
     }
     return true;
   }
-  if (re.all(ctx.state).some((l) => l.owner?.phone === key)) return false; // owners talk to the agent
+  // Owners, and the brokers whose posts became listings, talk to the agent, not the assistant.
+  if (re.all(ctx.state).some((l) => l.owner?.phone === key || l.source?.phones?.includes(key))) return false;
   if (!flood(ctx.state, key)) return true; // a flood: silence
   const turn = takeTurn(ctx.state, key, ctx.config.bot.timezone, now);
   if (turn === "day") return false;

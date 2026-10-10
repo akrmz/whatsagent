@@ -7,6 +7,7 @@ const metaleads = require("../../services/metaleads");
 const digest = require("../../services/digest");
 const { parseClock } = require("../../services/reminders");
 const { UserError } = require("../../core/errors");
+const { normalizePhone } = require("../../services/phones");
 
 const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
 const MAX_IMPORT_ROWS = 1000;
@@ -41,7 +42,11 @@ function importCsv(state, text, kind, { by, ownerNumber }) {
     const n = row.line ?? i + 2; // the row number as shown in the spreadsheet
     try {
       if (kind === "listings") {
-        const fields = re.parseListingText(rowText(row, LISTING_COLUMNS), ownerNumber);
+        // The "source" column (.export) holds brokers' numbers: back into the private field, never the notes.
+        const { source: sourceCol, ...rest } = row;
+        const fields = re.parseListingText(rowText(rest, LISTING_COLUMNS), ownerNumber);
+        const phones = [...new Set((re.latinDigits(String(sourceCol || "")).match(/\+?\d[\d\s-]{7,16}\d/g) || []).map((p) => normalizePhone(p, ownerNumber)).filter(Boolean))].slice(0, 3);
+        if (sourceCol) fields.source = { kind: "import", name: String(sourceCol).replace(/\+?\d[\d\s-]{7,16}\d|wa\.me\/\d+/g, "").replace(/[·\s]+$/u, "").trim().slice(0, 60) || undefined, ...(phones.length ? { phones } : {}) };
         const dup = re.findDuplicate(state, fields);
         if (dup) {
           skipped.push(`${n}: same as #${dup.id}`);

@@ -19,7 +19,21 @@ const newClients = (state) => limiterFor(state, "inquiry-new", { max: 30, window
  * the bot, never to a group or a client's chat (where the bot's owner may type a command too).
  */
 const staffOnlyChat = (ctx) => ctx.isSudoOrOwner && (ctx.chatId === ctx.sender || ctx.chatId === ctx.botJid);
-const ownerLine = (ctx, l) => (l.owner && staffOnlyChat(ctx) ? `\n\n🔑 المالك (خاص): ${l.owner.name || ""}${l.owner.phone ? ` +${l.owner.phone}` : ""}`.trimEnd() : "");
+/** "قناة "عقارات الساحل" · +2010… · wa.me/2010…" — where a listing came from (a draft), or null. */
+const sourceText = (l) => {
+  const s = l.source;
+  if (!s) return null;
+  const from = s.kind === "channel" ? `قناة "${s.name || "قناة"}"` : s.kind === "forward" ? "بوست اتحوّل" : s.name || null; // import: as it was exported
+  const phones = (s.phones || []).map((p) => `+${p} wa.me/${p}`);
+  return [from, ...phones].filter(Boolean).join(" · ") || null;
+};
+// The owner, and where the listing came from (a broker's number): private, as above.
+const ownerLine = (ctx, l) => {
+  if (!staffOnlyChat(ctx)) return "";
+  const owner = l.owner ? `🔑 المالك (خاص): ${l.owner.name || ""}${l.owner.phone ? ` +${l.owner.phone}` : ""}`.trimEnd() : null;
+  const source = sourceText(l) && `🔗 المصدر (خاص): ${sourceText(l)}`;
+  return owner || source ? `\n\n${[owner, source].filter(Boolean).join("\n")}` : "";
+};
 
 async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   const a = re.agent(ctx.state);
@@ -97,4 +111,4 @@ async function captureInquiry(ctx, listing, { alts = [] } = {}) {
   return { lead, isNew: !existing };
 }
 
-module.exports = { show, captureInquiry, ownerLine, staffOnlyChat };
+module.exports = { show, captureInquiry, ownerLine, sourceText, staffOnlyChat };
