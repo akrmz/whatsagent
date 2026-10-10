@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-25 a long run of spaces froze the bot for seconds (regex backtracking) | Fixed in 3.61.1: whitespace is squeezed before every parser of outside text; a timing test guards it |
 | **Found in a later review:** B-24 strangers could fill the disk with seller-offer photos | Fixed in 3.49.1: at most 100 waiting offers and 400 photos, expired after 30 days |
 | **Found in a later review:** B-23 clients' notices kept reaching a member after their sudo was removed | Fixed in 3.43.1: notices, reminders and the rotation only use members who are still the owner or sudo |
 | **Found in a later review:** B-22 the customer assistant answered every private chat and could relay links | Fixed in 3.36.0: personal chats are left alone (`[IGNORE]`, `.assistant ignore`), links removed unless trusted |
@@ -96,6 +97,7 @@ How this was verified:
 | B-22 | Medium | Bot | The customer assistant sent every private message from a non-staff number to the AI provider and saved the sender as a client (family and friends of an agent using their own number included); a client could also try to make it repeat a payment or phishing link (found in the 3.36.0 review; fixed) |
 | B-23 | Medium | Bot | A team member whose sudo was removed kept getting the notices of clients assigned to them (names, numbers, what they wrote, handoffs, self-booked viewings and their reminders), and the rotation kept giving them new clients (found in the 3.43.1 review; fixed) |
 | B-24 | Medium | Bot | Seller intake (3.45) let anyone start an offer and send photos; offers waiting for the agent were never trimmed or expired, so new numbers could keep adding about 160 photos an hour until the disk filled (found in the 3.49.1 review; fixed) |
+| B-25 | High | Bot | Catastrophic regex backtracking: optional words between `s*` in the text parsers made a message with a property word and ~290 spaces take seconds to parse (6 s for "عايز شقة قسط" in 3.60), freezing the whole bot. Anyone could send it with `.agent requests on`, in a watched brokers group, or in a lead-ad form (found in the 3.61.1 review; fixed) |
 
 ---
 
@@ -349,6 +351,21 @@ Locations only (values intentionally omitted):
   - at most 400 photos are kept for all waiting offers together;
   - a waiting offer untouched for 30 days expires and its photos are deleted (checked when a new offer starts and when `.sellers` is opened).
 - **Tests:** `test/sellers.test.js` ("what strangers can store is bounded …").
+
+### B-25 — A long run of spaces froze the bot (found in the 3.61.1 review)
+- **Where:**
+  - `services/realestate.js` `monthlyIn` (3.60.0), and the older down-payment and delivery patterns in `services/leads.js` `parseLeadText`;
+  - to a lesser degree `search` and `parseListingText`.
+- **What was wrong:** the patterns have optional words between `\s*`, for example `قسط\s*(?:شهري)?\s*:?\s*(?:حدود)?\s*<amount>`. When no amount follows a long run of whitespace, the regex engine tries every way of splitting that run among the `\s*`. The time grows with a high power of its length.
+- **What anyone could do:** send "عايز شقة قسط" followed by about 285 spaces, which is within the 300-character limit on requests. It took **6.3 s** in `requests.detect`, and Node runs one thing at a time, so the whole bot stopped answering for that long, for every such message. The parse happens before the per-client limit, so there was no throttle. It could be sent:
+  - privately, with `.agent requests on`;
+  - in a watched brokers' group (`feed.js` reads every message);
+  - in a Meta lead-ad form (read on `.import leads`).
+  - "استلام" or "تسليم" with spaces cost about 0.5 s on older code; `.listings` and listing posts about 0.1 s.
+- **Fix:** `re.squeeze` turns every whitespace run into one space, or one line break if it had one. It runs at the start of `parseLeadText`, `parseListingText`, `search` and `monthlyIn`, so no caller can skip it. With no run longer than one character, the `\s*` have nothing to split. `extractFree` already did this.
+  - After the fix: 0–11 ms for the same inputs. A sweep of the other parsers of outside text (seller intent, "talk to a human", owner answers, report words, locations, booking) found none slower than 30 ms.
+- **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
+- **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
 
 ### Design note — running a command in a group from a private chat (`.in`, 3.58.0)
 - **What it is:** `.in <group> <command>` runs a command as if the owner had typed it in that group, so a group can be set up without writing in it. It is a new way into groups, so its limits are deliberate:

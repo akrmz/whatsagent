@@ -2,6 +2,16 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.61.1 — 2026-10-10
+
+### Security — B-25: a long run of spaces froze the bot
+- **The problem:** a message with a property word and a long run of spaces made the text parsers backtrack for seconds. For example, "عايز شقة قسط" and 285 spaces took 6.3 s. Node does one thing at a time, so the whole bot stopped answering meanwhile. Anyone could send it, privately with `.agent requests on`, in a watched brokers' group, or in a lead-ad form. The cause was mainly the monthly-instalment reader added in 3.60.0, and partly older down-payment and delivery patterns.
+- **The fix:** every parser of text from outside (clients' requests, clients' details, listing posts, `.listings` searches, the instalment reader) now first squeezes each run of whitespace to one space, or one line break. The same inputs now take 0–11 ms. Nothing changes in what is read.
+- **Also checked:** the other handlers of strangers' text found nothing slower than 30 ms, and both services' dependencies (`npm audit`) have 0 known vulnerabilities. Details in docs/SECURITY_AUDIT.md (B-25).
+
+### Checked
+- 2 tests (416 in total): every parser of outside text on property words with long runs of spaces, tabs and line breaks, each under 300 ms (this test fails on the earlier code), and squeezing doesn't change what is read.
+
 ## 3.61.0 — 2026-10-10
 
 ### Added — a listing's payment plan, and figures for negotiating
