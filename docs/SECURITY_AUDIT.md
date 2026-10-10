@@ -350,6 +350,15 @@ Locations only (values intentionally omitted):
   - a waiting offer untouched for 30 days expires and its photos are deleted (checked when a new offer starts and when `.sellers` is opened).
 - **Tests:** `test/sellers.test.js` ("what strangers can store is bounded …").
 
+### Design note — running a command in a group from a private chat (`.in`, 3.58.0)
+- **What it is:** `.in <group> <command>` runs a command as if the owner had typed it in that group, so a group can be set up without writing in it. It is a new way into groups, so its limits are deliberate:
+  - **Who:** the owner only (not sudo users), and only from a private chat.
+  - **Where:** only a group the bot is in (its metadata must load). It is named by its number in `.groups` or its ID. It can't run `.in` itself.
+  - **The same checks as a typed command:** the made-up message goes through the dispatcher's `execute`. Group-disabled commands, permissions, "bot must be admin", and the client-data rule (B-21) all apply as they would in that group, so clients' details still aren't shown for a group with outsiders, even though the reply would come to the owner.
+  - **What reaches the group:** only what the command would have posted there if typed in it. Replies come back to the owner's chat unless `post` is given. The made-up message is never quoted or reacted to.
+  - **Logged** as a command run in a group from the owner's chat. No message text is logged.
+- **Tests:** `test/remoterun.test.js`.
+
 ### P-09 — Web hardening
 - **Where:** `Bot_Pair_Code-main/index.js` (no `helmet`, `x-powered-by` enabled, no CSP), `pair.html:424` (axios `1.0.0-alpha.1` from cdnjs with no `integrity`), `pair.html:9` (Font Awesome without SRI), `pair.js:160` (pairing code logged with the phone number).
 - **Fix:** Add `helmet` with a strict CSP. Remove axios (use `fetch`) and self-host icons or drop them. Redact phone numbers in logs and never log codes.

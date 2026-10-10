@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.58.0 — 2026-10-10
+
+### Added — set up a group from your private chat
+- **`.groups`** now shows each group's ID (`🆔 120363…@g.us`) under its number, and how to use them with `.in`.
+- **`.in <group> <command>`** (owner only, from a private chat) runs a command as if you had sent it in that group, so you can turn on its automatic posts without writing there. Examples: `.in 1 autoazkar on`, `.in 2 autolistings on 10:00 شقة التجمع`, `.in 1,2,3 autohadith every 6`.
+  - **Naming the group:** by its number in `.groups` (the list is fetched again if it is old), by its ID, or by the ID's digits. Several groups can be separated by commas, up to 20 at once.
+  - **Replies** (confirmations, status) come back to you, labelled with the group's name.
+  - **Posts** (the first hadith or verse, and every scheduled post) go to the group.
+  - **`post`** sends the replies to the group too: `.in 1 post hadith`, `.in 1 post listing 12`.
+  - **Several groups:** you get one summary.
+  - **Same checks as typing it in the group:** commands turned off there, "the bot must be admin", and clients' details kept out of groups with outsiders. A group the bot isn't in, an unknown command, or `.in` itself are refused.
+- `.leavegroup` uses the same list. The design and its limits are written up in docs/SECURITY_AUDIT.md.
+
+### Checked
+- 4 tests (407 in total). They cover:
+  - the IDs in `.groups`;
+  - setting up the listing of the day, azkar, hadith, the wird and tafsir from the private chat (confirmations here, first posts in the group, nothing set up for the private chat);
+  - by ID, several groups, `post`, and client data still refused for a mixed group;
+  - the refusals: no such group, a group the bot isn't in, an unknown command, `.in` inside `.in`, a sudo user, a client, and from a group.
+
 ## 3.57.0 — 2026-10-10
 
 ### Added — a day plan for viewings, with the route

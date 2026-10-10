@@ -86,6 +86,24 @@ Examples: `.setvar BOT_NAME Akram Bot`, `.setvar PREFIX !`, `.setvar MAX_VIDEO_S
 - **Keys and tokens only in a private chat with the bot.** In a group they are refused. If you send them from the bot's own WhatsApp account, the bot deletes the message for you; otherwise delete it yourself after the bot confirms.
 - Some settings can only be changed in `.env` on the server, on purpose: `OWNER_NUMBERS`, `OWNER_LIDS`, `PAIRING_NUMBER`, the folders, `UPDATE_REMOTE`/`UPDATE_BRANCH` and the health server. Changing them from a chat could lock you out, or let someone who takes over your WhatsApp point `.update` at their own code.
 
+## Setting up a group from your private chat
+
+You can turn on a group's automatic posts (azkar, hadith, the Quran wird, tafsir, the listing of the day, schedules, welcome messages …) without writing anything in the group.
+
+1. **`.groups`** lists every group the bot is in, each with a number and its ID (`🆔 120363…@g.us`).
+2. **`.in <number or ID> <command>`** runs the command as if you had sent it in that group:
+   - `.in 1 autoazkar on` — morning and evening azkar in group 1
+   - `.in 1,2,3 autohadith every 6` — a hadith every 6 hours in three groups at once (up to 20)
+   - `.in 2 autolistings on 10:00 شقة التجمع` — the listing of the day in group 2
+   - `.in 120363000000000001@g.us autowird on 2 06:00` — by ID (the digits alone work too)
+   - `.in 4 autoazkar` — check what is on in group 4
+3. **Where the messages go:**
+   - **Replies come back to you,** labelled with the group's name ("📍 *وسطاء التجمع*"). These are the confirmations and status a command answers with.
+   - **Posts go to the group:** what the command posts there (the first hadith of `.autohadith`, the first verse of `.autotafsir`) and every scheduled post it sets up. When you set up several groups at once, you get one summary.
+   - **`post` sends the replies to the group too:** `.in 1 post hadith` posts a hadith there now; `.in 1 post listing 12` posts a listing card.
+
+Owner only, from a private chat. The command goes through the same checks as if you typed it in the group: commands turned off there stay off, a command that needs the bot to be admin still does, and clients' names and numbers still aren't shown for a group with outsiders.
+
 ## Adhkar and duas (الأذكار والأدعية)
 
 The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn Wahf al-Qahtani), bundled with the bot (`assets/hisnmuslim-ar.json`, from hisnmuslim.com), so it works without internet. The Quran passages in the morning/evening adhkar were checked letter by letter against alquran.cloud.
@@ -798,7 +816,8 @@ This list is generated from the command files themselves.
 | `.delvar` | `.unset` `.resetvar` | Removes a setting made with .setvar, so the value from .env (or the default) is used again. | owner | `.delvar PREFIX` |
 | `.doctor` | `.diag` `.diagnose` `.status` | Health report: connection, memory, tools (yt-dlp, ffmpeg …) checked live, and which commands are disabled and why. | owner | `.doctor` |
 | `.greet` | `.welcomepm` `.firstmsg` | رسالة ترحيب لأول تواصل — a welcome sent the first time someone ever writes to you privately (e.g. who you are and how to ask about a listing). Who was greeted is kept as fingerprints, not phone numbers. | owner | `.greet on أهلاً بك في دار للتسويق العقاري 🏡 أرسل #رقم العقار لتفاصيله، أو اكتب طلبك وسنرد عليك.` |
-| `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with member counts and whether the bot is an admin there. | owner | `.groups` |
+| `.groups` | `.listgroups` `.grouplist` | Lists every group the bot is in, with its number, ID, member count and whether the bot is an admin there. Use the number or the ID with .in to set a group up from your private chat, or with .leavegroup. | owner | `.groups` |
+| `.in` | `.ingroup` `.ingc` | Runs a command in a group from your private chat, as if you had sent it there, so you set up a group without writing in it: daily azkar, the listing of the day, hadith, the Quran wird, schedules, welcome messages and so on. Name the group by its number in .groups or its ID (120363…@g.us), or several separated by commas. Its replies (the confirmations) come back to you, labelled with the group’s name; what it posts (the first hadith, the listing of the day) goes to the group, as do the scheduled posts it sets up. With “post”, its replies go to the group too (a hadith or a listing now). Owner only, from a private chat. | owner (private chat) | `.groups` |
 | `.join` | `.joingroup` | Makes the bot join a group from an invite link. | owner | `.join https://chat.whatsapp.com/AbCdEf123456` |
 | `.leave` | `.leavegc` `.exit` | Makes the bot leave this group. | owner (groups) | `.leave` |
 | `.leavegroup` | `.exitgroup` | Makes the bot leave a group by its number from .groups. | owner | `.leavegroup` |
