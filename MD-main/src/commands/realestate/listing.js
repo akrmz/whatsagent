@@ -7,6 +7,7 @@ const { UserError } = require("../../core/errors");
 const leads = require("../../services/leads");
 const places = require("../../services/places");
 const health = require("../../services/listinghealth");
+const interest = require("../../services/interest");
 const { redactPhones } = require("../../services/phones");
 const { limiterFor } = require("../../core/ratelimit");
 
@@ -195,7 +196,7 @@ const HELP = (p) =>
     `${p}listing 12 — show · ${p}listing 12 photos — all photos`,
     `${p}listing edit 12 السعر: 3.4 مليون — change fields`,
     `${p}listing status 12 reserved|sold|rented|available`,
-    `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits`,
+    `${p}listing del 12 — delete · ${p}listing match 12 — clients it suits · ${p}listing who 12 — who viewed, asked about or got it`,
     `المالك: الاسم 0100… (in add/edit, private) · ${p}listing ask 12 — ask the owner if it's still available`,
     `${p}listing report 12 — the owner's marketing report (preview) · ${p}listing report 12 send — send it to the owner`,
     `${p}listing loc 12 (reply to a location pin or Maps link) — save where it is · ${p}listing 12 map — send the pin`,
@@ -210,8 +211,8 @@ module.exports = [
     category: "realestate",
     description:
       "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send"],
+    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | who <id> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send", ".listing who 12"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -311,6 +312,27 @@ module.exports = [
         }
         re.update(ctx.state, id, { geo });
         return ctx.reply(`📍 Location saved for #${id}${geo.label ? ` (${geo.label})` : ""}.\n🗺️ ${places.mapsUrl(geo)}\n\nClients near it: reply to their location with ${ctx.prefix}listings near · the pin: ${ctx.prefix}listing ${id} map`);
+      }
+      if (sub === "who" || sub === "interest" || sub === "interested" || sub === "مين") {
+        // ".listing who 12": everyone who viewed, asked about or was sent it — who to call first.
+        if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 The clients for #${id} are private: use ${ctx.prefix}listing who ${id} in your private chat with the bot, or in a group of staff only.`);
+        const l = re.get(ctx.state, id);
+        const list = interest.forListing(ctx.state, id);
+        if (!list.length) return ctx.reply(`Nobody has viewed, asked about or been sent #${id} yet. Clients it suits: ${ctx.prefix}listing match ${id}`);
+        const STATUS = leads.STATUS;
+        const lines = list.slice(0, 25).map(({ lead, sign }) => `▫️ *#${lead.id}* ${lead.name || "عميل"}${lead.phone ? ` (+${lead.phone})` : ""} — ${sign.label}${sign.at ? ` · ${interest.ago(sign.at)}` : ""} · ${STATUS[lead.status]?.ar || lead.status}`);
+        return ctx.reply(
+          [
+            `👥 *Who's interested in #${id}* — ${l.type || "عقار"}${l.location ? ` ${l.location.slice(0, 30)}` : ""} (${list.length})`,
+            "",
+            ...lines,
+            list.length > 25 ? `… and ${list.length - 25} more` : null,
+            "",
+            `After a price cut: ${ctx.prefix}blast ${id} drop · send it again: ${ctx.prefix}lead send <client> ${id} · new clients it suits: ${ctx.prefix}listing match ${id}`,
+          ]
+            .filter((x) => x !== null)
+            .join("\n"),
+        );
       }
       if (sub === "match" || sub === "clients") {
         if (!(await ctx.isStaffOnlyChat())) return ctx.reply(`🔒 The clients for #${id} are private: use ${ctx.prefix}listing match ${id} in your private chat with the bot, or in a group of staff only.`);
