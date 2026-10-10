@@ -158,7 +158,12 @@ function createDispatcher(app) {
       await handleEvent("status", sock, msg);
       return;
     }
-    if (jid.endsWith("@newsletter") || jid.endsWith("@broadcast")) return;
+    if (jid.endsWith("@newsletter")) {
+      // Channel posts never run commands; only channels the owner added are read (services/channels.js).
+      await handleEvent("newsletter", sock, msg);
+      return;
+    }
+    if (jid.endsWith("@broadcast")) return;
 
     const ctx = buildContext(app, sock, msg);
     if ((await runListeners("message:pre", ctx)) === "stop") return;

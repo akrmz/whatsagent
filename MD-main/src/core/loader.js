@@ -12,7 +12,7 @@ const path = require("node:path");
 
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,31}$/;
 const PERMISSIONS = ["user", "groupAdmin", "sudo", "owner"];
-const LISTENER_EVENTS = ["message", "command:after", "group-participants.update", "call", "status"];
+const LISTENER_EVENTS = ["message", "command:after", "group-participants.update", "call", "status", "newsletter"];
 const MESSAGE_PHASES = ["pre", "post"];
 
 class LoaderError extends Error {}

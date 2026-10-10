@@ -23,8 +23,9 @@ const PARSERS = {
   "owners.classify": (t) => owners.classify(t),
   "sellers.isSellerIntent": (t) => sellers.isSellerIntent(t),
   "assistant.asksForHuman": (t) => assistant.asksForHuman(t),
+  "drafts.splitContacts": (t) => require("../src/services/drafts").splitContacts(t, "201011112222"), // channel and forwarded posts
 };
-const WORDS = ["عايز شقة قسط", "قسط", "monthly", "مقدم", "بمقدم", "استلام", "تسليم", "السعر", "في", "على", "حتى", "اقل من", "الدور"];
+const WORDS = ["عايز شقة قسط", "قسط", "monthly", "مقدم", "بمقدم", "استلام", "تسليم", "السعر", "في", "على", "حتى", "اقل من", "الدور", "للتواصل", "+20", "0100"];
 const PADS = [" ".repeat(290), " \n".repeat(140), "\t".repeat(290), "1 ".repeat(145), "\n".repeat(290)];
 
 test("the parsers of what strangers write take milliseconds, not seconds, on long runs of whitespace", () => {
