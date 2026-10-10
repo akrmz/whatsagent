@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.66.0 — 2026-10-11
+
+### Added — who to call about a unit from a channel or a forwarded post
+- **A saved draft keeps where it came from**, privately like the owner: the channel's name, or that it was a forwarded post, and up to 3 phone numbers from the post (usually the broker who has the unit). Before, they showed only in the draft's review and were lost when it was saved.
+- **Where it shows:** "🔗 المصدر (خاص): قناة "عقارات الساحل" · +2010… wa.me/2010…" appears wherever the owner does:
+  - `.listing 12` in your own chat with the bot, and the reply when a draft is saved;
+  - `.export listings` (new column `source`);
+  - the viewing day plan, when no owner is saved ("🔗 السمسار +2010…": who to call to open the unit).
+- **Never shown** on cards, flyers, campaigns, to the assistant, or to anyone in a group or a client's chat.
+- **The assistant** doesn't answer those brokers' messages: like owners, they talk to you.
+
+### Fixed
+- **`.import listings`** reads the `source` column back into the private field. An unknown column would otherwise have landed in the listing's public notes, numbers included.
+
+### Checked
+- 4 tests (433 in total). They cover the source kept on save and shown only in the owner's own chat (not a group, not a client); the export, and an export → import round trip keeping it out of the notes and the card; the viewing plan naming the broker; and the assistant not answering a source broker. Two earlier tests were updated (the number is now kept on purpose in the private field; the export has one more column).
+
 ## 3.65.0 — 2026-10-11
 
 ### Added — the same unit from another broker, by its photos

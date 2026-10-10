@@ -379,6 +379,9 @@ Locations only (values intentionally omitted):
   - Files are written `0600` in `0700` folders.
 - **Short Maps links (3.64.0):** saving a draft opens a `maps.app.goo.gl` link in the post into a pin. This only follows redirects within Google's hosts (`places.expandShort`). For a channel's `auto` posts, opening them shares the 30-an-hour budget with clients' links.
 - **Where reviews go (3.64.0):** if `.channel add` is run in a group with outsiders, the reviews and the "added" notices (numbers in posts, clients a unit suits) go to the owner's private chat instead.
+- **The source on a listing (3.66.0):** a saved draft keeps `listing.source` (where from, and up to 3 numbers from the post). It follows the owner's rules exactly: only in the owner's or a sudo user's own chat with the bot (`listingview.ownerLine`), the CSV export, and the viewing plan in that chat. It never goes on cards, flyers, campaigns or the AI's catalogue (which is built from `re.card`).
+  - `.import` reads the `source` column back into that field. Before this, an unknown column would have gone into the public notes.
+  - The assistant stays silent with those numbers, as with owners.
 - **Privacy:** phone numbers in a post (usually the poster's) are taken out of the listing text. They show only in the owner's review, so another broker's number never reaches a client through a card. `.drafts` is client data (B-21): private chat or staff-only group.
 - **Not verified against WhatsApp:** the shape of a `newsletterFetchMessages` reply (`.channel import` and the 10-minute fallback). It is read defensively (any `<message>` with a `<plaintext>` child, decoded like Baileys' live path), and it reads nothing rather than failing on another shape.
 - **Tests:** `test/drafts.test.js`.
