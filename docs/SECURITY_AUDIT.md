@@ -377,6 +377,8 @@ Locations only (values intentionally omitted):
   - Channel media isn't end-to-end encrypted. It is fetched by its `directPath`, from `mmg.whatsapp.net` only (checked after building the URL, so `//other.host/…` and a post's `url` field are never used). It is capped at 15 MB through `core/http` (no redirects off the safe-URL check).
   - Every photo, forwarded or from a channel, is re-encoded with sharp before it is written. Anything that isn't a picture fails there.
   - Files are written `0600` in `0700` folders.
+- **Short Maps links (3.64.0):** saving a draft opens a `maps.app.goo.gl` link in the post into a pin. This only follows redirects within Google's hosts (`places.expandShort`). For a channel's `auto` posts, opening them shares the 30-an-hour budget with clients' links.
+- **Where reviews go (3.64.0):** if `.channel add` is run in a group with outsiders, the reviews and the "added" notices (numbers in posts, clients a unit suits) go to the owner's private chat instead.
 - **Privacy:** phone numbers in a post (usually the poster's) are taken out of the listing text. They show only in the owner's review, so another broker's number never reaches a client through a card. `.drafts` is client data (B-21): private chat or staff-only group.
 - **Not verified against WhatsApp:** the shape of a `newsletterFetchMessages` reply (`.channel import` and the 10-minute fallback). It is read defensively (any `<message>` with a `<plaintext>` child, decoded like Baileys' live path), and it reads nothing rather than failing on another shape.
 - **Tests:** `test/drafts.test.js`.

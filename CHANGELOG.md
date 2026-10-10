@@ -2,6 +2,27 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.64.0 — 2026-10-11
+
+### Changed — every new listing gets the same follow-up, however it arrives
+- **Saving a draft (`.drafts save 3`), a seller's offer (`.sellers add 3`) and a channel post with `auto`** now do what `.listing add` does:
+  - the price per m² against similar listings ("📈 … في حدود المتوسط ✅");
+  - the clients it suits ("🎯 يناسب 1 من عملائك: #1 منى", the names only where no outsider reads them);
+  - with `.agent autoblast on`, the campaign to them queued 30 minutes later. A likely duplicate is flagged and not sent.
+- **`.drafts save all`** says how many campaigns were queued and which saved units look like ones you have.
+- **A short Maps link in a forwarded or channel post** (`maps.app.goo.gl/…`) becomes the listing's pin when it is saved. For a channel's `auto` posts this is limited to 30 an hour, since they come from outside.
+- **`.drafts save 3 ai`** lets the configured AI read a messy post. Phone numbers are masked, and the details after it still win.
+- **`.channel add` in a group with outsiders:** the reviews and "added" notices go to the owner's private chat instead, since they carry the numbers in posts and the clients a unit suits.
+- Inside: these steps moved from the `.listing` command into `services/newlisting.js`, used by all four ways in. `.listing add` works as before.
+
+### Checked
+- 4 tests (427 in total). They cover:
+  - a draft saved with the pin, the price check, the clients and the campaign;
+  - `save all` with a duplicate flagged and not sent;
+  - `save ai` (the number never reaches the AI) with a detail that wins;
+  - a channel with `auto` added in a mixed group reporting privately, with the same follow-up.
+- The 423 earlier tests pass unchanged after the move.
+
 ## 3.63.0 — 2026-10-11
 
 ### Added — units from forwarded posts and from your WhatsApp channel
