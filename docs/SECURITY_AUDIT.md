@@ -367,6 +367,20 @@ Locations only (values intentionally omitted):
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
 
+### Design note — listings from forwarded posts and WhatsApp channels (`.drafts`, `.channel`, 3.63.0)
+- **What comes in:** posts the owner or a sudo user forwards to the bot in their own private chat, and posts in channels the owner adds. A channel's admin is someone else, so its posts are outside content.
+- **Where they can go:**
+  - Channel messages had always been dropped. They now reach only a dedicated `newsletter` event, never commands or the other listeners, and only channels in `channels.json` are read. Following a channel changes the account, so `.channel` is owner-only.
+  - Forwarded posts make drafts only in the forwarder's own chat with the bot. Clients, groups and other chats never do.
+- **What they can store:** at most 50 drafts waiting (then nothing more is kept), 10 photos each, 4,000 characters of text, and a draft untouched for 14 days is deleted with its photos. Each post ID is taken once (the last 300 per channel). Review messages to the owner are capped at 20 an hour. Post text goes through the squeezed parsers (B-25) and is in `test/redos.test.js`.
+- **Photos:**
+  - Channel media isn't end-to-end encrypted. It is fetched by its `directPath`, from `mmg.whatsapp.net` only (checked after building the URL, so `//other.host/…` and a post's `url` field are never used). It is capped at 15 MB through `core/http` (no redirects off the safe-URL check).
+  - Every photo, forwarded or from a channel, is re-encoded with sharp before it is written. Anything that isn't a picture fails there.
+  - Files are written `0600` in `0700` folders.
+- **Privacy:** phone numbers in a post (usually the poster's) are taken out of the listing text. They show only in the owner's review, so another broker's number never reaches a client through a card. `.drafts` is client data (B-21): private chat or staff-only group.
+- **Not verified against WhatsApp:** the shape of a `newsletterFetchMessages` reply (`.channel import` and the 10-minute fallback). It is read defensively (any `<message>` with a `<plaintext>` child, decoded like Baileys' live path), and it reads nothing rather than failing on another shape.
+- **Tests:** `test/drafts.test.js`.
+
 ### Design note — running a command in a group from a private chat (`.in`, 3.58.0)
 - **What it is:** `.in <group> <command>` runs a command as if the owner had typed it in that group, so a group can be set up without writing in it. It is a new way into groups, so its limits are deliberate:
   - **Who:** the owner only (not sudo users), and only from a private chat.

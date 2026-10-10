@@ -2,6 +2,39 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.63.0 — 2026-10-11
+
+### Added — units from forwarded posts and from your WhatsApp channel
+- **Forward a unit with its photos** to the bot, in your private chat with it, with no command. The text and photos are collected into a **draft**.
+  - Several units in a row are split: a post that is a unit of its own starts the next draft. An album's photos are grouped.
+  - 2 minutes after the last message, you get the draft with its first photo. It shows the card it would make, the photos, the phone numbers found in the post, a possible duplicate, and what is missing.
+  - The phone numbers are kept private and never put on the listing, so another broker's number doesn't reach your clients.
+  - While a draft is collecting, photos and lines you type join it.
+  - A forwarded client's request ("عايز شقة في التجمع …") isn't taken as a unit.
+- **`.drafts`** lists the drafts. `.drafts 3` shows one with all its photos, and `.drafts save 3 [details]` makes it a listing with its photos (the details win, and `المالك:` saves the owner). `.drafts save all`, `.drafts del 3|all`, and `.drafts off|on` round it out.
+- **`.channel add <channel link> [auto]`** (owner) follows a WhatsApp channel and reads its posts.
+  - Each new post becomes a draft, or with `auto` a listing straight away. Posts that aren't properties stay drafts.
+  - `.channel import 1 30` brings in its latest posts (up to 50). `.channel list|auto|del` manage it.
+  - New posts come in live, with a fetch every 10 minutes as a fallback. Nothing is taken twice.
+- `.rehelp` and the Arabic guide explain both.
+
+### Security
+- Channel messages reach only their own listener, never commands. Only added channels are read.
+- Channel photos come only from WhatsApp's media server, at most 15 MB each, and every photo is re-encoded before it is kept.
+- Outside posts can store at most 50 drafts × 10 photos, deleted after 14 days. The review messages are capped at 20 an hour.
+- See the design note in docs/SECURITY_AUDIT.md.
+- **Not verified against WhatsApp:** the format of past posts (`import` and the fallback fetch). It is read defensively, and live posts don't depend on it.
+
+### Checked
+- 5 tests (423 in total). They cover:
+  - forwarding two units with photos, splitting and timing, the review with its photo and private numbers, saving with photos (moved), and edits and the owner;
+  - what doesn't collect (typed text, chat forwards, clients, groups, off) and the client-data rule;
+  - a channel by link: follow, live photo posts, the media host enforced, no commands, other channels ignored, the review;
+  - import of past posts (photo grouped with its post, nothing twice);
+  - `auto` (and not following a channel you own);
+  - the caps and expiry.
+- The new reader of post text was added to the backtracking timing test, and checked on 4,000-character posts.
+
 ## 3.62.0 — 2026-10-10
 
 ### Added — the reports by unit type
