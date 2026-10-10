@@ -23,7 +23,7 @@ const staffOnlyChat = (ctx) => ctx.isSudoOrOwner && (ctx.chatId === ctx.sender |
 const sourceText = (l) => {
   const s = l.source;
   if (!s) return null;
-  const from = s.kind === "channel" ? `قناة "${s.name || "قناة"}"` : s.kind === "forward" ? "بوست اتحوّل" : s.kind === "feed" ? `جروب السماسرة${s.name ? ` — ${s.name}` : ""}` : s.name || null; // import: as it was exported
+  const from = s.kind === "channel" ? `قناة "${s.name || "قناة"}"` : s.kind === "forward" ? "بوست اتحوّل" : s.kind === "feed" ? `جروب السماسرة${s.name ? ` — ${s.name}` : ""}` : s.kind === "notes" ? "رقم كان في الوصف" : s.name || null; // import: as it was exported
   const phones = (s.phones || []).map((p) => `+${p} wa.me/${p}`);
   return [from, ...phones].filter(Boolean).join(" · ") || null;
 };

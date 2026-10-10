@@ -197,8 +197,8 @@ async function start() {
   const stopViewings = startViewingsLoop(app);
   // B-28: brokers once written into listings' public notes by .feed add move to the private source.
   try {
-    const moved = require("./services/feed").moveBrokerNotes(app.state);
-    if (moved) log.info({ listings: moved }, "moved brokers from listing notes to their private source");
+    const moved = require("./services/feed").moveBrokerNotes(app.state) + require("./services/realestate").moveNotePhones(app.state);
+    if (moved) log.info({ listings: moved }, "moved phone numbers from listing notes to their private source");
   } catch (err) {
     log.warn({ err: err.message }, "could not move brokers out of listing notes");
   }

@@ -391,7 +391,64 @@ const get = (state, id) => store(state).data.items[id] || null;
 const all = (state) => Object.values(store(state).data.items).sort((a, b) => b.id - a.id);
 const STATUS_AR = { available: "✅ متاح", reserved: "⏳ محجوز", sold: "🔴 تم البيع", rented: "🔴 تم التأجير" };
 
+// ---- phone numbers in a description ----------------------------------------------------
+// A pasted post usually ends "للتواصل 0100…": the poster's number. Notes are public (the card
+// clients get, campaigns), so a number there moves to the listing's private source (as an owner
+// is kept), whatever way the listing came in (B-28's lesson).
+
+const NOTE_PHONE = /(?:\+|00)\d[\d\s-]{7,16}\d|(?<![\d,.])0\d(?:[\s-]?\d){8,13}(?![\d,.])/g;
+// Words left dangling once the number is gone ("للتواصل … واتساب"), dropped from the end of the line.
+// A word list, not a pattern: "(?:\s*(?:…|و)\s*)+$" split every run of spaces two ways and took
+// seconds on a line of "و و و …" (found before release by the B-25 timing rule).
+const CONTACT_WORDS = new Set(["للتواصل", "للاستفسار", "للحجز", "تواصل", "اتصل", "كلمني", "واتساب", "واتس", "whatsapp", "call", "contact", "أو", "او", "و"]);
+function dropContactTail(line) {
+  const words = line.replace(/\s+/g, " ").trim().split(" ");
+  while (words.length && CONTACT_WORDS.has(words.at(-1).replace(/[:：/-]+$/u, "").toLowerCase())) words.pop();
+  return words.join(" ");
+}
+
+/** The numbers in a text, and the text without them (and without "للتواصل" left dangling). */
+function splitPhones(text, ownerNumber) {
+  const t = latinDigits(squeeze(text));
+  const phones = [...new Set((t.match(NOTE_PHONE) || []).map((p) => normalizePhone(p, ownerNumber)).filter(Boolean))];
+  const clean = t
+    .split("\n")
+    .map((line) => (line.match(NOTE_PHONE) ? dropContactTail(line.replace(NOTE_PHONE, " ")) : line.trim()))
+    .filter((line) => /[\p{L}\p{N}]/u.test(line))
+    .join("\n");
+  return { clean, phones };
+}
+
+/** Notes with numbers → { notes, source } with the numbers in the source (at most 3), or null. */
+function movePhones(state, notes, by, source, owner) {
+  if (!notes || !new RegExp(NOTE_PHONE.source).test(latinDigits(String(notes)))) return null;
+  const agentPhone = normalizePhone(agent(state).phone || "", "20") || "";
+  const ownerNumber = String(by || "").split("@")[0].replace(/\D/g, "") || agentPhone;
+  const { clean, phones } = splitPhones(notes, ownerNumber);
+  if (!phones.length) return null;
+  // Your own number, or the owner's already saved, is just taken out of the text (the card has your contact).
+  const others = phones.filter((p) => p !== agentPhone && p !== owner?.phone);
+  if (!others.length) return { notes: clean || undefined, ...(source ? { source } : {}) };
+  const kept = [...new Set([...(source?.phones || []), ...others])].slice(0, 3);
+  return { notes: clean || undefined, source: { ...(source || { kind: "notes", at: Date.now() }), phones: kept } };
+}
+
+/** At start-up: numbers already in listings' notes (saved before 3.70) move to their source. @returns {number} */
+function moveNotePhones(state) {
+  let fixed = 0;
+  for (const l of all(state)) {
+    const moved = movePhones(state, l.notes, l.by, l.source, l.owner);
+    if (!moved) continue;
+    store(state).update((d) => Object.assign(d.items[l.id], { notes: moved.notes, source: moved.source })); // "updated" left alone
+    if (!moved.notes) store(state).update((d) => delete d.items[l.id].notes);
+    fixed++;
+  }
+  return fixed;
+}
+
 function add(state, fields, by, now = Date.now()) {
+  const moved = movePhones(state, fields.notes, by, fields.source, fields.owner);
+  if (moved) fields = { ...fields, ...moved };
   if (!fields.type && !fields.price && !fields.location) throw new UserError("I couldn't read the property. Write it as lines like:\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3");
   return store(state).update((d) => {
     if (Object.keys(d.items).length >= MAX_LISTINGS) throw new UserError(`The catalogue is full (${MAX_LISTINGS}). Delete old listings first.`);
@@ -416,6 +473,11 @@ function update(state, id, changes, now = Date.now()) {
   return store(state).update((d) => {
     const l = d.items[id];
     if (!l) throw new UserError(`There is no listing #${id}.`);
+    // Numbers written into the notes go to the private source (as in add).
+    if (changes.notes !== undefined) {
+      const moved = movePhones(state, changes.notes, l.by, changes.source || l.source, changes.owner || l.owner);
+      if (moved) changes = { ...changes, ...moved };
+    }
     // Price history (the last 10 earlier prices), for "📉 was … — x% off".
     if (changes.price && l.price && changes.price !== l.price) l.priceHistory = [...(l.priceHistory || []), { price: l.price, at: now }].slice(-10);
     // Back on the market (a reservation fell through, a sale was cancelled): when, and from what,
@@ -609,7 +671,7 @@ const line = (l, cur) =>
   `*#${l.id}* ${l.type || "عقار"} لل${l.deal || "بيع"}${l.location ? ` — ${l.location.slice(0, 40)}` : ""}${l.price ? ` — ${shortAr(l.price)}${cur ? ` ${cur}` : ""}` : ""}${l.size ? ` · ${l.size}م²` : ""}${l.rooms ? ` · ${l.rooms} غرف` : ""}${l.status !== "available" ? ` (${STATUS_AR[l.status]})` : ""}${l.photos ? " 📷" : ""}`;
 
 module.exports = {
-  parseAmount, latinDigits, squeeze, shortAr, money, group,
+  parseAmount, latinDigits, squeeze, splitPhones, moveNotePhones, shortAr, money, group,
   agent, setAgent, contactLine,
   parseListingText, ownerFrom, isOwnerLine, extractFree, cleanFields, planFields, planLine, monthlyOf, monthlyIn, featuresIn, featuresOf, FEATURE_EN, typeIn, typesIn, dealIn, stripTypeWords,
   add, update, get, all, remove, addPhoto, photos, photoPath, card, search, near, line, findDuplicate, discount, backOnMarket, count, addFeedback, stale,

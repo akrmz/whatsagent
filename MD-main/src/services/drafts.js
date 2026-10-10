@@ -3,7 +3,6 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const re = require("./realestate");
-const { normalizePhone } = require("./phones");
 const newlisting = require("./newlisting");
 const photohash = require("./photohash");
 const { limiterFor } = require("../core/ratelimit");
@@ -40,17 +39,10 @@ const photoFile = (config, id, n) => path.join(dir(config, id), `${Number(n)}.jp
 const dropFiles = (config, id) => fs.rmSync(dir(config, id), { recursive: true, force: true });
 
 // Phone numbers in a post (a broker's or an owner's): kept privately on the draft for the agent,
-// never in the listing's public description.
-const PHONE = /(?:\+|00)\d[\d\s-]{7,16}\d|(?<![\d,.])0\d(?:[\s-]?\d){8,13}(?![\d,.])/g;
+// never in the listing's public description (the same reader as for every listing's notes).
 function splitContacts(text, ownerNumber) {
-  const t = re.latinDigits(re.squeeze(text));
-  const contacts = [...new Set((t.match(PHONE) || []).map((p) => normalizePhone(p, ownerNumber)).filter(Boolean))];
-  const clean = t
-    .split("\n")
-    .map((line) => line.replace(PHONE, " ").replace(/(?:للتواصل|للاستفسار|تواصل|اتصل|واتساب|واتس|whatsapp|call|contact)\s*[:：]?\s*$/iu, "").trim())
-    .filter((line) => /[\p{L}\p{N}]/u.test(line))
-    .join("\n");
-  return { clean, contacts };
+  const { clean, phones } = re.splitPhones(text, ownerNumber);
+  return { clean, contacts: phones };
 }
 
 /** The listing fields read from a draft's texts (phone numbers left out of the description). */

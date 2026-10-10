@@ -73,7 +73,9 @@ test(".wanted post: to the watched brokers' groups, at most once a day each; or 
 
 test("B-28: brokers once written into listings' notes by .feed add move to the private source, once", () => {
   const b = bot();
-  const id = re.add(b.s, { type: "فيلا", deal: "بيع", location: "زايد", price: 9e6, notes: "فيو مفتوح\nمشاركة مع السمسار Hassan +201055554444 (F7)" }, ME).id;
+  const id = re.add(b.s, { type: "فيلا", deal: "بيع", location: "زايد", price: 9e6 }, ME).id;
+  // As saved before 3.69 (written straight to the file: adding it now would already clean it).
+  b.s.store("listings", { seq: 0, items: {} }).update((d) => (d.items[id].notes = "فيو مفتوح\nمشاركة مع السمسار Hassan +201055554444 (F7)"));
   const updated = re.get(b.s, id).updated;
   assert.equal(feed.moveBrokerNotes(b.s), 1);
   const l = re.get(b.s, id);
