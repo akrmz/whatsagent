@@ -2,6 +2,22 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.68.0 — 2026-10-11
+
+### Added — commissions shared with another broker
+- **`.lead won 5 #12 3.1m 2.5% split 50%`** (or `مناصفة` for half, `شراكة 40%`): the deal's commission is your share ("🧾 عمولتك: 37,500 جنيه — 50% من 75,000 جنيه · 🤝 مع السمسار +2010…"). The whole commission and the partner broker's number, from the unit's private source, are kept beside it.
+- **A reminder:** a deal on a unit that came from a broker, recorded without a split, says so with the command: "🤝 الوحدة دي من سمسار (+2010…). لو العمولة مقسومة معاه: .lead split 5 50%".
+- **`.lead split 5 40%`** corrects the client's last deal afterwards. `100%` means not shared.
+- **Totals follow your share:** the team's commission count is corrected by the difference, in the month of the deal and for whoever closed it, and `.deals`, the weekly summary and `.team` count your share. Deals now record who closed them, for that.
+- **`.deals`** marks shared deals ("(🤝 50%)") and says how many there were and what went to brokers.
+
+### Checked
+- 3 tests (438 in total). They cover:
+  - a split when closing (your share, the whole, the partner, the team's count) and "مناصفة";
+  - the reminder, then `.lead split` down to 40% and back to 100% (the team's count each time), no reminder for your own unit, and wrong percentages;
+  - `.deals` with two shared deals and one of your own.
+- An earlier test now also expects who closed the deal.
+
 ## 3.67.0 — 2026-10-11
 
 ### Added — ask the broker whether their unit is still available
