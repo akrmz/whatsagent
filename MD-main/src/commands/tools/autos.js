@@ -1,58 +1,10 @@
 "use strict";
 
-const azkar = require("../../services/azkar");
-const adhan = require("../../services/adhan");
-const autopost = require("../../services/autopost");
-const wird = require("../../services/wird");
-const schedule = require("../../services/gcschedule");
-const reminders = require("../../services/reminders");
-const captcha = require("../../services/captcha");
 const { canManage, DENIED, zoneLine } = require("../../services/islamic-access");
 const { stopAll } = require("../../services/automations");
-const jumuah = require("../../services/jumuah");
-const khatma = require("../../services/khatma");
-const siyam = require("../../services/siyam");
-const hamla = require("../../services/hamla");
-const autodl = require("../../services/autodl");
-const autolistings = require("../../services/autolistings");
-const digest = require("../../services/digest");
+const { overview: list } = require("../../services/autosoverview");
 
-/** Every automatic thing that runs in this chat, in one list. */
-function overview(ctx) {
-  const { state, chatId: chat, prefix: p } = ctx;
-  const lines = [];
-  const az = azkar.getAuto(state, chat);
-  if (az) lines.push(`📿 أذكار الصباح والمساء${az.city ? ` (${az.city})` : ` ${az.morning || azkar.DEFAULTS.morning} / ${az.evening || azkar.DEFAULTS.evening}`}${az.dua ? ` + دعاء ${az.dua}` : ""}${az.sleep ? ` + النوم ${az.sleep}` : ""} — ${p}autoazkar`);
-  const pr = adhan.get(state, chat);
-  if (pr) lines.push(`🕌 تنبيهات الصلاة — ${pr.city}${pr.after ? ` + أذكار بعد الصلاة` : ""} — ${p}autoprayer`);
-  const post = autopost.get(state, chat);
-  if (post?.tafsir) lines.push(`📖 آية وتفسير ${autopost.everyHoursAr(post.tafsir.every)} — ${p}autotafsir`);
-  if (post?.dua) lines.push(`🤲 دعاء ${autopost.everyHoursAr(post.dua.every)} — ${p}autoazkar dua`);
-  if (post?.hadith) lines.push(`📜 حديث ${autopost.everyHoursAr(post.hadith.every)} — ${p}autohadith`);
-  if (post && (post.tafsir || post.dua || post.hadith)) lines.push(`   🌙 ساعات الهدوء: ${post.quiet || "بدون"}`);
-  const w = wird.get(state, chat);
-  if (w) lines.push(`📖 الورد اليومي: ${wird.pagesAr(w.pages)} الساعة ${w.time || wird.DEFAULT_TIME} (صفحة ${w.next}) — ${p}autowird`);
-  const j = jumuah.get(state, chat);
-  if (j) lines.push(`🕌 تذكير الجمعة الساعة ${j.time} — ${p}autojumuah`);
-  const sy = siyam.get(state, chat);
-  if (sy) lines.push(`🌙 تذكير صيام السنة الساعة ${sy.time}${sy.weekly === false ? " (بدون الاثنين والخميس)" : ""} — ${p}autosiyam`);
-  const k = khatma.get(state, chat);
-  if (k) lines.push(`📖 ختمة جماعية: ${khatma.ar(khatma.counts(k).read)}/${khatma.ar(khatma.PARTS)} جزءاً — ${p}khatma`);
-  const h = hamla.active(state, chat);
-  if (h) lines.push(`📿 حملة ${h.dhikr}: ${hamla.fmt(h.total)} من ${hamla.fmt(h.goal)} — ${p}hamla`);
-  if (autodl.isOn(state, chat)) lines.push(`⏬ تنزيل الفيديو تلقائياً من الروابط (auto-download) — ${p}autodl`);
-  const al = autolistings.get(state, chat);
-  if (al) lines.push(`🏡 عقار اليوم الساعة ${al.time}${al.query ? ` (${al.query})` : ""} — ${p}autolistings`);
-  const dg = digest.get(state, chat);
-  if (dg) lines.push(`📋 ملخص اليوم الساعة ${dg.time} — ${p}digest`);
-  const g = schedule.get(state, chat);
-  if (g && (g.close || g.open)) lines.push(`🔒 إغلاق/فتح المجموعة: ${g.close || "—"} / ${g.open || "—"} — ${p}gcschedule`);
-  const ann = reminders.announcementsIn(state, chat);
-  if (ann.length) lines.push(`📢 ${ann.length} إعلان مجدول — ${p}announce list`);
-  const c = captcha.get(state, chat);
-  if (c?.enabled) lines.push(`🤖 التحقق من الأعضاء الجدد (captcha) — ${p}captcha`);
-  return lines;
-}
+const overview = (ctx) => list(ctx.state, ctx.chatId, ctx.prefix);
 
 module.exports = {
   name: "autos",

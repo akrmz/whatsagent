@@ -85,6 +85,26 @@ test(".in <group> <command>: set up a group from the private chat; the answer co
   assert.match(b.text(), /^📍 \*وسطاء التجمع\*\n🔒/);
 });
 
+test(".groups autos: what runs automatically in each group, by number, without the command hints", async () => {
+  const b = bot();
+  await b.send(".groups autos");
+  assert.match(b.text(), /^Nothing runs automatically in any of the 2 group\(s\)\./);
+  await b.send(".in 1 autolistings on 10:00 شقة");
+  await b.send(".in 2 autoazkar on");
+  await b.send(".in 2 autowird on 2 06:00");
+  await b.send(".groups autos");
+  const r = b.text();
+  assert.match(r, /^⚙️ \*Automatic in your groups\* \(2 of 2\)\n\n1\. \*وسطاء التجمع\*\n {3}🏡 عقار اليوم الساعة 10:00 \(شقة\)\n\n2\. \*العيلة\*\n {3}📿 أذكار الصباح والمساء/);
+  assert.match(r, /\n {3}📖 الورد اليومي: صفحتان الساعة 06:00 \(صفحة 1\)\n/);
+  assert.doesNotMatch(r, / — \.auto/, "the per-line command hints are left out");
+  assert.match(r, /Details of one: \.in <number> autos/);
+
+  await b.send(".in 1 autolistings off");
+  await b.send(".groups autos");
+  assert.match(b.text(), /\(1 of 2\)/);
+  assert.match(b.text(), /💤 Nothing automatic: 1/);
+});
+
 test(".in <group> post <command>: the answer is posted in the group, not quoting anything", async () => {
   const b = bot();
   re.add(b.s, { type: "شقة", deal: "بيع", location: "التجمع الخامس", price: 3e6 }, ME);
