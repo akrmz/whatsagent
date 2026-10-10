@@ -7,6 +7,7 @@ const rentals = require("./rentals");
 const hotleads = require("./hotleads");
 const weekly = require("./weekly");
 const health = require("./listinghealth");
+const slowlistings = require("./slowlistings");
 const assistant = require("./assistant");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
@@ -84,6 +85,8 @@ function build(state, timeZone, now = Date.now()) {
     const c = health.counts(state, now);
     const missing = [c.photos && `📷 صور ${c.photos}`, c.price && `💰 سعر ${c.price}`, c.size && `📐 مساحة ${c.size}`, c.location && `📍 منطقة ${c.location}`].filter(Boolean);
     if (missing.length) lines.push(`🧹 عقارات ناقصها بيانات: ${missing.join(" · ")} — .listings check`);
+    const slow = slowlistings.slow(state, { minDays: 60 }, now);
+    if (slow.total) lines.push(`🐢 معروضة من 60+ يوم: ${slow.groups.map((g) => `${g.type} ${g.items.length}`).join(" · ")} — ليه مش بتتباع؟ .listings slow 60`);
     lines.push("", weekly.build(state, timeZone, now));
   }
   return lines.join("\n");

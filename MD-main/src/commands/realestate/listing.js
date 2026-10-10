@@ -7,6 +7,7 @@ const { UserError } = require("../../core/errors");
 const leads = require("../../services/leads");
 const places = require("../../services/places");
 const health = require("../../services/listinghealth");
+const slowlistings = require("../../services/slowlistings");
 const interest = require("../../services/interest");
 const market = require("../../services/market");
 const { alternatives } = require("../../services/alternatives");
@@ -185,6 +186,34 @@ function vsMarket(ctx, l) {
   const cur = re.agent(ctx.state).currency;
   const vs = m.diffPct >= 10 ? `أعلى من المتوسط بـ ${m.diffPct}% ⚠️` : m.diffPct <= -10 ? `أقل من المتوسط بـ ${-m.diffPct}% 👍` : "في حدود المتوسط ✅";
   return `\n\n📈 سعر المتر ${re.money(Math.round(m.ppm), cur)} — ${vs} (متوسط ${m.similar.length} عقار مشابه: ${re.money(Math.round(m.stats.median), cur)}) · ${ctx.prefix}market ${l.id}`;
+}
+
+/**
+ * ".listings slow [days]": available units on the market 30+ days (or the days given), by unit
+ * type, the oldest first: the funnel, the price against similar listings and the next step.
+ */
+function slowCheck(ctx) {
+  if (!ctx.isSudoOrOwner) return ctx.reply("Only the owner and sudo users see how listings are doing. Anyone can search them: .listings");
+  const p = ctx.prefix;
+  const n = Number(re.latinDigits(String(ctx.args[1] || "")));
+  const minDays = Number.isInteger(n) && n >= 1 && n <= 365 ? n : slowlistings.MIN_DAYS;
+  const { groups, total, available } = slowlistings.slow(ctx.state, { minDays, p });
+  if (!available) return ctx.reply(`The catalogue has no available listing yet. ${p}listing add`);
+  if (!total) return ctx.reply(`✅ None of your ${available} available listing(s) has been on the market for ${minDays} days or more.`);
+  const cur = re.agent(ctx.state).currency;
+  const MAX = 25;
+  let shown = 0;
+  const out = [`🐢 *Slow listings* — ${total} of ${available} available, on the market ${minDays}+ days, the oldest first`];
+  for (const g of groups) {
+    out.push("", `*${g.type}* (${g.items.length})`);
+    for (const it of g.items) {
+      if (shown++ >= MAX) break;
+      out.push(`▫️ ${re.line(it.listing, cur)} · ${it.days} يوم`, `   ${slowlistings.funnelLine(it.funnel, it.vs)}`, `   ${it.advice.label}`, `   ↳ ${it.advice.fix}`);
+    }
+  }
+  if (total > MAX) out.push("", `… and ${total - MAX} more. Older ones only: ${p}listings slow 90`);
+  out.push("", "👀 views · 📣 sent · 💬 asked · 🏠 viewings · 📈 price per m² vs similar listings");
+  return ctx.reply(out.join("\n"));
 }
 
 /**
@@ -390,12 +419,13 @@ module.exports = [
     aliases: ["properties", "aqarat"],
     category: "realestate",
     description:
-      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم"). "check" (owner and sudo users) lists the available listings missing photos, a price, a size, an area, rooms, a map pin or an owner number, or not updated for 30 days, the most incomplete first, with the command to fix each.',
-    usage: "[filters] | near [filters] [radius km] | check",
-    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all", "(reply to a client's location) .listings near", ".listings near شقة 5 كم https://maps.app.goo.gl/…", ".listings check"],
+      'البحث في العقارات المتاحة — searches the available listings. Filters in any order: a type (شقة، فيلا …), بيع/إيجار, a price range ("2m-4m", "<3m", "حتى 3 مليون"), rooms ("3 غرف"), and any words from the location. "all" includes reserved and sold. "near" (replying to a client’s location pin or a Maps link) lists the closest listings with the distance to each, optionally within a radius ("5 كم"). "check" (owner and sudo users) lists the available listings missing photos, a price, a size, an area, rooms, a map pin or an owner number, or not updated for 30 days, the most incomplete first, with the command to fix each. “slow” (owner and sudo users) lists the units on the market 30+ days (or the days given), by unit type, the oldest first: views, sends, questions, viewings and what viewers thought, the price per m² against similar listings, and the next step that fits (photos, follow up the interested, talk price with the owner, market it more …).',
+    usage: "[filters] | near [filters] [radius km] | check | slow [days]",
+    examples: [".listings", ".listings شقة التجمع 2m-4m", ".listings ايجار 3 غرف", ".listings all", "(reply to a client's location) .listings near", ".listings near شقة 5 كم https://maps.app.goo.gl/…", ".listings check", ".listings slow", ".listings slow 60"],
     cooldown: 3,
     async run(ctx) {
       if (/^(check|health|missing|ناقص|مراجعة)$/i.test(ctx.args[0] || "")) return healthCheck(ctx);
+      if (/^(slow|stuck|راكد|راكدة|واقف|واقفة)$/i.test(ctx.args[0] || "")) return slowCheck(ctx);
       const nearWord = /^(near|nearby|nearest|قريب|القريب|الأقرب|الاقرب|جنبي)$/i.test(ctx.args[0] || "");
       if (nearWord || places.fromMessage(ctx.quoted?.message)) return nearby(ctx, nearWord ? ctx.text.replace(/^\s*\S+/, "") : ctx.text);
       const { list, filters } = re.search(ctx.state, ctx.text);
