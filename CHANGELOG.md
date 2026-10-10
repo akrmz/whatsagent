@@ -2,6 +2,23 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.65.0 — 2026-10-11
+
+### Added — the same unit from another broker, by its photos
+- **Fingerprints:** every listing photo gets one in the background, a few dozen a minute, so an existing catalogue is covered gradually. It is a 64-bit difference hash, and a copy keeps it through resizing, recompressing, brightening and small edits. In the tests, copies differ by 0–2 of 64 bits and other pictures by 16 or more; "the same" is 6 or fewer.
+- **Where you see it:** a draft whose photos look like a listing's says so in its review and when saved: "⚠️ صورها زي صور #12 — ممكن تكون نفس الوحدة من سمسار تاني". A channel post added with `auto` and `.listing photo` say the same.
+  - This catches a reposted unit that the text check misses (new words, another price).
+- **Only a hint:** a developer's renders are shared by many units of the same compound, so nothing is blocked and no campaign is held back.
+- Deleted listings' fingerprints go, and an unreadable photo isn't retried.
+- A whole catalogue is compared in about 20 ms (800 listings × 10 photos against a 10-photo draft).
+
+### Checked
+- 3 tests (430 in total). They cover:
+  - copies near and other pictures far;
+  - the background fingerprinting (a few per run, deleted listings, an unreadable file, not matching a listing with itself);
+  - a reposted chalet with new words and price pointed out in its review and its save, and a different unit not.
+- The faster bit count was checked against the plain one on 20,000 random pairs.
+
 ## 3.64.0 — 2026-10-11
 
 ### Changed — every new listing gets the same follow-up, however it arrives
