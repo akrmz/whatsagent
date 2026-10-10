@@ -2,6 +2,11 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.52.1 — 2026-10-10
+
+### Changed
+- **License:** the project is licensed under the GNU Affero General Public License v3.0 (the `LICENSE` file added on GitHub). Both `package.json` files, for the bot and the pairing service, and their lock files now say `"license": "AGPL-3.0"` instead of `"ISC"`. Dependencies keep their own licenses.
+
 ## 3.52.0 — 2026-10-10
 
 ### Added — delivery dates for off-plan resale, and a price check when adding a listing
