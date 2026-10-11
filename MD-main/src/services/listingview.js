@@ -44,7 +44,11 @@ async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   const bookLine = canBook ? (lang === "en" ? `\n\n🗓️ To book a viewing, send: معاينة ${l.id}` : `\n\n🗓️ لحجز معاينة ابعت: معاينة ${l.id}`) : "";
   // A video isn't sent with every card (it is big): the card says how to get it.
   const videoLine = l.videos ? (lang === "en" ? `\n\n🎥 There's a video of it: send #${l.id} video` : `\n\n🎥 فيه فيديو للوحدة: ابعت #${l.id} فيديو`) : "";
-  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l) + videoLine + bookLine;
+  // A client in a private chat can ask to hear when its price drops, or it's available again (watch.js).
+  const client = !ctx.isSudoOrOwner && !ctx.isGroup;
+  if (client) require("./watch").noteSeen(ctx.sender, l.id);
+  const watchLine = client ? require("./watch").hint(l, lang) : "";
+  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l) + videoLine + watchLine + bookLine; // booking last: the stronger ask
   if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views"); // client interest only, not the team's own views
   const pics = re.photos(ctx.config, l);
   if (!pics.length) return ctx.reply(text);

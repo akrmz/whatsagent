@@ -33,6 +33,12 @@ const all = (state) => Object.values(store(state).data.items).sort((a, b) => b.i
 const running = (state) => all(state).filter((c) => c.status === "running").sort((a, b) => a.id - b.id);
 
 /** Clients a campaign for this listing would reach: matching, with a phone, not opted out, not sent it before. */
+/** Watchers ("نبهني 12") added to a list of clients, once each. */
+const withWatchers = (state, list, listing, keep) => {
+  const ids = new Set(list.map((l) => l.id));
+  return [...list, ...require("./watch").watchers(state, listing.id).filter((l) => l.phone && !ids.has(l.id) && keep(l))];
+};
+
 const targets = (state, listing, mode) =>
   mode === "back"
     ? // Back on the market: the clients who asked about it, booked a viewing or liked it (not those only
@@ -42,6 +48,8 @@ const targets = (state, listing, mode) =>
         .filter(({ lead, sign }) => sign.score >= BACK_MIN_SCORE && !["won", "lost"].includes(lead.status))
         .map(({ lead }) => lead)
         .filter((l) => l.phone && !l.optedOut && l.backNotified?.[listing.id] !== listing.back?.at)
+        .concat(withWatchers(state, [], listing, (l) => l.backNotified?.[listing.id] !== listing.back?.at))
+        .filter((l, i, all) => all.findIndex((x) => x.id === l.id) === i)
     : mode === "drop"
     ? // A price drop goes to clients whose budget it now fits, whether or not they got the listing before,
       // except those already told about this price.
@@ -50,6 +58,8 @@ const targets = (state, listing, mode) =>
         .filter(({ fit }) => !fit.over)
         .map(({ lead }) => lead)
         .filter((l) => l.phone && !l.optedOut && l.dropNotified?.[listing.id] !== listing.price)
+        .concat(withWatchers(state, [], listing, (l) => l.dropNotified?.[listing.id] !== listing.price))
+        .filter((l, i, all) => all.findIndex((x) => x.id === l.id) === i)
     : leads
         .matchingLeads(state, listing)
         .map(({ lead }) => lead)

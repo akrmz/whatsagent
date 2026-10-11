@@ -24,9 +24,10 @@ const PARSERS = {
   "sellers.isSellerIntent": (t) => sellers.isSellerIntent(t),
   "assistant.asksForHuman": (t) => assistant.asksForHuman(t),
   "re.splitPhones": (t) => re.splitPhones(t, "20"), // every listing's notes (3.70)
+  "watch.wordOf": (t) => require("../src/services/watch").wordOf(t), // a client's "نبهني 12" (3.74)
   "drafts.splitContacts": (t) => require("../src/services/drafts").splitContacts(t, "201011112222"), // channel and forwarded posts
 };
-const WORDS = ["عايز شقة قسط", "قسط", "monthly", "مقدم", "بمقدم", "استلام", "تسليم", "السعر", "في", "على", "حتى", "اقل من", "الدور", "للتواصل", "+20", "0100", "01005556666"];
+const WORDS = ["عايز شقة قسط", "قسط", "monthly", "مقدم", "بمقدم", "استلام", "تسليم", "السعر", "في", "على", "حتى", "اقل من", "الدور", "للتواصل", "+20", "0100", "01005556666", "نبهني", "الغاء التنبيه"];
 const PADS = [" ".repeat(290), " \n".repeat(140), "\t".repeat(290), "1 ".repeat(145), "\n".repeat(290), "و ".repeat(140), "واتساب او ".repeat(28)];
 
 test("the parsers of what strangers write take milliseconds, not seconds, on long runs of whitespace", () => {

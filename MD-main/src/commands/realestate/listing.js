@@ -85,7 +85,8 @@ function priceDropLine(ctx, before, after, showNames) {
     return !was || was.over; // didn't match at all, or was over budget, before the cut
   });
   const names = showNames ? `: ${fitsNow.slice(0, 5).map(({ lead }) => `#${lead.id} ${lead.name || ""}`.trim()).join("، ")}${fitsNow.length > 5 ? " …" : ""}` : "";
-  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك${names}` : ""}\n📣 بلّغ كل العملاء المناسبين بالسعر الجديد: ${ctx.prefix}blast ${after.id} drop`;
+  const asked = require("../../services/watch").watchers(ctx.state, after.id).length;
+  return `\n\n📉 السعر انخفض ${pct}%${fitsNow.length ? `\n🎯 يناسب الآن ميزانية ${fitsNow.length} من عملائك${names}` : ""}${asked ? `\n🔔 ${asked} عميل طلب يتبلغ لو سعرها نزل` : ""}\n📣 بلّغ كل العملاء المناسبين بالسعر الجديد: ${ctx.prefix}blast ${after.id} drop`;
 }
 
 /**
