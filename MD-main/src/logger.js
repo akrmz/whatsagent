@@ -39,6 +39,8 @@ const REDACT_PATHS = [
 
 function createLogger({ level = "info", format = "json" } = {}) {
   const options = { level, redact: { paths: REDACT_PATHS, censor: "[redacted]" } };
+  // An extra number run by the main bot (.numbers) tags its lines, masked like other numbers.
+  if (process.env.BOT_INSTANCE) options.base = { pid: process.pid, instance: `…${String(process.env.BOT_INSTANCE).slice(-4)}` };
   if (format === "pretty") {
     return pino({
       ...options,

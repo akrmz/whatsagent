@@ -13,6 +13,9 @@ creds.json
 
 # ---- Runtime state written by the bot -------------------------------------
 MD-main/data/*.json
+# Extra numbers (.numbers): each one's data and session, clients' details included.
+MD-main/instances/
+**/instances/*.removed-*/
 MD-main/baileys_store.json
 MD-main/assets/mention_custom.*
 

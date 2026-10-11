@@ -16,6 +16,20 @@ const { maskJid } = require("../logger");
 const SESSION_POLL_MS = 10000;
 const MAX_BACKOFF_MS = 60000;
 
+/**
+ * An extra number run by the main bot (.numbers, services/instances.js) reports to it over the
+ * process channel: its pairing code and its connection state. @returns {boolean} sent
+ */
+function toParent(msg) {
+  if (!process.env.BOT_INSTANCE || typeof process.send !== "function") return false;
+  try {
+    process.send(msg);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function hasSession(dir) {
   try {
     const creds = JSON.parse(fs.readFileSync(path.join(dir, "creds.json"), "utf8"));
@@ -169,11 +183,16 @@ function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
         try {
           const raw = await current.requestPairingCode(config.pairingNumber);
           const code = raw.match(/.{1,4}/g)?.join("-") ?? raw;
-          // Printed directly (not logged) so it is never shipped to log storage.
-          process.stdout.write(
-            `\n  Pairing code for ${maskJid(config.pairingNumber)}:  ${code}\n` +
-              "  WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead\n\n",
-          );
+          if (toParent({ type: "pairing-code", code })) {
+            // An extra number (.numbers): the code goes to the main bot, which sends it to the owner
+            // in their private chat. Not printed, so it never lands in the server's log.
+          } else {
+            // Printed directly (not logged) so it is never shipped to log storage.
+            process.stdout.write(
+              `\n  Pairing code for ${maskJid(config.pairingNumber)}:  ${code}\n` +
+                "  WhatsApp → Settings → Linked devices → Link a device → Link with phone number instead\n\n",
+            );
+          }
         } catch (err) {
           log.error({ err: err.message }, "WhatsApp refused to issue a pairing code; check PAIRING_NUMBER");
         }
@@ -182,6 +201,7 @@ function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
       if (connection === "open") {
         attempt = 0;
         setState("open");
+        toParent({ type: "state", state: "open" });
         app.identity.link(current.user?.id, current.user?.lid);
         log.info({ as: maskJid(current.user?.id) }, "connected to WhatsApp");
         if (onOpen) Promise.resolve().then(() => onOpen(current)).catch((err) => log.warn({ err: err.message }, "after-connect task failed"));
@@ -191,6 +211,7 @@ function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
       if (connection !== "close" || stopped) return;
       const status = lastDisconnect?.error?.output?.statusCode;
       setState("disconnected");
+      toParent({ type: "state", state: status === DisconnectReason.loggedOut ? "logged-out" : status === DisconnectReason.forbidden ? "forbidden" : "disconnected" });
       if (status === DisconnectReason.loggedOut) return handleLoggedOut();
       if (status === DisconnectReason.restartRequired) {
         log.info("restart required by WhatsApp; reconnecting");
@@ -224,4 +245,4 @@ function createConnection(app, dispatcher, baileysLogger, { onOpen } = {}) {
   };
 }
 
-module.exports = { createConnection, hasSession };
+module.exports = { createConnection, hasSession, toParent };

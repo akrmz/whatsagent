@@ -203,6 +203,8 @@ async function start() {
     log.warn({ err: err.message }, "could not move brokers out of listing notes");
   }
   const stopDrafts = startDraftsLoop(app);
+  // More numbers (.numbers): each extra number runs as its own process, started from here.
+  const stopInstances = require("./services/instances").startAll(app);
   const stopChannels = startChannelsLoop(app);
   const stopPhotoHashes = startPhotoHashLoop(app);
   const stopDigest = startDigestLoop(app);
@@ -232,6 +234,7 @@ async function start() {
     stopAutoListings();
     stopViewings();
     stopDrafts();
+    stopInstances();
     stopChannels();
     stopPhotoHashes();
     stopDigest();
@@ -245,6 +248,9 @@ async function start() {
   }
   process.on("SIGINT", () => shutdown("SIGINT"));
   process.on("SIGTERM", () => shutdown("SIGTERM"));
+  // An extra number stops with the main bot that runs it, so a restarted main bot never meets a
+  // leftover copy of the same session (two copies knock each other off WhatsApp).
+  if (process.env.BOT_INSTANCE && typeof process.send === "function") process.on("disconnect", () => shutdown("main bot gone"));
   process.on("unhandledRejection", (err) => log.error({ err }, "unhandled promise rejection"));
   process.on("uncaughtException", (err) => {
     log.fatal({ err }, "uncaught exception; exiting so the process manager restarts the bot");
