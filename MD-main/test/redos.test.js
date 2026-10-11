@@ -27,6 +27,7 @@ const PARSERS = {
   "watch.wordOf": (t) => require("../src/services/watch").wordOf(t), // a client's "نبهني 12" (3.74)
   "cardreply.intentOf": (t) => require("../src/services/cardreply").intentOf(t), // a reply to a card (3.77)
   "viewingfeedback.classify": (t) => require("../src/services/viewingfeedback").classify(t), // a client's word on a viewing (3.75)
+  "multicode.codesIn": (t) => require("../src/listeners/multicode").codesIn(t), // a client's "#3 و #7" (3.83)
   "drafts.splitContacts": (t) => require("../src/services/drafts").splitContacts(t, "201011112222"), // channel and forwarded posts
 };
 const WORDS = ["عايز شقة قسط", "قسط", "monthly", "مقدم", "بمقدم", "استلام", "تسليم", "السعر", "في", "على", "حتى", "اقل من", "الدور", "للتواصل", "+20", "0100", "01005556666", "نبهني", "الغاء التنبيه", "مش", "عجبتني"];

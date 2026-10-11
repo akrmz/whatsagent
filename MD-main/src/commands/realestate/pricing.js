@@ -10,7 +10,7 @@ const calc = require("../../services/recalc");
 const offer = require("../../services/offer");
 const img = require("../../services/reimages");
 const pdf = require("../../services/pdf");
-const places = require("../../services/places");
+const { compareText } = require("../../services/compare");
 const { UserError } = require("../../core/errors");
 
 const idOf = (s) => {
@@ -46,38 +46,6 @@ function listingVsMarket(ctx, l) {
   ]
     .filter((x) => x !== null)
     .join("\n");
-}
-
-/** One line per field, a value per listing; the best value marked when they differ. */
-function compareText(ctx, list) {
-  const c = cur(ctx);
-  const best = (values, pick) => {
-    const nums = values.filter((v) => typeof v === "number");
-    if (nums.length < 2 || nums.every((v) => v === nums[0])) return null;
-    return pick === "min" ? Math.min(...nums) : Math.max(...nums);
-  };
-  const row = (icon, label, values, { fmt = String, pick } = {}) => {
-    if (values.every((v) => v === undefined || v === null || v === "")) return null;
-    const b = pick ? best(values, pick) : null;
-    return `${icon} ${label}: ${list.map((l, i) => `#${l.id} ${values[i] === undefined || values[i] === null || values[i] === "" ? "—" : fmt(values[i])}${b !== null && values[i] === b ? " ✅" : ""}`).join(" | ")}`;
-  };
-  const lines = [
-    `⚖️ *مقارنة* ${list.map((l) => `#${l.id}`).join(" · ")}`,
-    "",
-    row("🏠", "النوع", list.map((l) => `${l.type || "عقار"} لل${l.deal || "بيع"}`)),
-    row("📍", "المنطقة", list.map((l) => l.location && l.location.slice(0, 30))),
-    row("💰", "السعر", list.map((l) => l.price), { fmt: (v) => re.shortAr(v), pick: "min" }),
-    row("📐", "المساحة", list.map((l) => l.size), { fmt: (v) => `${re.group(v)} م²`, pick: "max" }),
-    row("💵", "سعر المتر", list.map((l) => (market.ppm(l) ? Math.round(market.ppm(l)) : null)), { fmt: (v) => re.group(v), pick: "min" }),
-    row("🛏", "الغرف", list.map((l) => l.rooms), { pick: "max" }),
-    row("🛁", "الحمامات", list.map((l) => l.baths), { pick: "max" }),
-    row("🏢", "الدور", list.map((l) => l.floor)),
-    row("✨", "التشطيب", list.map((l) => l.finishing)),
-    row("🔖", "الحالة", list.map((l) => re.STATUS_AR[l.status] || l.status)),
-  ];
-  if (list.length === 2 && list[0].geo && list[1].geo) lines.push(`📏 المسافة بينهما: ${places.km(places.distanceKm(list[0].geo, list[1].geo))}`);
-  lines.push("", `✅ = الأفضل (أقل سعر، أكبر مساحة …) · ${ctx.prefix}listing <رقم> للتفاصيل · العملة: ${c}`);
-  return lines.filter((x) => x !== null).join("\n");
 }
 
 const SEND = /^(send|ابعت|ابعتله|ارسل|أرسل|إرسال)$/;
@@ -160,7 +128,7 @@ module.exports = [
       const missing = ids.filter((id) => !re.get(ctx.state, id));
       if (missing.length) return ctx.reply(`There is no listing ${missing.map((id) => `#${id}`).join(", ")}.`);
       const list = ids.map((id) => re.get(ctx.state, id));
-      if (!asImage) return ctx.reply(compareText(ctx, list));
+      if (!asImage) return ctx.reply(compareText(ctx.state, list, { footer: `${ctx.prefix}listing <رقم> للتفاصيل` }));
       // A picture to send a client; drawing costs more than text, so clients get a few.
       if (!ctx.isSudoOrOwner && !limiterFor(ctx.state, "compare-image", { max: 3, windowMs: 10 * 60 * 1000 })(ctx.sender)) return ctx.reply("You can make 3 comparison pictures every 10 minutes. The text version: " + `${ctx.prefix}compare ${ids.join(" ")}`);
       await ctx.react("🎨");
