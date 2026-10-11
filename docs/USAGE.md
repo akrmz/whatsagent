@@ -113,7 +113,7 @@ Owner only, from a private chat. The command goes through the same checks as if 
 - **units sold or rented more than 90 days ago:** their extra photos and their videos go, but **their first photo stays**, so the listing still shows in your history;
 - **temporary files older than a day:** only in the bot's own `tmp` folder (inside the bot's folder or beside `data/`), never a shared system folder, and never the bot's own files, even if `TMP_DIR` is set wrongly.
 
-Nothing else is ever deleted: available units, recently sold ones, clients, drafts, settings. Since 3.76 the date a listing's status changed is kept. Older sold listings use their last update instead.
+Nothing else is ever deleted: available units, recently sold ones, clients, drafts, settings. **When less than 1 GB is free** on the disk that holds the data, the morning summary (`.digest`) says so, with these two commands. Since 3.76 the date a listing's status changed is kept. Older sold listings use their last update instead.
 
 ## More WhatsApp numbers (`.numbers`)
 

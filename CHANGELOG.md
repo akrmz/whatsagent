@@ -2,6 +2,24 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.78.0 — 2026-10-11
+
+### Changed — the guide catches up, and a low-disk warning
+- **`.rehelp`** (the Arabic guide in WhatsApp) now covers the tools added lately:
+  - choosing a listing's main photo and deleting one, listing videos and "#12 فيديو";
+  - editing a draft before saving it;
+  - `.agent watermark on` and `.agent feedback on`;
+  - clients' "نبهني 12" and their replies to a card ("لسه متاحة؟", "صور تانية؟", "فيديو؟", "اللوكيشن؟");
+  - shared commissions (`مناصفة`, `.lead split`);
+  - extra numbers (`.numbers`) and disk space (`.storage`).
+  - Two spacing typos are fixed.
+- **The morning summary** warns when less than 1 GB is free on the disk that holds the data: "💾 المساحة الفاضية على السيرفر … بس", with `.storage` and `.storage clean`.
+
+### Checked
+- 2 tests (472 in total). They cover:
+  - the guide covering each of those tools, without the typos, and naming only commands that exist;
+  - the summary's disk line under 1 GB and not above.
+
 ## 3.77.0 — 2026-10-11
 
 ### Added — replies to a listing's card are answered from it
