@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.75.0 — 2026-10-11
+
+### Added — the client's own word on a viewing
+- **`.agent feedback on`:** 3 hours after a viewing with no outcome recorded, the client is asked once: "إيه رأيك في … اللي عاينتها؟ رد بكلمة: عجبتني · هفكر · مش مناسبة".
+- **A clear answer becomes the outcome,** as `.viewing done` would, with their words as the note. Words that work: "عجبتني" / 👍, "هفكر" / 🤔, "مش مناسبة" / "غالية" / 👎. Negatives are read first, so "مش حلوة" is a no.
+  - A client who liked it moves to negotiating.
+  - You get "🗣️ منى عن معاينة #12: 👍 أعجبه — …" with the next step.
+- **Anything else** (a question, "تمام") comes to you as it is, and the assistant may still answer it.
+- **Limits:** one answer, within a day. Clients won, lost or who said وقف aren't asked, and nor is anyone whose outcome you recorded first.
+- Outcomes recorded this way feed owners' reports, `.listings slow`, `.listing who` and the hot list, like yours. Off by default.
+
+### Checked
+- 3 tests (464 in total). They cover:
+  - off by default, then asked at 3 hours (not 2), once;
+  - a clear answer recorded (outcome, note, by the client, negotiating, both messages), and later messages not taken;
+  - an unclear answer passed to you;
+  - no question after you recorded it or after وقف;
+  - the reader's cases.
+- The reader is in the backtracking timing test.
+
 ## 3.74.0 — 2026-10-11
 
 ### Added — clients ask to hear when a unit's price drops or it is available again
