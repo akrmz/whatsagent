@@ -1,6 +1,7 @@
 "use strict";
 
 const http = require("../core/http");
+const { limiterFor } = require("../core/ratelimit");
 
 /**
  * Listing locations: coordinates from a WhatsApp location pin, a Google Maps link or plain
@@ -79,6 +80,10 @@ async function expandShort(url) {
   return null;
 }
 
+// Opening a short link is a few requests to Google. Links from outside (a channel's posts, a
+// client's message) share this budget; a staff member's own command doesn't use it.
+const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
+
 /** Coordinates from text that may hold a full or a short Maps link. */
 async function fromTextOrLink(text) {
   const direct = fromText(text);
@@ -99,4 +104,4 @@ function distanceKm(a, b) {
 const mapsUrl = (p) => `https://maps.google.com/?q=${p.lat},${p.lng}`;
 const km = (d) => (d < 1 ? `${Math.round(d * 1000)} م` : `${d < 10 ? d.toFixed(1) : Math.round(d)} كم`);
 
-module.exports = { fromMessage, fromText, fromTextOrLink, expandShort, distanceKm, mapsUrl, km, setRequester, SHORT, MAP_LINK, MAP_LINKS, COORDS };
+module.exports = { fromMessage, fromText, fromTextOrLink, expandShort, expandBudget, distanceKm, mapsUrl, km, setRequester, SHORT, MAP_LINK, MAP_LINKS, COORDS };

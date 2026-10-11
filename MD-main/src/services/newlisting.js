@@ -6,7 +6,6 @@ const places = require("./places");
 const market = require("./market");
 const campaigns = require("./campaigns");
 const { redactPhones } = require("./phones");
-const { limiterFor } = require("../core/ratelimit");
 const { UserError } = require("../core/errors");
 
 /**
@@ -40,10 +39,6 @@ async function aiFields(ctx, text) {
   return fields;
 }
 
-// Short Maps links are opened (a few requests to Google). Posts from outside (a channel) can carry
-// them, so outside of a staff member's own command they are limited.
-const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
-
 /**
  * A short Maps link in a post can't be read without opening it (full links are read by the
  * parser). `state` given: limited (for posts from outside).
@@ -51,7 +46,7 @@ const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, wind
 async function shortLinkGeo(fields, text, { state } = {}) {
   if (fields.geo) return fields;
   const short = String(text || "").match(places.SHORT);
-  if (!short || (state && !expandBudget(state))) return fields;
+  if (!short || (state && !places.expandBudget(state))) return fields;
   const geo = await places.expandShort(short[0]).catch(() => null);
   return geo ? { ...fields, geo } : fields;
 }

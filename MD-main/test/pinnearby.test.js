@@ -9,6 +9,8 @@ const re = require("../src/services/realestate");
 const leads = require("../src/services/leads");
 const viewings = require("../src/services/viewings");
 const sellers = require("../src/services/sellers");
+const places = require("../src/services/places");
+const { placeIn } = require("../src/listeners/pinnearby");
 const { makeApp, makeSock, ALL_OFF } = require("./helpers");
 
 const ME = "201011112222@s.whatsapp.net";
@@ -188,5 +190,41 @@ test("a seller's pin goes to their open offer, and the listing made from it has 
   assert.match(sellers.summary(b.s, offer), /📍 معاه لوكيشن/);
   const l = sellers.toListing(b.s, b.app.config, offer.id, "", ME);
   assert.deepEqual(l.geo, HERE);
+  t.mock.timers.reset();
+});
+
+test("a Google Maps link works like a pin: a full link is read, a short one opened; a sentence with a link isn't taken", async (t) => {
+  const b = bot(t);
+  const asked = [];
+  places.setRequester(async (url) => {
+    asked.push(url);
+    return { status: 302, redirect: "https://www.google.com/maps/place/@30.0074,31.4913,17z" };
+  });
+  t.after(() => places.setRequester(null));
+  await b.raw({ conversation: "قريب من هنا https://www.google.com/maps/place/@30.0074,31.4913,17z" });
+  assert.match(b.to(CLIENT).at(-1).content.text, /^🗺️ \*أقرب وحداتنا المتاحة للموقع ده:\*\n\n📍 \d+ م — \*#1\*/);
+  assert.equal(asked.length, 0, "a full link is read without opening it");
+  b.later();
+  await b.raw({ conversation: "https://maps.app.goo.gl/AbC123" });
+  assert.equal(b.to(CLIENT).length, 2);
+  assert.deepEqual(asked, ["https://maps.app.goo.gl/AbC123"]);
+
+  const n = b.to(CLIENT).length;
+  b.later();
+  await b.raw({ conversation: "ده عنوان المكتب بتاعكم ولا انتو نقلتو؟ لأني رحت امبارح ومالقيتش حد هناك https://maps.app.goo.gl/AbC123" });
+  await b.raw({ conversation: "#3 https://maps.app.goo.gl/AbC123" });
+  assert.equal(b.to(CLIENT).length, n, "a sentence, or a listing code, with a link: something else");
+  assert.equal(asked.length, 1, "and not opened");
+  t.mock.timers.reset();
+});
+
+test("the link reader: what it takes, and that short links share one hourly budget", (t) => {
+  const ctx = (body) => ({ body, content: {} });
+  assert.deepEqual(placeIn(ctx("https://maps.app.goo.gl/AbC123")), { link: "https://maps.app.goo.gl/AbC123" });
+  assert.equal(placeIn(ctx("مرحبا")), null);
+  assert.equal(placeIn(ctx("https://example.com/maps")), null, "not a Maps link");
+  const b = bot(t);
+  for (let i = 0; i < 30; i++) places.expandBudget(b.s);
+  assert.equal(places.expandBudget(b.s), false, "30 an hour for clients' and channels' links together");
   t.mock.timers.reset();
 });

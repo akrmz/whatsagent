@@ -12,7 +12,6 @@ const photohash = require("../../services/photohash");
 const interest = require("../../services/interest");
 const { alternatives } = require("../../services/alternatives");
 const { aiFields, shortLinkGeo, vsMarket, clientsLine, autoblast } = require("../../services/newlisting");
-const { limiterFor } = require("../../core/ratelimit");
 
 const STATUS_WORDS = {
   available: ["available", "متاح", "متاحة"],
@@ -36,7 +35,6 @@ const owners = require("../../services/owners");
 const campaigns = require("../../services/campaigns");
 
 // Short Maps links are opened (a few requests to Google); clients can trigger that, so it is limited.
-const expandBudget = (state) => limiterFor(state, "maps-expand", { max: 30, windowMs: 3600 * 1000, size: 1 })("all");
 
 /**
  * A place from a replied-to location pin, or coordinates/a Maps link in the text or in the
@@ -52,7 +50,7 @@ async function pointFrom(ctx, text) {
   }
   for (const s of sources) {
     const short = s.match(places.SHORT);
-    if (short && (ctx.isSudoOrOwner || expandBudget(ctx.state))) return places.expandShort(short[0]);
+    if (short && (ctx.isSudoOrOwner || places.expandBudget(ctx.state))) return places.expandShort(short[0]);
   }
   return null;
 }
