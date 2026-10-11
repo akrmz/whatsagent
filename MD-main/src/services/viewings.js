@@ -22,6 +22,9 @@ const MAX_VIEWINGS = 2000;
 const store = (state) => state.store("viewings", { seq: 0, items: {} });
 const get = (state, id) => store(state).data.items[id] || null;
 
+/** Sets fields on a viewing (what was asked or answered), if it is still kept. */
+const mark = (state, id, fields) => store(state).update((d) => d.items[id] && Object.assign(d.items[id], fields));
+
 /** Upcoming (and today's past) viewings, soonest first. */
 const upcoming = (state, now = Date.now()) =>
   Object.values(store(state).data.items)
@@ -254,6 +257,7 @@ function startViewingsLoop(app) {
     running = true;
     try {
       await runDue(app);
+      await require("./viewingfeedback").askDue(app); // .agent feedback on: the client's own word
     } catch (err) {
       app.log.error({ err }, "viewing reminder loop failed");
     } finally {
@@ -264,4 +268,4 @@ function startViewingsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { add, remove, reassign, get, upcoming, line, confirmation, clientReminder, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
+module.exports = { add, remove, reassign, get, mark, upcoming, line, confirmation, clientReminder, runDue, startViewingsLoop, when, done, pending, resultFrom, RESULTS, ics, fold, REMIND_BEFORE_MS };
