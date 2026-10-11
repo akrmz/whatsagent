@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.73.0 — 2026-10-11
+
+### Added — your mark on the listing photos clients get
+- **`.agent watermark on`** puts your name and number ("أحمد العقاري · +20 100 123 4567") in a corner of every listing photo a client gets. That covers the card (`#12`, `.listing 12`, the assistant's cards), `.lead send`, listing campaigns and win-back messages. `.agent wmtext …` sets your own text.
+  - Photos from other brokers then reach clients with your contact on them.
+  - **The originals stay as they are:** backups, photo fingerprints and the designs use them. Flyers and stories carry your contact already, so they aren't marked.
+  - **Kept, not redrawn each time:** the marked copy is cached beside each photo, and made again when your details or the photo change (a new cover, a deleted photo). The copies never count as photos.
+  - With no name or number set, nothing is written. Off by default. `.agent` shows the text it uses.
+
+### Fixed
+- A client who asked `#12`, then `#12 en` right away, got no answer: the 30-second "same listing" flood rule caught it. Each language now has its own key, as the video already does.
+
+### Security — B-29 (Medium): the folders under data/ weren't ignored by git
+- **The problem:** `.gitignore` ignored the bot's JSON files, but not the folders it creates under `data/`: listing photos and videos, drafts, sellers' photos, backups (a full one holds your API keys) and cookies (YouTube logins). A `git add` on a machine where the bot had run would have committed and pushed them.
+- **The fix:** all of `MD-main/data/` is now ignored. **Nothing had been committed:** I checked `main`'s history. Details in docs/SECURITY_AUDIT.md.
+
+### Checked
+- 2 tests (458 in total). They cover:
+  - off by default, then on (marked, same size, original untouched, the copy kept beside it and not counted);
+  - `.lead send` from the cache, new details making a new copy, `wmtext`;
+  - no name means no mark;
+  - a new cover dropping the copies, and off.
+- The watermark was rendered and checked by eye: the Arabic name, then the number in the right order.
+
 ## 3.72.0 — 2026-10-11
 
 ### Added — videos, and managing a listing's photos

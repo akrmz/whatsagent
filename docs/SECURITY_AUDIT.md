@@ -24,6 +24,7 @@ Every finding below was fixed in 2.0.0, except the items that need **you** ("Act
 | R-04 correctness bugs | Fixed or removed with the old router |
 | **New during implementation:** `ruhend-scraper` obfuscated dependency | Removed; replaced by yt-dlp |
 | **Found in a later review:** B-20 CSV formula injection in `.export` | Fixed in 3.20.1: formula-like cells are prefixed with `'`; `.import` removes it again |
+| **Found in a later review:** B-29 the folders under data/ (photos, backups with keys, cookies) weren't ignored by git | Fixed in 3.73.0: all of `MD-main/data/` is ignored; main's history checked clean |
 | **Found in a later review:** B-28 a co-broker's name and number in a listing's public notes | Fixed in 3.69.0: kept as the private source; existing listings moved at start-up |
 | **Found in a later review:** B-27 an unreviewed channel post could reach clients (campaign, links) | Fixed in 3.68.1: auto-added posts start no campaign and keep no links but Maps |
 | **Found in a later review:** B-26 channel photos fetched before checking there was room, no limit per channel | Fixed in 3.68.1: checked first, at most 120 posts an hour, the owner told once |
@@ -104,6 +105,7 @@ How this was verified:
 | B-26 | Low | Bot | A channel post's photo (up to 15 MB) was downloaded and re-encoded before checking there was room for it, and a channel had no limit on posts: a busy or hostile channel the owner added could keep the bot fetching and processing images that were then thrown away (found in the 3.68.1 review; fixed) |
 | B-27 | Medium | Bot | A channel added with `auto`, with `.agent autoblast on`, turned any post that read as a property into a listing and a campaign to matching clients without anyone looking at it, links in the post included: whoever posts in that channel could send clients a payment link under the agent's name (found in the 3.68.1 review; fixed) |
 | B-28 | Medium | Bot | `.feed add` wrote "مشاركة مع السمسار <name> +<number>" into the listing's public notes, so clients saw the other broker's name and number on the card (`#12`, campaigns, the assistant's cards) and could deal with them directly (found in the 3.69.0 review; fixed) |
+| B-29 | Medium | Repo | `.gitignore` covered only `MD-main/data/*.json`, not the folders under `data/`: listing photos and videos, drafts, sellers' photos, backups (a full one holds API keys) and cookies (YouTube logins). A `git add` on a machine where the bot had run would have committed and pushed them. Nothing had been (checked in main's history) (found in the 3.73.0 review; fixed) |
 
 ---
 
@@ -372,6 +374,17 @@ Locations only (values intentionally omitted):
   - After the fix: 0–11 ms for the same inputs. A sweep of the other parsers of outside text (seller intent, "talk to a human", owner answers, report words, locations, booking) found none slower than 30 ms.
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
+
+### B-29 — The folders under data/ weren't ignored by git (found in the 3.73.0 review)
+- **Where:** the repository's `.gitignore`.
+- **What was wrong:** it ignored `MD-main/data/*.json` (clients, listings, settings), but not the folders the bot creates under `data/`:
+  - `listings/` (photos, videos, watermarked copies), `drafts/`, `sellers/` (owners' photos of their homes);
+  - `backups/` (a full backup holds the env overrides: API keys);
+  - `cookies/` (YouTube and Instagram logins);
+  - anything added later.
+  A `git add` of `MD-main` on a machine where the bot had run, which is how this project is shipped, would have committed and pushed them. A review of a new feature (listing videos) prompted the check. Nothing had been committed: `main`'s history has no file under `MD-main/data/`.
+- **Fix:** all of `MD-main/data/` is ignored. Nothing in it belongs in the repository. `instances/` (3.71) was already ignored.
+- **Checked:** `git check-ignore` on a photo, a video, a draft, a seller's photo, a backup, a cookie file and a JSON store (all ignored), and on a source file (not ignored).
 
 ### Design note — listing videos (3.72.0)
 - **Kept as sent, not decoded:** videos aren't re-encoded (ffmpeg may not be installed). They are kept only if the file is an ISO media file (`ftyp` at byte 4: MP4, MOV, 3GP). The bot never parses them; WhatsApp does when it sends them. Anything else is refused, whatever its name or stated type.
