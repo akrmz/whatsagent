@@ -428,6 +428,20 @@ Locations only (values intentionally omitted):
 - **Fix:** a post added by `auto` never starts a campaign. The notice says "📣 بعد ما تراجعها ابعتها للعملاء: .blast 12". Links other than Google Maps are removed from its description (`newlisting.withoutLinks`; a Maps link still becomes the pin). Drafts saved by hand (`.drafts save`) keep their text, since the owner saw it in the review.
 - **Tests:** `test/channelsafety.test.js` (fails on the code before the fix).
 
+### Design note — clients' location pins (3.80.0)
+- **What comes in:** a location pin a client sends in a private chat. Where someone lives is personal data.
+- **What is kept:**
+  - Nothing from a client's pin. The lead note (with `.agent autoleads on`) lists only the units sent and their distances, never the coordinates or the pin's name.
+  - A seller's pin during an open offer is kept as the point only, because it becomes the listing's location, as `.listing loc` would set it. The pin's name, which can be a home address, is dropped.
+- **What is sent:** the same public lines as `.listings near`, with available units only. Distances are from the client's own point, and go only back to them.
+- **Not answered:**
+  - a reply (it answers something else);
+  - a client with a viewing in the last day or the next two (their pin is for the agent);
+  - live location (repeated updates);
+  - the team.
+- **Limits:** 5 per client every 10 minutes, and one answer per 30 seconds for the same chat.
+- **Tests:** `test/pinnearby.test.js`.
+
 ### Design note — clients' photos matched to listings (3.79.0)
 - **What comes in:** any photo a client sends in a private chat. This is the first feature that downloads and decodes a client's media without a command.
 - **Limits:**

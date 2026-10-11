@@ -2,6 +2,34 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.80.0 — 2026-10-12
+
+### Added — a client's location pin gets your nearest units
+- **A client who sends a location pin in a private chat** ("أنا ساكن هنا", "عايز حاجة قريبة من هنا") gets your available units nearest to it straight away:
+  - the 5 closest within 50 km, closest first;
+  - the distance to each ("📍 968 م", "📍 17 كم") and "#12" to open a card.
+  - Units without a saved pin, and reserved or sold ones, aren't listed. Nothing near means no reply.
+- With `.agent autoleads on`, the client's card notes which units were sent. It doesn't note where the client is: the coordinates and the pin's name stay in the chat.
+- **Not answered:**
+  - the team;
+  - a pin sent as a reply (to a viewing confirmation, for example);
+  - a client with a viewing in the last day or the next two days, since their pin is where they are for it;
+  - live location.
+- Limits: the same pin twice within 30 seconds gets one answer, and 5 pins per client every 10 minutes are answered.
+- **Sellers' pins:** a seller with an open offer (`.agent sellers on`) who sends a pin has it saved on the offer, and is told "📍 وصل الموقع، شكراً.".
+  - `.sellers` shows "📍 معاه لوكيشن".
+  - `.sellers add` gives the listing that location.
+  - Only the point is kept, not the name on the pin, which can be the seller's address.
+- `.rehelp` mentions it.
+
+### Checked
+- 5 tests (481 in total). They cover:
+  - the nearest units in order, leaving out the far, sold and unpinned ones;
+  - silence when nothing is near, and the flood limits;
+  - each case that isn't answered;
+  - the note without coordinates;
+  - a seller's pin reaching the offer and the listing.
+
 ## 3.79.0 — 2026-10-11
 
 ### Added — a client's photo of one of your units gets its card
