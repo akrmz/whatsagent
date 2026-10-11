@@ -2,6 +2,26 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.76.0 — 2026-10-11
+
+### Added — disk space
+- **`.storage`** (owner) shows what the bot keeps on the disk and the free space. It covers listing photos and videos, watermarked copies, drafts, sellers' photos, the data files, temporary files and extra numbers.
+- **`.storage clean`** first shows what can go, and **`.storage clean confirm`** removes it:
+  - watermarked copies (made again when needed);
+  - the extra photos and the videos of units sold or rented more than 90 days ago (their first photo stays);
+  - temporary files older than a day.
+  - Nothing else is ever deleted.
+- **Temporary files** are only cleaned in the bot's own `tmp` folder (inside the bot's folder, or beside `data/`), never a shared system folder or the bot's own files. A `TMP_DIR` set to `.` by mistake can't cost `index.js`.
+- **Listings now record when their status changed** (`statusAt`), so "sold 90 days ago" is exact from now on. Older ones use their last update.
+
+### Checked
+- 3 tests (467 in total). They cover:
+  - the report by category;
+  - the preview, then the clean: a unit sold 100 days ago keeps its first photo, while an available one, one rented 10 days ago, new temp files and temp folders are untouched, and the watermarked copy goes;
+  - nothing left to clean;
+  - owner only;
+  - the temp-folder guard (`.`, `data`, `/`, `../tmp`, a system temp folder and `src` all refused).
+
 ## 3.75.0 — 2026-10-11
 
 ### Added — the client's own word on a viewing

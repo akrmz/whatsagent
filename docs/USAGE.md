@@ -104,6 +104,17 @@ You can turn on a group's automatic posts (azkar, hadith, the Quran wird, tafsir
 
 Owner only, from a private chat. The command goes through the same checks as if you typed it in the group: commands turned off there stay off, a command that needs the bot to be admin still does, and clients' names and numbers still aren't shown for a group with outsiders.
 
+## Disk space (`.storage`)
+
+**`.storage`** (owner) shows what the bot keeps on the server's disk and how much free space is left. It lists listing photos, listing videos, watermarked copies, drafts, sellers' photos, the data files, temporary files and extra numbers.
+
+**`.storage clean`** first shows what can go without losing anything that matters, and **`.storage clean confirm`** removes it:
+- **watermarked copies:** made again the next time a client gets that photo;
+- **units sold or rented more than 90 days ago:** their extra photos and their videos go, but **their first photo stays**, so the listing still shows in your history;
+- **temporary files older than a day:** only in the bot's own `tmp` folder (inside the bot's folder or beside `data/`), never a shared system folder, and never the bot's own files, even if `TMP_DIR` is set wrongly.
+
+Nothing else is ever deleted: available units, recently sold ones, clients, drafts, settings. Since 3.76 the date a listing's status changed is kept. Older sold listings use their last update instead.
+
 ## More WhatsApp numbers (`.numbers`)
 
 The bot can run on more than one number at once. **Each number is its own bot**, with its own listings, clients, settings and session: for example one number for real-estate clients and another for Islamic groups. You manage them from your private chat with the main bot (owner only):
@@ -897,6 +908,7 @@ This list is generated from the command files themselves.
 | `.settings` | – | Shows the bot's global settings and, in a group, that group's protection settings. | owner, sudo | `.settings` |
 | `.setvar` | `.set` `.setenv` | Changes a setting from WhatsApp — AI keys and models, bot name, prefix, API keys, limits, tool paths. Applied immediately, saved across restarts, overrides .env. Secrets only in private chat. | owner | `.setvar BOT_NAME Akram Bot` |
 | `.stats` | `.usage` `.botstats` | Shows which commands are used most, total commands run, and since when. ".stats reset" starts counting again. | owner | `.stats` |
+| `.storage` | `.disk` `.space` | Where the server's disk goes: listing photos and videos, watermarked copies, drafts, sellers' photos, the data files, temporary files and extra numbers, and the free space. “clean” shows what can go without losing anything that matters, and “clean confirm” removes it: watermarked copies (made again when needed), the extra photos and the videos of units sold or rented more than 90 days ago (their first photo stays), and temporary files older than a day. Owner only. | owner | `.storage` |
 | `.sudo` | – | Manages sudo users. Sudo users can moderate any group the bot administers and use ban/unban, but cannot change owner settings or add other sudo users. Both their phone number and WhatsApp's hidden id (LID) are saved, so they are recognized however WhatsApp sends their messages. | owner | `.sudo add @friend` |
 | `.unblock` | – | Unblocks someone on the bot's WhatsApp account. | owner | `.unblock` |
 | `.update` | – | Checks GitHub for a newer version of the bot and of yt-dlp (nightly). '.update now' installs them: the bot is fast-forwarded from your repository, validated, rolled back if the check fails, and restarted. | owner | `.update` |
