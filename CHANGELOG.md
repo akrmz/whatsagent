@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.83.0 — 2026-10-12
+
+### Added — a client's "#3 و #7" gets them side by side
+- **Several codes in one private message.** Copied from your status, or asked as "قارن #3 و #7", "الفرق بين #3 و #7 ايه؟" or "#3 #7 #12".
+  - 2 to 4 codes come back side by side, in `.compare`'s table: price, size, price per m², rooms, baths, floor, finishing and status, with the better value marked ✅.
+  - 5 codes come back as one line each.
+  - Both end with "ابعت رقم الوحدة زي #3 وتوصلك صورها وتفاصيلها".
+  - Before, such a message got nothing, since only a lone "#12" was understood.
+- Codes that aren't listings are left out. If only one is left, the client gets its card, as `#3` would.
+- **Only a message of codes:** it may hold just the codes and words like و, قارن, الفرق, بين, ايه. A sentence ("#3 و #7 اتباعو؟") goes on to the rest of the bot.
+- Not in groups, where codes are brokers' chatter. The same codes again within 30 seconds aren't answered.
+- With `.agent autoleads on`, each unit is noted as a question.
+- The comparison is in one place now, shared by `.compare` and this.
+- `.rehelp` mentions it.
+- The code reader squeezes whitespace and reads at most 200 characters. It is in the backtracking timing test (B-25).
+
+### Checked
+- 3 tests (490 in total). They cover:
+  - the table with the better value marked, and no owner shown;
+  - five as lines;
+  - unknown codes, and one left giving its card;
+  - groups, sentences and the flood limit not answered;
+  - each unit noted for the client.
+
 ## 3.82.0 — 2026-10-12
 
 ### Fixed — owners' "not sold" was read as sold
