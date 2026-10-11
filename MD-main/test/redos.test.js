@@ -25,6 +25,7 @@ const PARSERS = {
   "assistant.asksForHuman": (t) => assistant.asksForHuman(t),
   "re.splitPhones": (t) => re.splitPhones(t, "20"), // every listing's notes (3.70)
   "watch.wordOf": (t) => require("../src/services/watch").wordOf(t), // a client's "نبهني 12" (3.74)
+  "cardreply.intentOf": (t) => require("../src/services/cardreply").intentOf(t), // a reply to a card (3.77)
   "viewingfeedback.classify": (t) => require("../src/services/viewingfeedback").classify(t), // a client's word on a viewing (3.75)
   "drafts.splitContacts": (t) => require("../src/services/drafts").splitContacts(t, "201011112222"), // channel and forwarded posts
 };

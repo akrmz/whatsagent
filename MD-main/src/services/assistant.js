@@ -286,8 +286,13 @@ function projectLines(state) {
 }
 
 /** The instructions and the facts. Client messages go separately, as the user's turns. */
-function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now() } = {}) {
+function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now(), about = null } = {}) {
   const a = re.agent(state);
+  // A reply to a card: that unit first in the catalogue (or, if it is gone, similar ones).
+  const gone = about && about.status !== "available";
+  const similar = gone ? require("./alternatives").alternatives(state, about) : [];
+  const first = about ? (gone ? similar.map((l) => l.id) : [about.id]) : [];
+  if (first.length) text = `${text} ${first.map((id) => `#${id}`).join(" ")}`; // named: first in the CATALOG
   const agentName = [a.name, a.company && `(${a.company})`].filter(Boolean).join(" ") || "the agent";
   const { total, lines } = catalogLines(state, lead, text);
   const projs = projectLines(state);
@@ -330,6 +335,11 @@ function systemPrompt(state, lead, text, { timeZone = "UTC", now = Date.now() } 
     "",
     `FAQ (the agent's own answers: when the client asks one of these, answer with it, in the client's language):\n${faq(state).map((f, i) => `${i + 1}. Q: ${own(f.q)}\n   A: ${own(f.a)}`).join("\n") || "(none)"}`,
     "",
+    about
+      ? gone
+        ? `The client's message replies to the card of listing #${about.id}, which is no longer available (${re.STATUS_AR[about.status] || about.status}): say so plainly and offer the similar available ones${similar.length ? ` (${similar.map((l) => `#${l.id}`).join(", ")})` : ""} from the CATALOG.`
+        : `The client's message replies to the card of listing #${about.id}: unless they say otherwise, they mean that unit (it is first in the CATALOG).`
+      : null,
     `CATALOG (available listings, ${lines.length} of ${total} shown, most relevant first):\n${lines.join("\n") || "(empty)"}`,
     "",
     `PROJECTS (off-plan, by code):\n${projs.join("\n") || "(none)"}`,
@@ -401,10 +411,10 @@ function parseWants(body) {
  * Asks the AI. @returns {Promise<{ text, handoff, show, wants }>} the answer for the client (tags
  * removed), the available listings to send as cards (at most 2), and what the client wants
  */
-async function answer(app, { state, key, lead, text, now = Date.now() }) {
+async function answer(app, { state, key, lead, text, now = Date.now(), about = null }) {
   const question = redactPhones(String(text).slice(0, MAX_INPUT));
   const mem = `assistant|${key}`;
-  const raw = String(await app.ai.ask(question, { system: systemPrompt(state, lead, question, { timeZone: app.config.bot.timezone, now }), history: aiUsage.history(mem, TURNS), maxChars: MAX_INPUT }));
+  const raw = String(await app.ai.ask(question, { system: systemPrompt(state, lead, question, { timeZone: app.config.bot.timezone, now, about }), history: aiUsage.history(mem, TURNS), maxChars: MAX_INPUT }));
   if (IGNORE.test(raw)) return { text: "", ignore: true, handoff: false, show: [], projects: [], book: null, wants: {} };
   // [HUMAN]: the client wants a person — the fixed reply and the urgent notice take over.
   if (HUMAN.test(raw)) return { text: "", human: true, handoff: false, show: [], projects: [], book: null, wants: parseWants(raw.match(WANTS)?.[1]) };
@@ -614,7 +624,9 @@ async function handle(ctx, now = Date.now()) {
   await ctx.sock.sendPresenceUpdate?.("composing", ctx.chatId)?.catch(() => {});
   let result;
   try {
-    result = await answer(ctx.app, { state: ctx.state, key, lead, text: voice ? `🎤 ${text}` : text, now });
+    // A reply to a listing's card: the AI is told which unit the client means.
+    const about = require("./cardreply").quotedListing(ctx);
+    result = await answer(ctx.app, { state: ctx.state, key, lead, text: voice ? `🎤 ${text}` : text, now, about });
   } catch (err) {
     ctx.log.warn({ err: err.message }, "assistant: no answer from the AI");
     return false; // the greeting / away message can still answer
