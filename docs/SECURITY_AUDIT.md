@@ -451,6 +451,14 @@ Locations only (values intentionally omitted):
   - live location (repeated updates);
   - the team.
 - **Limits:** 5 per client every 10 minutes, and one answer per 30 seconds for the same chat.
+- **Maps links (3.84):** a client's message that is a Google Maps link is treated like a pin.
+  - A full link is read without opening it.
+  - A short link (`maps.app.goo.gl`, `goo.gl/maps`) makes the server open it. That is a request a client can cause, so it is bounded:
+    - only the short-link pattern is opened;
+    - redirects are followed only over HTTPS to Google hosts, at most 4, with a 10 s timeout and 512 KB;
+    - the client's own limit is checked before anything is opened;
+    - 30 openings an hour in all, shared with channel posts in one budget (`places.expandBudget`, which was defined twice before).
+  - A long message or one with a listing code isn't taken. The reader squeezes whitespace and reads at most 600 characters, and is in the backtracking timing test.
 - **Tests:** `test/pinnearby.test.js`.
 
 ### Design note — clients' photos matched to listings (3.79.0)

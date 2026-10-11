@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.84.0 — 2026-10-12
+
+### Added — a Google Maps link gets the nearest units too
+- **A client who sends a Google Maps link in a private chat** gets your nearest available units, as with a pin (3.80): the 5 closest within 50 km, with the distance to each.
+  - It works for the link alone, or with a few words ("قريب من هنا", "ده مكان شغلي").
+  - Full links are read as they are. Short links (`maps.app.goo.gl`) are opened to find the point, only through Google, within 30 an hour shared with channel posts.
+- **Left alone:**
+  - a longer message with a link in it, which is about something else;
+  - a message with a listing code;
+  - a link sent as a reply;
+  - a client around a viewing.
+- The client limit (5 every 10 minutes) is checked before a link is opened.
+- The hourly budget for opening short links is defined once now, where it was twice before.
+- `.rehelp` mentions it.
+
+### Checked
+- 2 tests (492 in total). They cover:
+  - a full link read without opening it, and a short one opened;
+  - a sentence or a code with a link not taken, and not opened;
+  - what the reader takes, and the shared hourly budget.
+- The reader is in the backtracking timing test.
+
 ## 3.83.0 — 2026-10-12
 
 ### Added — a client's "#3 و #7" gets them side by side
