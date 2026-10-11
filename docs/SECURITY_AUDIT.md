@@ -373,6 +373,13 @@ Locations only (values intentionally omitted):
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
 
+### Design note — listing videos (3.72.0)
+- **Kept as sent, not decoded:** videos aren't re-encoded (ffmpeg may not be installed). They are kept only if the file is an ISO media file (`ftyp` at byte 4: MP4, MOV, 3GP). The bot never parses them; WhatsApp does when it sends them. Anything else is refused, whatever its name or stated type.
+- **Bounded:** 16 MB each, checked against the stated size before downloading and again by the capped download. At most 2 per listing and per draft, and 20 across all drafts (channel posts are outside content: the B-24/B-26 rules). The room for a channel video is checked before fetching. Files are written `0600` in `0700` folders.
+- **Channel videos** come from `mmg.whatsapp.net` only, as channel photos do (B-26).
+- **Sending:** a video goes only to whoever asks for it (`#12 فيديو`, with its own flood key next to `#12`), never with every card or campaign, so a client can't make the bot push large files to others.
+- **Tests:** `test/listingvideo.test.js`.
+
 ### Design note — more WhatsApp numbers (`.numbers`, 3.71.0)
 - **What it is:** each extra number is a separate process of the same code (`services/instances.js`), started by the main bot. It has its own `DATA_DIR`, `SESSION_DIR` and `TMP_DIR` under `instances/<number>/`, no health port, and `BOT_INSTANCE` set. Listings, clients, settings and sessions are not shared, so a crash, a logout or a ban stays with that number.
 - **Who:** `.numbers` is owner-only and private-chat-only, and refused inside an extra number, so an extra number can't start more.

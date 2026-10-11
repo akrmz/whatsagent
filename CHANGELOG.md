@@ -2,6 +2,31 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.72.0 — 2026-10-11
+
+### Added — videos, and managing a listing's photos
+- **Videos on listings:** `.listing video 12` with a video as the caption, or replying to one. Up to 2 per listing, 16 MB each, MP4/MOV, checked by the file's own signature. `.listing video 12 del 1` deletes one, and `.listing 12 video` shows them.
+- **Clients get a listing's video** by sending `#12 فيديو` (or `#12 video`), with the same flood limits as `#12`. The card says "🎥 فيه فيديو للوحدة: ابعت #12 فيديو". Videos aren't pushed with every card or campaign, since they're big. Asking counts as interest.
+- **Forwarded videos** join the unit's draft with its photos, and go to the listing when the draft is saved. So do a channel post's videos, fetched like its photos (WhatsApp's media server only, room checked first).
+- **A listing's photos:** `.listing photo 12 cover 3` makes photo 3 the first (the one on its card, flyers and campaigns), and `.listing photo 12 del 2` deletes one. The photo fingerprints (3.65) are made again.
+- **Editing a draft before saving:**
+  - `.drafts edit 3 السعر: 3.8 مليون` adds details (they win when saved);
+  - `.drafts photo 3 del 2`, `.drafts photo 3 cover 2` and `.drafts video 3 del 1` fix its media;
+  - `.drafts 3` shows the photos numbered and the videos.
+- **Sudo users** forward, edit and save drafts like the owner, as before (now tested end to end).
+
+### Fixed
+- A client who asked `#12`, then `#12 فيديو` right away, got no answer: the 30-second "same listing" flood rule caught it. The video request has its own key.
+
+### Checked
+- 5 tests (456 in total). They cover:
+  - a forwarded video in the draft and the listing (a non-video file refused);
+  - the card's hint and `#1 فيديو` for a client (counted as interest);
+  - a 20 MB video refused, and 2 per draft;
+  - cover, delete and renumbering for photos and videos, fingerprints reset, the limits;
+  - a sudo user forwarding, editing, dropping a photo, choosing the cover and saving;
+  - a channel video fetched from WhatsApp's media server only.
+
 ## 3.71.0 — 2026-10-11
 
 ### Added — more WhatsApp numbers, each its own bot
