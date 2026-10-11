@@ -2,6 +2,30 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.79.0 — 2026-10-11
+
+### Added — a client's photo of one of your units gets its card
+- **A client who sends a photo in a private chat** that is one of your listings' photos (saved from one of your posts, forwarded from a group) gets:
+  - "🔎 الصورة دي من وحدة عندنا: #12", and the unit's card;
+  - similar available units as well, if it is sold or reserved.
+- The match uses the photo fingerprints from 3.65, so a re-sent, resized or recompressed copy still matches. A photo that isn't one of yours gets no reply, and you see it as before.
+- With `.agent autoleads on` it is noted as a question about the unit, like `#12`.
+- **Only clients, in private chats.** The team's photos, groups and view-once photos are never looked up.
+- A seller with an open offer (`.sellers`) still has their photos taken as photos of their home, since that intake runs first.
+- **Limits:**
+  - an album of the same unit gets one card;
+  - 5 photos are looked up per client every 10 minutes, and 60 for everyone together;
+  - photos are capped at 8 MB;
+  - the photo isn't kept.
+- `.rehelp` mentions it.
+
+### Checked
+- 4 tests (476 in total). They cover:
+  - a match giving the card, and an unknown photo giving silence;
+  - one card for an album, and the per-client limit;
+  - a sold unit with similar ones;
+  - the team ignored, and the order after the sellers' intake.
+
 ## 3.78.0 — 2026-10-11
 
 ### Changed — the guide catches up, and a low-disk warning

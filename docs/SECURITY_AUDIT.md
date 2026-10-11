@@ -428,6 +428,19 @@ Locations only (values intentionally omitted):
 - **Fix:** a post added by `auto` never starts a campaign. The notice says "📣 بعد ما تراجعها ابعتها للعملاء: .blast 12". Links other than Google Maps are removed from its description (`newlisting.withoutLinks`; a Maps link still becomes the pin). Drafts saved by hand (`.drafts save`) keep their text, since the owner saw it in the review.
 - **Tests:** `test/channelsafety.test.js` (fails on the code before the fix).
 
+### Design note — clients' photos matched to listings (3.79.0)
+- **What comes in:** any photo a client sends in a private chat. This is the first feature that downloads and decodes a client's media without a command.
+- **Limits:**
+  - Declared size: 8 MB, checked before download and again while streaming (`core/media.downloadMedia`).
+  - Decoding: sharp with `limitInputPixels: 64e6`, no animation, straight to a 9×8 grayscale fingerprint.
+  - Volume: 5 per client and 60 for everyone every 10 minutes. The client's own limit is checked first, so one number can't use up the shared budget.
+- **What is kept and sent:**
+  - Nothing is written: the buffer is fingerprinted in memory and dropped.
+  - The reply is only the public card that `#12` would give. It never includes the source or the owner (`listingview.show` in a client chat).
+  - A client learns only whether a photo is one of your listings', and then gets the same public card `#12` gives. No match means no reply.
+- **Not looked up:** the team (owner and sudo), groups, view-once photos, and photos during a seller's open offer (the sellers' intake runs first and stops the chain).
+- **Tests:** `test/photolookup.test.js`.
+
 ### Design note — listings from forwarded posts and WhatsApp channels (`.drafts`, `.channel`, 3.63.0)
 - **What comes in:** posts the owner or a sudo user forwards to the bot in their own private chat, and posts in channels the owner adds. A channel's admin is someone else, so its posts are outside content.
 - **Where they can go:**
