@@ -483,6 +483,8 @@ function update(state, id, changes, now = Date.now()) {
     // Back on the market (a reservation fell through, a sale was cancelled): when, and from what,
     // so the clients who were interested meanwhile can be told (".blast 12 back").
     if (changes.status === "available" && l.status && l.status !== "available") l.back = { at: now, from: l.status };
+    // When its status last changed (when it was sold, for .storage clean).
+    if (changes.status && changes.status !== l.status) l.statusAt = now;
     Object.assign(l, changes, { updated: now });
     return l;
   });
