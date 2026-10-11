@@ -373,6 +373,16 @@ Locations only (values intentionally omitted):
 - **Tests:** `test/redos.test.js`: every parser of outside text on property words with 290 spaces, tabs, line breaks or "1 " runs, each under 300 ms (it fails on the code before the fix), and squeezing doesn't change what is read.
 - **Also:** both services' dependencies were checked again with `npm audit`: 0 known vulnerabilities.
 
+### Design note — more WhatsApp numbers (`.numbers`, 3.71.0)
+- **What it is:** each extra number is a separate process of the same code (`services/instances.js`), started by the main bot. It has its own `DATA_DIR`, `SESSION_DIR` and `TMP_DIR` under `instances/<number>/`, no health port, and `BOT_INSTANCE` set. Listings, clients, settings and sessions are not shared, so a crash, a logout or a ban stays with that number.
+- **Who:** `.numbers` is owner-only and private-chat-only, and refused inside an extra number, so an extra number can't start more.
+- **The number:** normalised to digits (8–15) before it is used as a folder name or an environment value. It is passed to `spawn` as an argument array, with no shell, so there's nothing to inject. At most 5. The bot's own number is refused.
+- **The pairing code** links a device to the number, so it is treated like a password. In an extra number it is sent to the main bot over the IPC channel (`connection.toParent`), never printed or logged, and only a well-formed code is relayed: only to the owner's private chat, as the reply to `.numbers add` or `code`, or to the owner's main chat when a new code is issued after a reconnect.
+- **No leftover copies:** an extra number shuts down when its IPC channel closes, so a restarted main bot never meets a leftover copy of the same session (two copies of one session knock each other off). If a number keeps stopping (more than 5 times in 10 minutes), it is not restarted, and the owner is told.
+- **Removing** moves the folder aside instead of deleting it. Its session stays linked on the phone until the owner removes the linked device, which the reply says.
+- **Environment:** children inherit the main bot's environment (the same `.env`: owners, AI keys). Node's `.env` loading doesn't overwrite the folder and number variables set for the child.
+- **Tests:** `test/instances.test.js`, with fake processes (no WhatsApp). The IPC and stop path was also smoke-tested with real child processes on Windows.
+
 ### B-28 — A co-broker's name and number in a listing's public notes (found in the 3.69.0 review)
 - **Where:** `commands/realestate/feed.js` `.feed add` (brokers' groups feed).
 - **What was wrong:** copying a broker's offer into the catalogue wrote "مشاركة مع السمسار <name> +<number> (F<id>)" into the listing's notes, and numbers in the offer's text stayed there too. Notes are public: the card a client gets for `#12`, campaign messages and the assistant's catalogue all show them. Clients could see who really has the unit and deal with that broker directly, and the other broker's number was handed out under the agent's name.

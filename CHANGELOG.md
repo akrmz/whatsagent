@@ -2,6 +2,33 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.71.0 — 2026-10-11
+
+### Added — more WhatsApp numbers, each its own bot
+- **`.numbers add 201198765432`** (owner, private chat) runs the bot on another number too and sends you its pairing code there. Each extra number is a separate bot, with its own listings, clients, settings and session under `instances/<number>/`, managed from your chat with it.
+- **`.numbers`** lists them and their state (connected, waiting for pairing, reconnecting, logged out, stopped). `code 1` sends a new pairing code, and `stop 1`, `start 1` and `restart 1` control it (stopped stays stopped).
+- **`remove 1 confirm`** stops it and moves its folder aside; nothing is deleted.
+- **Supervised:**
+  - extra numbers start and stop with the main bot;
+  - one that stops on its own is restarted, at most 5 times in 10 minutes, then you're told;
+  - you're told when one is linked, logged out or refused by WhatsApp.
+- **Safe by design:**
+  - the pairing code goes to the main bot over the process channel and only to your private chat, never into the server's log;
+  - an extra number shuts down if the main bot goes away, so no two copies of one session run;
+  - at most 5 extra numbers, and an extra number can't add numbers;
+  - `instances/` (each number's data and session, clients' details included) is ignored by git, so it can never be committed.
+- Extra numbers tag their log lines with their last four digits.
+- The bot still runs on one number until you add another.
+
+### Checked
+- 4 tests (451 in total), with fake processes, so no WhatsApp is contacted. They cover:
+  - adding a number (its own folders and environment, the code only in your private chat, the state, odd process messages ignored);
+  - restarts and giving up after 5;
+  - stop, start and remove (folder moved aside);
+  - the refusals (a wrong number, the bot's own, twice, more than 5, a group, inside an extra number);
+  - the process channel.
+- The channel and the stop were also smoke-tested with real child processes on Windows.
+
 ## 3.70.0 — 2026-10-11
 
 ### Security — no phone number in a listing's description reaches clients (B-28 follow-up)

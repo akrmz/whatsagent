@@ -104,6 +104,22 @@ You can turn on a group's automatic posts (azkar, hadith, the Quran wird, tafsir
 
 Owner only, from a private chat. The command goes through the same checks as if you typed it in the group: commands turned off there stay off, a command that needs the bot to be admin still does, and clients' names and numbers still aren't shown for a group with outsiders.
 
+## More WhatsApp numbers (`.numbers`)
+
+The bot can run on more than one number at once. **Each number is its own bot**, with its own listings, clients, settings and session: for example one number for real-estate clients and another for Islamic groups. You manage them from your private chat with the main bot (owner only):
+
+1. **`.numbers add 201198765432`** (or `0119 876 5432`) starts the bot for that number and sends you its **pairing code** here. On that number's phone: WhatsApp → Settings → Linked devices → Link a device → "Link with phone number instead" → type the code. You get "✅ … اتربط" once it is linked.
+2. **`.numbers`** lists them with their state (connected, waiting for pairing, reconnecting, logged out, stopped).
+3. **`.numbers code 1`** sends a new code if it wasn't linked in time. **`.numbers stop 1`**, **`start 1`** and **`restart 1`** control it (a stopped number stays stopped after the bot restarts). **`.numbers remove 1 confirm`** stops it and moves its folder aside on the server. Nothing is deleted.
+
+How it works:
+- **Separate processes:** each extra number runs as a separate process of the same bot, started by the main bot, with its folders under `instances/<number>/` (next to `data/`).
+- **Isolation:** a crash, a logout or a ban of one number doesn't touch the others.
+- **Restarts:** extra numbers start with the main bot and stop with it. If one stops on its own, it is started again, at most 5 times in 10 minutes, after which you're told.
+- **Managing an extra number:** talk to that number from your phone, with the same commands. Its settings start empty: set it up there (`.agent`, `.setai`, `.watch on` …). It is backed up with `.backup` in its own chat. It can't add numbers itself.
+- **Pairing codes are private:** they come only to your private chat and are never written to the server's log.
+- **At most 5 extra numbers.** Each is a WhatsApp account of its own, with its own risk of being limited (see below). Don't send the same campaign from several.
+
 ## Adhkar and duas (الأذكار والأدعية)
 
 The text comes from **Hisn al-Muslim** (حصن المسلم, Sa'id ibn Ali ibn Wahf al-Qahtani), bundled with the bot (`assets/hisnmuslim-ar.json`, from hisnmuslim.com), so it works without internet. The Quran passages in the morning/evening adhkar were checked letter by letter against alquran.cloud.
@@ -859,6 +875,7 @@ This list is generated from the command files themselves.
 | `.leavegroup` | `.exitgroup` | Makes the bot leave a group by its number from .groups. | owner | `.leavegroup` |
 | `.mention` | – | Turns the automatic reply on or off for messages that mention the bot in groups. | owner | `.mention on` |
 | `.mode` | – | Public: everyone can use commands. Private: only owner and sudo (group moderation keeps working). | owner | `.mode private` |
+| `.numbers` | `.sessions` `.arqam` | More WhatsApp numbers, each its own bot: “add 2011…” runs this bot on another number too, with its own listings, clients and settings, and sends you its pairing code here; “code 2” a new code if it wasn't linked in time; “stop 2”, “start 2”, “restart 2”; “remove 2 confirm” stops it and moves its folder aside (nothing is deleted). Each extra number is managed from your chat with it, like this one. Owner only, in your private chat with the main bot. | owner (private chat) | `.numbers` |
 | `.pmblocker` | – | Blocks anyone who is not owner/sudo and messages the bot privately (they get a notice first). | owner | `.pmblocker on` |
 | `.restart` | `.reboot` | Restarts the bot (needed for a few settings). Works when the bot runs under PM2 or Docker, which start it again. | owner | `.restart` |
 | `.restore` | – | Restores a backup made with .backup (reply to the file). Lists and settings in it replace the current ones; anything not in the backup is left alone. | owner (private chat) | `.restore` _(reply to a backup file) [confirm]_ |
