@@ -127,3 +127,46 @@ test("the morning summary suggests asking the owners of stale listings", (t) => 
   assert.match(text, /🔑 اسأل الملاك: \.listing ask 1$/m);
   t.mock.timers.reset();
 });
+
+test("owners' answers with a no in them: \"مش اتباع\" is available; reserved and \"not available\" are read too", () => {
+  const kind = (t) => owners.classify(t).kind;
+  for (const t of ["مش اتباع", "ما اتباعش", "مااتباعش", "لسه ما اتأجرتش", "مش محجوزة لسه متاحة", "لم يتم البيع"]) assert.equal(kind(t), "available", t);
+  for (const t of ["اتحجزت ودفع عربون", "مش اتباع بس اتحجزت"]) assert.equal(kind(t), "reserved", t);
+  for (const t of ["مش متاحة", "مبقاش موجود", "لأ", "لا.", "لا مش متاح"]) assert.equal(kind(t), "unavailable", t);
+  assert.equal(kind("لا اتباعت"), "sold", "a no to 'still available?', then sold");
+  assert.deepEqual(owners.classify("مش اتباع والسعر بقى 3 مليون"), { kind: "price", price: 3e6 });
+  assert.equal(kind("كلمني بكرة"), "other");
+});
+
+test("a reserved or unavailable answer comes with the commands; questions not answered in 3 days are in the morning summary", async (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-10-08T09:00:00Z") });
+  const b = bot();
+  const s = b.s;
+  re.add(s, { type: "شقة", deal: "بيع", location: "التجمع", price: 3e6, owner: { name: "أبو أحمد", phone: "201001234567" } }, ME); // #1
+  re.add(s, { type: "شقة", deal: "إيجار", location: "الرحاب", price: 15000, owner: { name: "منى", phone: "201005556666" } }, ME); // #2
+  re.add(s, { type: "فيلا", deal: "بيع", location: "زايد", price: 2e7, source: { kind: "channel", phones: ["201007778888"], at: Date.now() } }, ME); // #3: a broker's
+  await b.send(".listing ask 1 2 3");
+  await b.send("مش اتباع بس اتحجزت", { from: OWNER });
+  assert.match(b.sentTo(ME).at(-1).content.text, /⏳ أبو أحمد \(\+201001234567\) قال إن #1 شقة — التجمع اتحجز:\n"مش اتباع بس اتحجزت"\n\.listing status 1 reserved$/);
+  await b.send("لأ", { from: "201005556666@s.whatsapp.net" });
+  assert.match(b.sentTo(ME).at(-1).content.text, /🔴 منى .* مبقاش متاح .*\n"لأ"\n\.listing status 2 rented · أو لو اتحجز: \.listing status 2 reserved$/, "a rental: rented");
+
+  const day = (n) => Date.parse("2026-10-08T06:00:00Z") + n * DAY;
+  assert.doesNotMatch(digest.build(s, "Africa/Cairo", day(2)), /📵/, "2 days: not yet");
+  const text = digest.build(s, "Africa/Cairo", day(4));
+  assert.match(text, /📵 ما ردوش على "لسه متاح؟" من 3\+ أيام: #3 \(السمسار\) — كلمهم، رقمهم في \.listing 3$/m);
+  assert.doesNotMatch(text, /201007778888|🔗.*#3/, "no number in the summary, and not twice");
+  assert.doesNotMatch(digest.build(s, "Africa/Cairo", day(12)), /📵/, "after 10 days it is dropped");
+  t.mock.timers.reset();
+});
+
+test("with .agent autoask on, the summary doesn't suggest .listing ask (the bot asks)", (t) => {
+  const now = Date.parse("2026-10-08T06:00:00Z");
+  t.mock.timers.enable({ apis: ["Date"], now: now - 40 * DAY });
+  const b = bot();
+  re.add(b.s, { type: "شقة", location: "التجمع", price: 3e6, owner: { phone: "201001234567" } }, ME);
+  re.setAgent(b.s, "autoask", "on");
+  t.mock.timers.setTime(now);
+  assert.doesNotMatch(digest.build(b.s, "Africa/Cairo", now), /🔑 اسأل الملاك/);
+  t.mock.timers.reset();
+});

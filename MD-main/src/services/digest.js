@@ -87,11 +87,15 @@ function build(state, timeZone, now = Date.now()) {
   if (old.length) {
     lines.push(`🕸️ لم تُحدَّث منذ 30+ يوماً: ${old.slice(0, 8).map((l) => `#${l.id}`).join("، ")}${old.length > 8 ? " …" : ""} — هل ما زالت متاحة؟`);
     const askable = old.filter((l) => owners.contactOf(l) && !(l.ask && now - l.ask.at < 7 * 86400 * 1000)).slice(0, 5);
-    if (askable.length) lines.push(`🔑 اسأل الملاك: .listing ask ${askable.map((l) => l.id).join(" ")}`);
+    // With .agent autoask on, the bot asks them itself.
+    if (askable.length && !re.agent(state).autoask) lines.push(`🔑 اسأل الملاك: .listing ask ${askable.map((l) => l.id).join(" ")}`);
   }
+  // Asked, and no answer: the agent calls (the number is on the listing, in a private chat).
+  const silent = owners.unanswered(state, now);
+  if (silent.length) lines.push(`📵 ما ردوش على "لسه متاح؟" من 3+ أيام: ${silent.slice(0, 8).map((l) => `#${l.id} (${l.ask.kind === "broker" ? "السمسار" : "المالك"})`).join("، ")} — كلمهم، رقمهم في .listing ${silent[0].id}`);
   // Brokers' units (from a channel or a forwarded post, no owner saved) go fast: a week unconfirmed is long.
   const recentlyAsked = (l) => l.ask && now - l.ask.at < 3 * 86400 * 1000;
-  const brokers = re.stale(state, 7, now).filter((l) => !old.includes(l) && owners.contactOf(l)?.kind === "broker" && !recentlyAsked(l));
+  const brokers = re.stale(state, 7, now).filter((l) => !old.includes(l) && !silent.includes(l) && owners.contactOf(l)?.kind === "broker" && !recentlyAsked(l));
   if (brokers.length) lines.push(`🔗 وحدات سماسرة من غير تأكيد من 7+ أيام: ${brokers.slice(0, 8).map((l) => `#${l.id}`).join("، ")} — اسألهم: .listing ask ${brokers.slice(0, 5).map((l) => l.id).join(" ")}`);
   // Saturday, the start of the work week in Egypt: the week in numbers too, and what listings miss.
   if (new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(new Date(now)) === "Sat") {

@@ -14,19 +14,40 @@ const OPEN_FOR = 7 * 24 * 3600 * 1000;
 const MAX_AT_ONCE = 5;
 
 const AVAILABLE = /^(?:متاح|متاحة|متاحه|لسه متاح|لسه متاحة|لسه|ايوه|أيوه|ايوة|أيوة|ايوا|نعم|اه|آه|ايه|أيه|موجود|موجودة|موجوده|yes|yeah|available|still available)(?![\p{L}])/iu;
-const SOLD = /(?<![\p{L}])(?:اتباع|اتباعت|اتبعت|تم البيع|مباع|مباعة|مباعه|بيعت|بعته|بعناه|sold)(?![\p{L}])/iu;
-const RENTED = /(?<![\p{L}])(?:اتأجر|اتأجرت|اتاجر|اتاجرت|تم التأجير|تم التاجير|مؤجر|مؤجرة|أجرته|rented)(?![\p{L}])/iu;
+const SOLD_WORDS = "اتباع|اتباعت|اتبعت|تم البيع|مباع|مباعة|مباعه|بيعت|بعته|بعناه|sold";
+const RENTED_WORDS = "اتأجر|اتأجرت|اتاجر|اتاجرت|تم التأجير|تم التاجير|مؤجر|مؤجرة|مؤجره|أجرته|rented";
+const RESERVED_WORDS = "اتحجز|اتحجزت|محجوز|محجوزة|محجوزه|عربون|reserved";
+const word = (words) => new RegExp(String.raw`(?<![\p{L}])(?:${words})(?![\p{L}])`, "iu");
+const SOLD = word(SOLD_WORDS);
+const RENTED = word(RENTED_WORDS);
+const RESERVED = word(RESERVED_WORDS);
+// "مش متاح", "مبقاش موجود", or a bare "لأ" to "is it still available?": gone, without saying how.
+const GONE = word("مش متاح|مش متاحة|مش متاحه|مبقاش متاح|مبقتش متاحة|مش موجود|مش موجودة|مش موجوده|مبقاش موجود|لم يعد متاح|لم تعد متاحة|اتشال|اتشالت|not available|no longer available");
+const NO = /^(?:لا|لأ|لاء|لاا|no|nope)[\s.!؟?]*$/iu;
+// A no to sold, rented or reserved is a yes to available: "مش اتباع", "ما اتباعش", "لسه ما اتأجرتش",
+// "مش محجوزة", "لم يتم البيع". Taken out before the words are looked for.
+const NEGATED = new RegExp(
+  String.raw`(?<![\p{L}])(?:(?:مش|ما|لم|مو|not)\s?(?:${SOLD_WORDS}|${RENTED_WORDS}|${RESERVED_WORDS})(?:ت?ش)?|(?:${SOLD_WORDS}|${RENTED_WORDS}|${RESERVED_WORDS})ت?ش|لم يتم البيع|لم يتم التأجير|لم يبع|متباعش|ماتباعش)(?![\p{L}])`,
+  "giu",
+);
 const PRICE = /(?<![\p{L}])(?:السعر|سعره|سعرها|بقى|بقت|بقا|نزل|نزلت|زاد|زادت|بـ|price)(?![\p{L}])/iu;
 
-/** What the owner said: available, sold, rented, a new price, or something else. */
+/**
+ * What the owner said: available, sold, rented, reserved, unavailable (gone, without saying
+ * how), a new price, or something else. A negated "sold" ("مش اتباع") counts as available.
+ */
 function classify(text) {
-  const t = re.latinDigits(String(text || "").trim()).replace(/#\s?\d{1,5}/g, " "); // "#2" names a listing, it isn't a price
-  if (SOLD.test(t)) return { kind: "sold" };
-  if (RENTED.test(t)) return { kind: "rented" };
-  const amount = t.match(/\d[\d,.]*\s*(?:مليون|ملايين|million|ألف|الف|k|m)?/iu);
-  const price = amount && PRICE.test(t) ? re.parseAmount(amount[0]) : null;
+  const t = re.latinDigits(re.squeeze(String(text || "")).slice(0, 300)).replace(/#\s?\d{1,5}/g, " "); // "#2" names a listing, it isn't a price
+  const rest = t.replace(NEGATED, " ");
+  const negated = rest !== t;
+  if (SOLD.test(rest)) return { kind: "sold" };
+  if (RENTED.test(rest)) return { kind: "rented" };
+  if (RESERVED.test(rest)) return { kind: "reserved" };
+  if (GONE.test(rest) || NO.test(rest.trim())) return { kind: "unavailable" };
+  const amount = rest.match(/\d[\d,.]*\s*(?:مليون|ملايين|million|ألف|الف|k|m)?/iu);
+  const price = amount && PRICE.test(rest) ? re.parseAmount(amount[0]) : null;
   if (price && price >= 1000) return { kind: "price", price };
-  if (AVAILABLE.test(t)) return { kind: "available" };
+  if (AVAILABLE.test(rest.trim()) || negated) return { kind: "available" };
   return { kind: "other" };
 }
 
@@ -50,7 +71,7 @@ function askText(state, l) {
     `${c?.kind === "owner" && l.owner?.name ? `أهلاً ${l.owner.name} 👋` : "أهلاً 👋"}`,
     c?.kind === "broker" ? `بخصوص ${what} اللي كان معروض عندك (#${l.id}): لسه متاح؟` : `بخصوص ${what} (#${l.id}): هل ما زال متاحاً؟`,
     "",
-    "رد بكلمة: *متاح* · *اتباع* · *اتأجر* · أو السعر الجديد (مثلاً: السعر بقى 3 مليون)",
+    "رد بكلمة: *متاح* · *اتباع* · *اتأجر* · *اتحجز* · أو السعر الجديد (مثلاً: السعر بقى 3 مليون)",
     re.contactLine(a) ? `\n${re.contactLine(a)}` : null,
   ]
     .filter((x) => x !== null)
@@ -67,6 +88,13 @@ async function deliver({ sock, state }, l, { chat, by, auto = false }, now = Dat
 
 /** ".listing ask": the answer comes back to the chat it was asked from. */
 const ask = (ctx, l, now = Date.now()) => deliver(ctx, l, { chat: ctx.chatId, by: ctx.sender }, now);
+
+/** Questions sent 3 to 10 days ago with no answer yet, about listings still shown as available: worth a call. */
+const unanswered = (state, now = Date.now()) =>
+  re
+    .all(state)
+    .filter((l) => l.status === "available" && l.ask && !l.ask.answered && now - l.ask.at >= 3 * 86400000 && now - l.ask.at <= 10 * 86400000)
+    .sort((a, b) => a.ask.at - b.ask.at);
 
 // ---- asked by themselves (.agent autoask on) ----------------------------------------------
 
@@ -134,6 +162,8 @@ async function handleReply(ctx, phone, now = Date.now()) {
     available: `✅ ${who} أكد إن ${head} لسه متاح (اتحدّث تاريخه).`,
     sold: `🔴 ${who} قال إن ${head} اتباع.\n${ctx.prefix}listing status ${l.id} sold`,
     rented: `🔴 ${who} قال إن ${head} اتأجر.\n${ctx.prefix}listing status ${l.id} rented`,
+    reserved: `⏳ ${who} قال إن ${head} اتحجز:\n"${text}"\n${ctx.prefix}listing status ${l.id} reserved`,
+    unavailable: `🔴 ${who} قال إن ${head} مبقاش متاح (من غير ما يقول اتباع ولا اتأجر):\n"${text}"\n${ctx.prefix}listing status ${l.id} ${l.deal === "إيجار" ? "rented" : "sold"} · أو لو اتحجز: ${ctx.prefix}listing status ${l.id} reserved`,
     price: `💰 ${who}: السعر الجديد لـ ${head} ${re.money(answer.price || 0, cur)}${l.price ? ` (كان ${re.money(l.price, cur)})` : ""}.\n${ctx.prefix}listing edit ${l.id} السعر: ${re.shortAr(answer.price || 0)}`,
     other: `💬 رد ${who} عن ${head}:\n"${text}"`,
   }[answer.kind];
@@ -142,4 +172,4 @@ async function handleReply(ctx, phone, now = Date.now()) {
   return true;
 }
 
-module.exports = { classify, askText, ask, deliver, autoDue, autoTargets, openAsks, handleReply, contactOf, OPEN_FOR, MAX_AT_ONCE, STALE_AFTER, AUTO_PER_DAY };
+module.exports = { classify, askText, ask, deliver, autoDue, autoTargets, unanswered, openAsks, handleReply, contactOf, OPEN_FOR, MAX_AT_ONCE, STALE_AFTER, AUTO_PER_DAY };
