@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.74.0 — 2026-10-11
+
+### Added — clients ask to hear when a unit's price drops or it is available again
+- **`نبهني 12`:** a client's card in a private chat says "🔔 عايز نبلغك لو السعر نزل؟ ابعت: نبهني 12", or for a reserved or sold unit "نبلغك لو رجعت متاحة؟".
+  - When the client sends it (or `نبهني` alone after opening the unit; also `بلغني`, `notify me 12`), they are saved as a client if new, and the unit joins what they are waiting for (at most 10).
+  - You hear once: "🔔 منى طلب يتبلغ لو سعر #12 نزل — عميل مهتم بالوحدة دي".
+- **They are told:** `.blast 12 drop` (a price cut) and `.blast 12 back` (available again) include them even outside their budget, because they asked about this very unit. They are told once per price and once per return, as for the others.
+  - A price cut with `.listing edit` says how many asked.
+  - `.listing who 12` shows them as "🔔 طلب يتبلغ".
+- **Cancelling:** `الغاء التنبيه 12`, or `الغاء التنبيه` for all. `وقف` stops everything, as always.
+- **Limits:** 5 requests in 10 minutes per client, new clients shared with `#12` questions (30 an hour), at most 10 units each. The phrase is squeezed and length-capped before it is read, and is in the backtracking timing test.
+
+### Checked
+- 3 tests (461 in total). They cover:
+  - `نبهني` after opening a unit, the client saved, the agent told once, `.listing who`;
+  - an unknown unit;
+  - the hint only in a client's private chat;
+  - a price cut naming the watchers, `.blast drop` reaching one outside budget, once per price;
+  - the unit coming back counted;
+  - cancelling, at most 10 units, the flood limit, and `وقف`.
+- The card's booking line stays last; the alert hint comes just before it.
+
 ## 3.73.0 — 2026-10-11
 
 ### Added — your mark on the listing photos clients get
