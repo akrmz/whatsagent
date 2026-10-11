@@ -2,6 +2,28 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.77.0 — 2026-10-11
+
+### Added — replies to a listing's card are answered from it
+- **A client who replies to a card** (from `#12`, a campaign, `.lead send`, the assistant) with a short question gets the answer straight away, without the AI:
+  - "لسه متاحة؟": its status, or similar available units if it is sold or reserved;
+  - "صور تانية؟": all its photos;
+  - "فيه فيديو؟": its videos;
+  - "اللوكيشن؟": the map pin, or the area if no pin is saved.
+  - Same flood limits as `#12`, and noted as a question about the unit (with `.agent autoleads on`).
+- **Other questions** ("بكام المتر؟") go to the assistant, which is now told which unit the client means. That unit comes first in what the AI sees, or, if it is gone, the AI says so and offers similar ones. Before, a reply to a card reached the AI without it, and it had to guess the unit.
+- The team's own replies aren't answered.
+
+### Checked
+- 3 tests (470 in total). They cover:
+  - each answer (available, all photos, video, pin);
+  - another question going on;
+  - the team not answered;
+  - the flood limit;
+  - a sold unit with a similar one;
+  - the assistant's instructions for an available and a reserved unit.
+- The question reader is in the backtracking timing test.
+
 ## 3.76.0 — 2026-10-11
 
 ### Added — disk space
