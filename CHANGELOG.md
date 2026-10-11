@@ -2,6 +2,33 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.81.0 — 2026-10-12
+
+### Added — owners are asked "still available?" by themselves
+- **`.agent autoask on`**: every day, from the start of the sending hours, the bot asks about available listings with no update for 30 days. It asks each listing's owner, or the broker it came from, whether it is still available, the same question as `.listing ask`. The answers come to your private chat:
+  - "متاح" confirms the listing and counts as an update;
+  - "اتباع", "اتأجر" or a new price comes with the command to apply it;
+  - anything else is passed on as written.
+- **Gently:**
+  - at most 5 a day, the listings longest without news first;
+  - one question per person, so "متاح" is never ambiguous; a person with a question still open isn't asked another;
+  - the same listing isn't asked about again for 30 days;
+  - sent through the campaign queue (same gaps, hours and daily cap), and you get the summary when they're sent.
+- **Not asked:**
+  - owners who sent **وقف التقارير**;
+  - listings with no owner or broker number;
+  - listings that are reserved or sold;
+  - a listing sold or updated after it was queued.
+- `.autopilot` shows it, with how many are due. `.rehelp` mentions it.
+
+### Checked
+- 3 tests (484 in total). They cover:
+  - off by default;
+  - 5 a day in order, one per person, and each case left out;
+  - the next day's turn, and no repeat within 30 days;
+  - the answer reaching you and counting as an update;
+  - a listing sold after it was queued.
+
 ## 3.80.0 — 2026-10-12
 
 ### Added — a client's location pin gets your nearest units

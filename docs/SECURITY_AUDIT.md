@@ -428,6 +428,17 @@ Locations only (values intentionally omitted):
 - **Fix:** a post added by `auto` never starts a campaign. The notice says "📣 بعد ما تراجعها ابعتها للعملاء: .blast 12". Links other than Google Maps are removed from its description (`newlisting.withoutLinks`; a Maps link still becomes the pin). Drafts saved by hand (`.drafts save`) keep their text, since the owner saw it in the review.
 - **Tests:** `test/channelsafety.test.js` (fails on the code before the fix).
 
+### Design note — automatic availability questions to owners (3.81.0)
+- **What goes out:** messages to owners and brokers who aren't clients, started by the bot. It is off by default (`.agent autoask on`, owner or sudo).
+- **Bounded:**
+  - 5 a day, one per number, none to a number with a question still open;
+  - the same listing not again for 30 days;
+  - through the campaign queue, so the daily cap, the sending hours and the random gaps apply;
+  - each send checks first that the number is on WhatsApp.
+- **Opt-out:** an owner's وقف التقارير also stops these questions. The text is the `.listing ask` one, with no client details.
+- **Answers:** read only from the number asked (`ask.to`), and only for 7 days. Sold, rented and price answers aren't applied by themselves. They come with the command, because a negated reply ("مش اتباع") would be read as sold.
+- **Tests:** `test/autoask.test.js`.
+
 ### Design note — clients' location pins (3.80.0)
 - **What comes in:** a location pin a client sends in a private chat. Where someone lives is personal data.
 - **What is kept:**
