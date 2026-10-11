@@ -436,7 +436,7 @@ Locations only (values intentionally omitted):
   - through the campaign queue, so the daily cap, the sending hours and the random gaps apply;
   - each send checks first that the number is on WhatsApp.
 - **Opt-out:** an owner's وقف التقارير also stops these questions. The text is the `.listing ask` one, with no client details.
-- **Answers:** read only from the number asked (`ask.to`), and only for 7 days. Sold, rented and price answers aren't applied by themselves. They come with the command, because a negated reply ("مش اتباع") would be read as sold.
+- **Answers:** read only from the number asked (`ask.to`), and only for 7 days. Sold, rented and price answers aren't applied by themselves. They come with the command. A negated reply ("مش اتباع") was read as sold until 3.82, which now reads negations. Keeping the agent's confirmation still guards against wordings the reader doesn't know.
 - **Tests:** `test/autoask.test.js`.
 
 ### Design note — clients' location pins (3.80.0)

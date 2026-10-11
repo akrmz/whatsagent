@@ -2,6 +2,31 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.82.0 — 2026-10-12
+
+### Fixed — owners' "not sold" was read as sold
+- **A no is understood.** Before, "مش اتباع" (not sold) was read as **sold**, because the word "اتباع" was found. Now a no to sold, rented or reserved counts as available: "مش اتباع", "ما اتباعش", "مااتباعش", "لسه ما اتأجرتش", "مش محجوزة", "لم يتم البيع".
+- **Mixed answers** are read after the no is taken out: "مش اتباع بس اتحجزت" is reserved, and "مش اتباع والسعر بقى 3 مليون" is a new price.
+
+### Added — more of what owners say, and those who don't answer
+- **Reserved:** "اتحجزت", "دفع عربون" come with `.listing status 12 reserved`.
+- **Gone without saying how:** "مش متاحة", "مبقاش موجود" or a bare "لأ" come with `.listing status 12 sold` (`rented` for a rental) or `reserved`.
+- The question owners get now lists "اتحجز" among the answers.
+- As before, a status is changed only when you send the command.
+- **Not answered in 3 days:** the morning summary lists them: "📵 ما ردوش على "لسه متاح؟" من 3+ أيام: #12 (المالك)، #15 (السمسار) — كلمهم".
+  - The list runs for 10 days after the question.
+  - It shows no names or numbers, since the summary can go to a staff group.
+  - A broker's unit there isn't repeated in the "unconfirmed broker units" line.
+- With `.agent autoask on`, the summary no longer suggests `.listing ask` for old listings, since the bot asks itself.
+- The answer reader squeezes whitespace and reads at most 300 characters (B-25). It was already in the backtracking timing test.
+
+### Checked
+- 3 tests (487 in total). They cover:
+  - negations, reserved, unavailable and mixed answers;
+  - the messages with their commands, for a sale and a rental;
+  - the summary line after 3 days, without numbers, gone after 10 days;
+  - the summary without the `.listing ask` hint when autoask is on.
+
 ## 3.81.0 — 2026-10-12
 
 ### Added — owners are asked "still available?" by themselves
