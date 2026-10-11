@@ -71,14 +71,17 @@ function report(app, now = Date.now()) {
     { name: "🧪 temporary files", ...sizeOf(config.paths.tmp) },
     { name: "📱 extra numbers", ...sizeOf(path.resolve(data, "..", "instances")) },
   ];
-  let free = null;
+  return { parts, free: freeBytes(config), cleanable: plan(app, now) };
+}
+
+/** Free bytes on the disk that holds the data, or null where it can't be told. */
+function freeBytes(config) {
   try {
-    const st = fs.statfsSync(data);
-    free = st.bavail * st.bsize;
+    const st = fs.statfsSync(config.paths.data);
+    return st.bavail * st.bsize;
   } catch {
-    // not available on this system
+    return null;
   }
-  return { parts, free, cleanable: plan(app, now) };
 }
 
 /** What .storage clean would remove: { files: [paths], bytes, listings: [ids] } */
@@ -128,4 +131,4 @@ function clean(app, now = Date.now()) {
 
 const mb = (bytes) => (bytes >= 1073741824 ? `${(bytes / 1073741824).toFixed(1)} GB` : `${(bytes / 1048576).toFixed(1)} MB`);
 
-module.exports = { report, plan, clean, sizeOf, oldGone, safeTmp, mb, SOLD_FOR };
+module.exports = { report, plan, clean, freeBytes, sizeOf, oldGone, safeTmp, mb, SOLD_FOR };

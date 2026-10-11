@@ -120,6 +120,15 @@ async function staffOnlyGroup(app, chat) {
   return Boolean(meta) && app.permissions.allStaff(meta.participants || [], [app.sock.user?.id, app.sock.user?.lid].filter(Boolean));
 }
 
+/** Low disk space (under 1 GB free where the data is): a line with what to do, else "". */
+function diskLine(app) {
+  const free = require("./storage").freeBytes(app.config);
+  return free !== null && free < LOW_DISK ? `
+
+💾 المساحة الفاضية على السيرفر ${require("./storage").mb(free)} بس — شوف إيه اللي واخد مساحة: .storage · ونضّف اللي ملوش لازمة: .storage clean` : "";
+}
+const LOW_DISK = 1024 * 1024 * 1024;
+
 async function runDue(app, now = Date.now()) {
   if (!app.sock || app.health.state !== "open") return 0;
   const s = store(app.state);
@@ -130,7 +139,7 @@ async function runDue(app, now = Date.now()) {
     s.update(() => (entry.last = zoneNow(zone, now).day));
     try {
       // A group that is no longer staff only (someone else joined) gets a note, not clients' details.
-      const text = (await staffOnlyGroup(app, chat)) ? build(app.state, zone, now) : HELD;
+      const text = (await staffOnlyGroup(app, chat)) ? build(app.state, zone, now) + diskLine(app) : HELD;
       await app.sock.sendMessage(chat, { text });
       sent++;
     } catch (err) {
