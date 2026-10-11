@@ -8,7 +8,9 @@ module.exports = {
   name: "channel-intake",
   event: "newsletter",
   async run(ctx, msg) {
-    const image = unwrap(msg?.message)?.imageMessage;
-    await channels.intake(ctx, msg, { download: () => downloadMedia({ content: image, type: "image", size: Number(image?.fileLength) || 0 }, 15 * 1024 * 1024) });
+    // Used only if a post's photo or video is encrypted (has a media key); channel media usually isn't.
+    const content = unwrap(msg?.message);
+    const [type, media] = content?.videoMessage ? ["video", content.videoMessage] : ["image", content?.imageMessage];
+    await channels.intake(ctx, msg, { download: () => downloadMedia({ content: media, type, size: Number(media?.fileLength) || 0 }, 16 * 1024 * 1024) });
   },
 };

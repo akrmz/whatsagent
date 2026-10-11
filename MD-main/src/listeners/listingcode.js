@@ -1,7 +1,7 @@
 "use strict";
 
 const re = require("../services/realestate");
-const { show, captureInquiry } = require("../services/listingview");
+const { show, sendVideos, captureInquiry } = require("../services/listingview");
 const { allowLookup } = require("../services/lookuplimits");
 const { alternatives, offerText } = require("../services/alternatives");
 
@@ -18,11 +18,18 @@ module.exports = {
   priority: 21,
   publicOnly: true,
   async run(ctx) {
-    const m = re.latinDigits(ctx.body.trim()).match(/^#\s?(\d{1,5})(?:\s+(en|english))?$/i);
+    const m = re.latinDigits(ctx.body.trim()).match(/^#\s?(\d{1,5})(?:\s+(en|english|video|videos|فيديو|فيديوهات))?$/i);
     if (!m) return undefined;
     const listing = re.get(ctx.state, Number(m[1]));
     if (!listing) return undefined;
-    if (!allowLookup(ctx, `listing:${listing.id}`)) return "stop"; // flood: silent
+    const wantsVideo = Boolean(m[2] && /video|فيديو/i.test(m[2]));
+    // Its own flood key: "#12" then "#12 فيديو" right after is one card and one video, not a repeat.
+    if (!allowLookup(ctx, `${wantsVideo ? "listing-video" : "listing"}:${listing.id}`)) return "stop"; // flood: silent
+    // "#12 فيديو" / "#12 video": the listing's videos (not sent with every card: they are big).
+    if (wantsVideo) {
+      await sendVideos(ctx, listing, { lang: /video/i.test(m[2]) ? "en" : "ar" });
+      return "stop";
+    }
     const lang = m[2] ? "en" : "ar";
     await show(ctx, listing, { lang });
     const alts = listing.status === "available" ? [] : alternatives(ctx.state, listing);

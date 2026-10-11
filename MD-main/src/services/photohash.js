@@ -37,6 +37,9 @@ function bits32(v) {
 /** How many of the 64 bits differ (two 32-bit halves: much faster than BigInt for a whole catalogue). */
 const distance = (a, b) => bits32((parseInt(a.slice(0, 8), 16) ^ parseInt(b.slice(0, 8), 16)) >>> 0) + bits32((parseInt(a.slice(8), 16) ^ parseInt(b.slice(8), 16)) >>> 0);
 
+/** A listing's photos changed (one deleted, a new cover): its fingerprints are made again. */
+const forget = (state, id) => store(state).update((d) => delete d.items[id]);
+
 /** Fingerprints the listing photos that have none yet (a few per run). @returns {Promise<number>} done */
 async function backfill(state, config, max = PER_RUN) {
   let done = 0;
@@ -111,4 +114,4 @@ function startPhotoHashLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { dhash, distance, backfill, sameAs, line, startPhotoHashLoop, NEAR };
+module.exports = { dhash, distance, backfill, sameAs, line, forget, startPhotoHashLoop, NEAR };

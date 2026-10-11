@@ -41,7 +41,9 @@ async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   const canBook = a.booking && !ctx.isSudoOrOwner && !ctx.isGroup && l.status === "available";
   if (canBook) require("./selfbooking").noteViewed(ctx.state, ctx.sender, l.id);
   const bookLine = canBook ? (lang === "en" ? `\n\n🗓️ To book a viewing, send: معاينة ${l.id}` : `\n\n🗓️ لحجز معاينة ابعت: معاينة ${l.id}`) : "";
-  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l) + bookLine;
+  // A video isn't sent with every card (it is big): the card says how to get it.
+  const videoLine = l.videos ? (lang === "en" ? `\n\n🎥 There's a video of it: send #${l.id} video` : `\n\n🎥 فيه فيديو للوحدة: ابعت #${l.id} فيديو`) : "";
+  const text = (lang === "en" ? english.card(l, a) : re.card(l, a)) + ownerLine(ctx, l) + videoLine + bookLine;
   if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views"); // client interest only, not the team's own views
   const pics = re.photos(ctx.config, l);
   if (!pics.length) return ctx.reply(text);
@@ -111,4 +113,14 @@ async function captureInquiry(ctx, listing, { alts = [] } = {}) {
   return { lead, isNew: !existing };
 }
 
-module.exports = { show, captureInquiry, ownerLine, sourceText, staffOnlyChat };
+/** A listing's videos ("#12 فيديو", ".listing 12 video"). */
+async function sendVideos(ctx, l, { lang = "ar" } = {}) {
+  const files = require("./listingmedia").videos(ctx.config, l);
+  if (!files.length) return ctx.reply(lang === "en" ? `#${l.id} has no video yet.` : `مفيش فيديو للعقار #${l.id} لسه.`);
+  if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views");
+  const title = `🎥 #${l.id} ${l.type || "عقار"}${l.location ? ` — ${l.location.slice(0, 40)}` : ""}`;
+  for (const [i, f] of files.entries()) await ctx.reply({ video: fs.readFileSync(f), mimetype: "video/mp4", caption: i === 0 ? title : undefined });
+  return undefined;
+}
+
+module.exports = { show, sendVideos, captureInquiry, ownerLine, sourceText, staffOnlyChat };

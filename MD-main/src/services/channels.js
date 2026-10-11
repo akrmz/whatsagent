@@ -6,6 +6,7 @@ const { unwrap } = require("../core/media");
 const { getText } = require("../core/context");
 const drafts = require("./drafts");
 const img = require("./reimages");
+const listingmedia = require("./listingmedia");
 const { UserError } = require("../core/errors");
 const { limiterFor } = require("../core/ratelimit");
 
@@ -40,20 +41,27 @@ const setRequester = (fn) => (requester = fn || ((url, opts) => http.request(url
  * The photo of a channel post, as a JPEG ready to keep. Encrypted media (a mediaKey) goes through
  * Baileys' usual download instead.
  */
+async function fetchMedia(media, download, maxBytes) {
+  if (media.fileLength && Number(media.fileLength) > maxBytes) throw new Error("too large");
+  if (media.mediaKey) return download();
+  const p = String(media.directPath || "");
+  if (!p.startsWith("/") || p.startsWith("//")) throw new Error("no media path");
+  const url = new URL(p, `https://${MEDIA_HOST}`);
+  if (url.protocol !== "https:" || url.hostname !== MEDIA_HOST) throw new Error("unexpected media host");
+  return (await requester(url.toString(), { maxBytes, timeoutMs: 60000 })).body;
+}
+
 async function photoOf(image, download) {
   if (!image) return null;
-  if (image.fileLength && Number(image.fileLength) > MAX_BYTES) throw new Error("photo too large");
-  let buffer;
-  if (image.mediaKey) {
-    buffer = await download();
-  } else {
-    const p = String(image.directPath || "");
-    if (!p.startsWith("/") || p.startsWith("//")) throw new Error("no media path");
-    const url = new URL(p, `https://${MEDIA_HOST}`);
-    if (url.protocol !== "https:" || url.hostname !== MEDIA_HOST) throw new Error("unexpected media host");
-    buffer = (await requester(url.toString(), { maxBytes: MAX_BYTES, timeoutMs: 30000 })).body;
-  }
-  return img.toListingJpeg(buffer); // anything that isn't a picture fails here
+  return img.toListingJpeg(await fetchMedia(image, download, MAX_BYTES)); // anything that isn't a picture fails here
+}
+
+/** A post's video, kept as sent once it checks out as one (MP4/MOV, at most 16 MB). */
+async function videoOf(video, download) {
+  if (!video) return null;
+  const buf = await fetchMedia(video, download, listingmedia.MAX_VIDEO_BYTES);
+  listingmedia.checkVideo(buf);
+  return buf;
 }
 
 /** A channel's jid and name from its link ("https://whatsapp.com/channel/0029Va…") or its jid. */
@@ -111,9 +119,9 @@ async function intake(app, msg, { download } = {}) {
   // POSTS_PER_HOUR posts; the owner hears once in a while that some were left.
   const at = msg.messageTimestamp ? Math.min(Date.now(), Number(msg.messageTimestamp) * 1000) : Date.now();
   const space = drafts.room(app.state, `ch:${jid}`, at);
-  const wanted = (content?.imageMessage && space.photo) || (text && space.text);
+  const wanted = (content?.imageMessage && space.photo) || (content?.videoMessage && space.video) || (text && space.text);
   if (!wanted || !postBudget(app.state, jid)) {
-    if (content?.imageMessage || text) await tellLeft(app, c, jid);
+    if (content?.imageMessage || content?.videoMessage || text) await tellLeft(app, c, jid);
     return null;
   }
   let jpeg = null;
@@ -124,7 +132,15 @@ async function intake(app, msg, { download } = {}) {
       app.log.warn({ err: err.message }, "channel photo not kept");
     }
   }
-  if (!text && !jpeg) return null;
+  let video = null;
+  if (content?.videoMessage && space.video) {
+    try {
+      video = await videoOf(content.videoMessage, download || (() => Promise.reject(new Error("no download"))));
+    } catch (err) {
+      app.log.warn({ err: err.message }, "channel video not kept");
+    }
+  }
+  if (!text && !jpeg && !video) return null;
   return drafts.collect(
     app.state,
     app.config,
@@ -132,6 +148,7 @@ async function intake(app, msg, { download } = {}) {
       source: { kind: "channel", key: `ch:${jid}`, name: c.name, notify: c.notify, ...(c.auto ? { auto: true } : {}) },
       text,
       jpeg,
+      video,
       by: c.by,
       ownerNumber: app.config.owners.numbers[0],
     },
@@ -208,4 +225,4 @@ function startChannelsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { add, remove, get, list, resolve, intake, postsIn, fetchRecent, photoOf, startChannelsLoop, setRequester, MEDIA_HOST, MAX_CHANNELS, MAX_IMPORT };
+module.exports = { add, remove, get, list, resolve, intake, postsIn, fetchRecent, photoOf, videoOf, startChannelsLoop, setRequester, MEDIA_HOST, MAX_CHANNELS, MAX_IMPORT };

@@ -30,7 +30,8 @@ const idOf = (s) => {
 /** Text of the command, or of the message it replies to (a broker's post forwarded to the bot). */
 const textOrQuoted = (ctx, after) => after.trim() || (ctx.quoted ? getText(ctx.quoted.message) : "");
 
-const { show, ownerLine, staffOnlyChat } = require("../../services/listingview");
+const { show, sendVideos, ownerLine, staffOnlyChat } = require("../../services/listingview");
+const listingMedia = require("../../services/listingmedia");
 const owners = require("../../services/owners");
 const campaigns = require("../../services/campaigns");
 
@@ -60,6 +61,9 @@ async function pointFrom(ctx, text) {
 const EN = /^(en|english|eng|انجليزي|إنجليزي)$/;
 const SHOW_MAP = /^(map|خريطة|الخريطة)$/;
 const SET_LOC = /^(loc|location|geo|موقع|الموقع|لوكيشن|اللوكيشن)$/;
+const VIDEO = /^(video|videos|فيديو|فيديوهات)$/i;
+const DEL = /^(del|delete|remove|حذف|مسح|امسح)$/i;
+const COVER = /^(cover|first|main|غلاف|الغلاف|اول|أول|الأولى|الاولى)$/i;
 const REPORT = /^(report|تقرير|التقرير)$/;
 const SEND = /^(send|ابعت|ارسل|أرسل)$/;
 const ownerReport = require("../../services/ownerreport");
@@ -177,9 +181,9 @@ module.exports = [
     aliases: ["property", "aqar"],
     category: "realestate",
     description:
-      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos, show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). “similar 12” lists available units like it (same type and deal, the same area first, price within 40%); a client asking “#12” about a sold, rented or reserved unit gets up to 3 of them. Anyone can view; the owner and sudo users manage.",
-    usage: "add <details> | photo <id> | <id> [photos|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | who <id> | similar <id> | del <id>",
-    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send", ".listing who 12", ".listing similar 12"],
+      "عقاراتك في كتالوج واحد — your property catalogue: add a listing from a description (Arabic or English labels, or reply to a broker's post), attach photos (delete one, or choose the cover with “photo 12 cover 3”) and up to 2 videos (“video 12”; clients get them with “#12 فيديو”), show it with its photos and your contact, save its location on the map (from a location pin or a Google Maps link), mark it reserved/sold, and send its owner a marketing report (clients reached, views, viewings and what viewers said, price vs similar listings). “similar 12” lists available units like it (same type and deal, the same area first, price within 40%); a client asking “#12” about a sold, rented or reserved unit gets up to 3 of them. Anyone can view; the owner and sudo users manage.",
+    usage: "add <details> | photo <id> [del|cover <n>] | video <id> [del <n>] | <id> [photos|video|map|en] | edit <id> <details> | loc <id> [link|lat,lng|del] | status <id> <status> | report <id> [send] | who <id> | similar <id> | del <id>",
+    examples: [".listing add\nالنوع: شقة\nللبيع\nالمنطقة: التجمع الخامس\nالسعر: 3.5 مليون\nالمساحة: 150\nالغرف: 3", ".listing 12", "(reply to a photo) .listing photo 12", ".listing photo 12 cover 3", ".listing photo 12 del 2", "(reply to a video) .listing video 12", ".listing 12 video", "(reply to a location pin) .listing loc 12", ".listing 12 map", ".listing 12 en", ".listing status 12 sold", ".listing report 12", ".listing report 12 send", ".listing who 12", ".listing similar 12"],
     cooldown: 2,
     async run(ctx) {
       const [sub = "", arg = ""] = ctx.args.map((a) => a.toLowerCase());
@@ -188,6 +192,7 @@ module.exports = [
         const l = re.get(ctx.state, direct);
         if (!l) return ctx.reply(`There is no listing #${direct}.`);
         if (SHOW_MAP.test(arg) || SET_LOC.test(arg)) return sendPin(ctx, l);
+        if (VIDEO.test(arg)) return sendVideos(ctx, l, { lang: EN.test(String(ctx.args[2] || "")) ? "en" : "ar" });
         return show(ctx, l, { allPhotos: /^(photos|all|صور)$/.test(arg), lang: EN.test(arg) ? "en" : "ar" });
       }
       if (!sub) return ctx.reply(HELP(ctx.prefix));
@@ -262,12 +267,38 @@ module.exports = [
       }
 
       if (sub === "photo" || sub === "photos" || sub === "صورة") {
+        // ".listing photo 12 del 3" / "… cover 3": delete one, or make it the first (cards, flyers, campaigns).
+        const op = String(ctx.args[2] || "").toLowerCase();
+        const which = Number(re.latinDigits(String(ctx.args[3] || "")));
+        if (DEL.test(op)) {
+          listingMedia.removePhoto(ctx.state, ctx.config, id, which);
+          return ctx.reply(`🗑️ Photo ${which} of #${id} deleted (${re.get(ctx.state, id).photos} left).`);
+        }
+        if (COVER.test(op)) {
+          listingMedia.setCover(ctx.state, ctx.config, id, which);
+          return ctx.reply(`🖼️ Photo ${which} is now the first photo of #${id}: on its card, flyers and campaigns.`);
+        }
         const media = ctx.findMedia({ types: ["image", "document"] });
         if (!media || (media.type === "document" && !/^image\//.test(media.mimetype || ""))) return ctx.reply(`Send a picture with ${ctx.prefix}listing photo ${id} as its caption, or reply to one.`);
         const jpeg = await img.toListingJpeg(await ctx.download(media, 15 * 1024 * 1024));
         const n = re.addPhoto(ctx.state, ctx.config, id, jpeg);
         const same = await photohash.sameAs(ctx.state, [jpeg], { exclude: id }); // the unit reposted under another number?
         return ctx.reply(`📷 Photo ${n}/${re.MAX_PHOTOS} added to #${id}.${photohash.line(same, { p: ctx.prefix, listing: id })}`);
+      }
+      if (sub === "video" || sub === "videos" || sub === "فيديو") {
+        // ".listing video 12" with a video (or replying to one) adds it; "… del 1" deletes one.
+        if (DEL.test(String(ctx.args[2] || ""))) {
+          const which = Number(re.latinDigits(String(ctx.args[3] || "")));
+          listingMedia.removeVideo(ctx.state, ctx.config, id, which);
+          return ctx.reply(`🗑️ Video ${which} of #${id} deleted.`);
+        }
+        const found = ctx.findMedia({ types: ["video", "document"] });
+        if (!found || (found.type === "document" && !/^video\//.test(found.mimetype || ""))) {
+          return ctx.reply(`Send a video with ${ctx.prefix}listing video ${id} as its caption, or reply to one (MP4, at most ${listingMedia.MAX_VIDEO_BYTES / 1048576} MB, ${listingMedia.MAX_VIDEOS} per listing).`);
+        }
+        if (found.size > listingMedia.MAX_VIDEO_BYTES) throw new UserError(`The video is ${Math.ceil(found.size / 1048576)} MB; a listing's video can be at most ${listingMedia.MAX_VIDEO_BYTES / 1048576} MB.`);
+        const n = listingMedia.addVideo(ctx.state, ctx.config, id, await ctx.download(found, listingMedia.MAX_VIDEO_BYTES));
+        return ctx.reply(`🎥 Video ${n}/${listingMedia.MAX_VIDEOS} added to #${id}. Clients get it with: #${id} فيديو`);
       }
       if (sub === "edit") {
         // Everything after "edit 12", line breaks kept (several fields can be changed at once).

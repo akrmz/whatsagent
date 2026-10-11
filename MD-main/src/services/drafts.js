@@ -5,6 +5,7 @@ const path = require("node:path");
 const re = require("./realestate");
 const newlisting = require("./newlisting");
 const photohash = require("./photohash");
+const listingmedia = require("./listingmedia");
 const { limiterFor } = require("../core/ratelimit");
 const { UserError } = require("../core/errors");
 
@@ -25,6 +26,8 @@ const IDLE = 2 * 60 * 1000; // a unit's messages come together; 2 quiet minutes 
 const MAX_OPEN = 50; // drafts waiting
 const MAX_PHOTOS = re.MAX_PHOTOS; // as a listing
 const MAX_TEXT = 4000;
+const MAX_DRAFT_VIDEOS = 2; // as a listing
+const MAX_STORED_VIDEOS = 20; // in all the drafts together (16 MB each at most)
 const EXPIRE_AFTER = 14 * 24 * 3600 * 1000;
 const NOTIFY_PER_HOUR = 20; // review messages; more wait in .drafts
 
@@ -69,14 +72,18 @@ function room(state, key, now = Date.now()) {
   const all = open(state);
   const current = all.filter((d) => d.source.key === key && !d.reviewed && now - d.updated < IDLE).at(-1);
   const space = all.length < MAX_OPEN;
-  return { photo: current ? current.photos < MAX_PHOTOS : space, text: Boolean(current) || space };
+  const videoSpace = storedVideos(state) < MAX_STORED_VIDEOS;
+  return { photo: current ? current.photos < MAX_PHOTOS : space, video: videoSpace && (current ? (current.videos || 0) < MAX_DRAFT_VIDEOS : space), text: Boolean(current) || space };
 }
+
+/** Videos kept in all the drafts together (they are big: at most MAX_STORED_VIDEOS). */
+const storedVideos = (state) => open(state).reduce((n, d) => n + (d.videos || 0), 0);
 
 /**
  * Adds a message (text and/or a re-encoded JPEG) to the draft collecting for this source, or
  * starts one. @returns {{ draft, isNew } | { full: true } | { skipped: "photos" }}
  */
-function collect(state, config, { source, text, jpeg, by, ownerNumber }, now = Date.now()) {
+function collect(state, config, { source, text, jpeg, video, by, ownerNumber }, now = Date.now()) {
   expire(state, config, now);
   const t = String(text || "").trim();
   const current = open(state)
@@ -86,18 +93,22 @@ function collect(state, config, { source, text, jpeg, by, ownerNumber }, now = D
   const another = current && t && re.parseListingText(t).type && fieldsOf(current, ownerNumber).type;
   if (current && !another) {
     if (jpeg && current.photos >= MAX_PHOTOS) return { skipped: "photos" };
+    if (video && ((current.videos || 0) >= MAX_DRAFT_VIDEOS || storedVideos(state) >= MAX_STORED_VIDEOS)) return { skipped: "videos" };
     if (jpeg) writePhoto(config, current.id, current.photos + 1, jpeg);
+    if (video) writeVideo(config, current.id, (current.videos || 0) + 1, video);
     const d = store(state).update((s) => {
       const x = s.items[current.id];
       if (t && x.texts.join("\n").length + t.length <= MAX_TEXT) x.texts.push(t);
       if (jpeg) x.photos++;
+      if (video) x.videos = (x.videos || 0) + 1;
       x.updated = now;
       return x;
     });
     return { draft: d, isNew: false };
   }
-  if (!t && !jpeg) return { skipped: "empty" };
+  if (!t && !jpeg && !video) return { skipped: "empty" };
   if (open(state).length >= MAX_OPEN) return { full: true };
+  if (video && storedVideos(state) >= MAX_STORED_VIDEOS) return { skipped: "videos" };
   const d = store(state).update((s) => {
     const id = ++s.seq;
     s.items[id] = { id, source, texts: t ? [t.slice(0, MAX_TEXT)] : [], photos: 0, created: now, updated: now, ...(by ? { by } : {}) };
@@ -107,7 +118,19 @@ function collect(state, config, { source, text, jpeg, by, ownerNumber }, now = D
     writePhoto(config, d.id, 1, jpeg);
     store(state).update((s) => (s.items[d.id].photos = 1));
   }
+  if (video) {
+    writeVideo(config, d.id, 1, video);
+    store(state).update((s) => (s.items[d.id].videos = 1));
+  }
   return { draft: get(state, d.id), isNew: true };
+}
+
+const videoFile = (config, id, n) => path.join(dir(config, id), `v${Number(n)}.mp4`);
+const videosOf = (config, d) => Array.from({ length: d.videos || 0 }, (_, i) => videoFile(config, d.id, i + 1)).filter((p) => fs.existsSync(p));
+
+function writeVideo(config, id, n, buf) {
+  fs.mkdirSync(dir(config, id), { recursive: true, mode: 0o700 });
+  fs.writeFileSync(videoFile(config, id, n), buf, { mode: 0o600 });
 }
 
 function writePhoto(config, id, n, jpeg) {
@@ -138,7 +161,7 @@ function reviewText(state, d, { p = ".", ownerNumber, photoMatches = [] } = {}) 
     "",
     preview,
     "",
-    `📷 ${d.photos} صورة${d.photos >= MAX_PHOTOS ? " (الحد الأقصى)" : ""}`,
+    `📷 ${d.photos} صورة${d.photos >= MAX_PHOTOS ? " (الحد الأقصى)" : ""}${d.videos ? ` · 🎥 ${d.videos} فيديو` : ""}`,
     contacts.length ? `📞 أرقام في البوست (خاصة، مش هتظهر في الكارت): ${contacts.map((c) => `+${c}`).join(" · ")}` : null,
     dup ? `⚠️ شكلها زي #${dup.id} المحفوظ` : null,
     photohash.line(photoMatches).trim() || null,
@@ -170,9 +193,60 @@ function save(state, config, id, { edits = "", by, ownerNumber, base } = {}) {
     re.addPhoto(state, config, l.id, fs.readFileSync(file));
     added++;
   }
+  for (const file of videosOf(config, d)) {
+    try {
+      listingmedia.addVideo(state, config, l.id, fs.readFileSync(file));
+    } catch {
+      // more than a listing takes: the rest are left
+    }
+  }
   dropFiles(config, id);
   store(state).update((s) => delete s.items[id]);
   return re.get(state, l.id);
+}
+
+// ---- editing a draft before it is saved ------------------------------------------------
+
+/** More details for a draft (lines like "السعر: 3.2 مليون", or a sentence); they win when saved. */
+function addText(state, id, text) {
+  const d = get(state, id);
+  if (!d) throw new UserError(`There is no draft #${id} (.drafts).`);
+  const t = String(text || "").trim();
+  if (!t) throw new UserError(`Write what to add: .drafts edit ${id} السعر: 3.2 مليون`);
+  if (d.texts.join("\n").length + t.length > MAX_TEXT) throw new UserError("The draft's text is too long already.");
+  return store(state).update((s) => {
+    s.items[id].texts.push(t);
+    return s.items[id];
+  });
+}
+
+/** Removes the n-th of a draft's photos ("photo") or videos ("video"), moving the later ones down. */
+function removeMedia(state, config, id, kind, n) {
+  const d = get(state, id);
+  if (!d) throw new UserError(`There is no draft #${id} (.drafts).`);
+  const count = kind === "video" ? d.videos || 0 : d.photos || 0;
+  if (!(n >= 1 && n <= count)) throw new UserError(`Draft #${id} has ${count} ${kind === "video" ? "video(s)" : "photo(s)"}.`);
+  const file = (i) => (kind === "video" ? videoFile(config, id, i) : photoFile(config, id, i));
+  fs.rmSync(file(n), { force: true });
+  for (let i = n + 1; i <= count; i++) if (fs.existsSync(file(i))) fs.renameSync(file(i), file(i - 1));
+  return store(state).update((s) => {
+    s.items[id][kind === "video" ? "videos" : "photos"] = count - 1;
+    return s.items[id];
+  });
+}
+
+/** The n-th photo becomes the draft's first (the listing's cover once saved). */
+function setCover(state, config, id, n) {
+  const d = get(state, id);
+  if (!d) throw new UserError(`There is no draft #${id} (.drafts).`);
+  if (!(n >= 1 && n <= (d.photos || 0))) throw new UserError(`Draft #${id} has ${d.photos || 0} photo(s).`);
+  if (n === 1) return d;
+  const a = photoFile(config, id, 1);
+  const b = photoFile(config, id, n);
+  fs.renameSync(a, `${a}.swap`);
+  fs.renameSync(b, a);
+  fs.renameSync(`${a}.swap`, b);
+  return d;
 }
 
 function remove(state, config, id) {
@@ -187,7 +261,7 @@ function remove(state, config, id) {
 function line(state, d, ownerNumber) {
   const f = fieldsOf(d, ownerNumber);
   const what = [f.type || "؟", f.deal && `لل${f.deal}`, f.location && `— ${String(f.location).slice(0, 30)}`, f.price && `— ${re.shortAr(f.price)}`].filter(Boolean).join(" ");
-  return `▫️ *#${d.id}* ${what} · 📷 ${d.photos}${d.source.kind === "channel" ? ` · 📢 ${d.source.name || "قناة"}` : " · ↪️"}`;
+  return `▫️ *#${d.id}* ${what} · 📷 ${d.photos}${d.videos ? ` · 🎥 ${d.videos}` : ""}${d.source.kind === "channel" ? ` · 📢 ${d.source.name || "قناة"}` : " · ↪️"}`;
 }
 
 /**
@@ -259,4 +333,4 @@ function startDraftsLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { runDue, startDraftsLoop, photoMatchesOf, room, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, EXPIRE_AFTER };
+module.exports = { runDue, startDraftsLoop, photoMatchesOf, room, addText, removeMedia, setCover, videosOf, collect, due, markReviewed, notifyBudget, reviewText, save, remove, get, open, line, photos, fieldsOf, splitContacts, expire, isOff, setOff, IDLE, MAX_OPEN, MAX_PHOTOS, MAX_DRAFT_VIDEOS, MAX_STORED_VIDEOS, EXPIRE_AFTER };

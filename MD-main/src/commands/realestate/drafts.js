@@ -21,10 +21,16 @@ async function show(ctx, d) {
   const photoMatches = await drafts.photoMatchesOf(ctx.state, ctx.config, d);
   const text = drafts.reviewText(ctx.state, d, { p: ctx.prefix, ownerNumber: owner(ctx), photoMatches });
   const pics = drafts.photos(ctx.config, d);
-  if (!pics.length) return ctx.reply(text);
-  for (const [i, p] of pics.entries()) await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? text : undefined });
+  if (!pics.length) await ctx.reply(text);
+  // Numbered, so "photo 3 del 2" / "cover 2" are easy to pick.
+  for (const [i, p] of pics.entries()) await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? `${text}\n\n📷 1/${pics.length}` : `📷 ${i + 1}/${pics.length}` });
+  const vids = drafts.videosOf(ctx.config, d);
+  for (const [i, v] of vids.entries()) await ctx.reply({ video: fs.readFileSync(v), mimetype: "video/mp4", caption: `🎥 ${i + 1}/${vids.length}` });
   return undefined;
 }
+
+const DEL = /^(del|delete|remove|حذف|مسح)$/i;
+const COVER = /^(cover|first|main|غلاف|الغلاف|اول|أول)$/i;
 
 module.exports = [
   {
@@ -33,9 +39,9 @@ module.exports = [
     aliases: ["inbox", "draft", "musawadat"],
     category: "realestate",
     description:
-      "مسودات العقارات — units waiting for a look before they become listings: posts you forward to the bot in your private chat (the text and its photos, several units in a row are split), and posts from a channel added with .channel. Each draft shows the card it would make, its photos, phone numbers found in the post (kept private, never on the card), a possible duplicate and what is missing. “save 3” makes it a listing with its photos (add or fix details after it: “save 3 السعر: 3.2 مليون”; “save 3 ai” lets the AI read a messy post), and like .listing add it says how the price compares, which clients it suits, and with autoblast on queues the campaign; a short Maps link in the post becomes the pin. “save all” saves every draft that reads as a property, “del 3” deletes one. “off” stops collecting forwarded posts. Owner and sudo users.",
-    usage: "[<draft> | save <draft>|all [ai] [details] | del <draft>|all | off | on]",
-    examples: [".drafts", ".drafts 3", ".drafts save 3", ".drafts save 3 ai", ".drafts save 3 السعر: 3.2 مليون\nالمالك: أبو أحمد 0100 123 4567", ".drafts save all", ".drafts del 3", ".drafts off"],
+      "مسودات العقارات — units waiting for a look before they become listings: posts you forward to the bot in your private chat (the text and its photos, several units in a row are split), and posts from a channel added with .channel. Each draft shows the card it would make, its photos and videos (up to 2, kept as sent), phone numbers found in the post (kept private, never on the card), a possible duplicate and what is missing. “save 3” makes it a listing with its photos (add or fix details after it: “save 3 السعر: 3.2 مليون”; “save 3 ai” lets the AI read a messy post), and like .listing add it says how the price compares, which clients it suits, and with autoblast on queues the campaign; a short Maps link in the post becomes the pin. “save all” saves every draft that reads as a property, “del 3” deletes one. Before saving: “edit 3 السعر: 3.2 مليون” adds details, “photo 3 del 2” / “photo 3 cover 2” (the first photo is the listing's cover) / “video 3 del 1” fix its media. “off” stops collecting forwarded posts. Owner and sudo users.",
+    usage: "[<draft> | edit <draft> <details> | photo <draft> del|cover <n> | video <draft> del <n> | save <draft>|all [ai] [details] | del <draft>|all | off | on]",
+    examples: [".drafts", ".drafts 3", ".drafts save 3", ".drafts save 3 ai", ".drafts save 3 السعر: 3.2 مليون\nالمالك: أبو أحمد 0100 123 4567", ".drafts save all", ".drafts edit 3 السعر: 3.2 مليون", ".drafts photo 3 cover 2", ".drafts photo 3 del 4", ".drafts video 3 del 1", ".drafts del 3", ".drafts off"],
     permission: "sudo",
     cooldown: 2,
     async run(ctx) {
@@ -46,6 +52,28 @@ module.exports = [
         const d = drafts.get(ctx.state, direct);
         if (!d) throw new UserError(`There is no draft #${direct} (${p}drafts).`);
         return show(ctx, d);
+      }
+      if (sub === "edit" || sub === "تعديل") {
+        // ".drafts edit 3 السعر: 3.2 مليون": details added before saving (they win over the post's).
+        const id = idOf(arg);
+        if (!id) throw new UserError(`Which draft? ${p}drafts edit 3 السعر: 3.2 مليون`);
+        const d = drafts.addText(ctx.state, id, editsAfter(ctx));
+        await ctx.reply(`✏️ Added to draft #${id}.`);
+        return show(ctx, d);
+      }
+      if (sub === "photo" || sub === "صورة" || sub === "video" || sub === "فيديو") {
+        // ".drafts photo 3 del 2", ".drafts photo 3 cover 2", ".drafts video 3 del 1"
+        const id = idOf(arg);
+        const op = String(ctx.args[2] || "");
+        const n = Number(re.latinDigits(String(ctx.args[3] || "")));
+        const kind = /video|فيديو/i.test(sub) ? "video" : "photo";
+        if (!id || !(DEL.test(op) || (kind === "photo" && COVER.test(op)))) throw new UserError(`Usage: ${p}drafts photo 3 del 2 · ${p}drafts photo 3 cover 2 · ${p}drafts video 3 del 1`);
+        if (COVER.test(op)) {
+          drafts.setCover(ctx.state, ctx.config, id, n);
+          return ctx.reply(`🖼️ Photo ${n} is now the first of draft #${id} (the listing's cover once saved).`);
+        }
+        const d = drafts.removeMedia(ctx.state, ctx.config, id, kind, n);
+        return ctx.reply(`🗑️ ${kind === "video" ? "Video" : "Photo"} ${n} of draft #${id} deleted (📷 ${d.photos}${d.videos ? ` · 🎥 ${d.videos}` : ""} left).`);
       }
       if (sub === "off" || sub === "on") {
         drafts.setOff(ctx.state, sub === "off");
