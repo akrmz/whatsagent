@@ -24,7 +24,9 @@ module.exports = {
     if (!listing) return undefined;
     const wantsVideo = Boolean(m[2] && /video|فيديو/i.test(m[2]));
     // Its own flood key: "#12" then "#12 فيديو" right after is one card and one video, not a repeat.
-    if (!allowLookup(ctx, `${wantsVideo ? "listing-video" : "listing"}:${listing.id}`)) return "stop"; // flood: silent
+    // (the English card too: "#12" then "#12 en" is two requests)
+    const kind = wantsVideo ? "listing-video" : m[2] ? "listing-en" : "listing";
+    if (!allowLookup(ctx, `${kind}:${listing.id}`)) return "stop"; // flood: silent
     // "#12 فيديو" / "#12 video": the listing's videos (not sent with every card: they are big).
     if (wantsVideo) {
       await sendVideos(ctx, listing, { lang: /video/i.test(m[2]) ? "en" : "ar" });

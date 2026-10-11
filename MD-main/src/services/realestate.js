@@ -61,8 +61,8 @@ const agentStore = (state) => state.store("realestate-agent", { currency: "جن�
 const agent = (state) => ({ currency: "جنيه", ...agentStore(state).data });
 
 // welcome: the message new clients get with .leads welcome ({name} {ad} {wish} {agent}).
-const AGENT_FIELDS = { name: 60, phone: 30, company: 60, currency: 12, welcome: 600, nudgetext: 600 };
-const AGENT_SWITCHES = ["autoleads", "requests", "catalog", "autoblast", "nudge", "ownerreports", "booking", "assistant", "sellers"];
+const AGENT_FIELDS = { name: 60, phone: 30, company: 60, currency: 12, welcome: 600, nudgetext: 600, wmtext: 60 };
+const AGENT_SWITCHES = ["autoleads", "requests", "catalog", "autoblast", "nudge", "ownerreports", "booking", "assistant", "sellers", "watermark"];
 function setAgent(state, field, value) {
   if (AGENT_SWITCHES.includes(field)) {
     const v = String(value || "").trim().toLowerCase();

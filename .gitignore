@@ -13,6 +13,9 @@ creds.json
 
 # ---- Runtime state written by the bot -------------------------------------
 MD-main/data/*.json
+# Everything the bot keeps (B-29): listing photos and videos, drafts, sellers' photos, backups (a
+# full one holds API keys), cookies (YouTube logins), clients' data. Nothing in data/ belongs in git.
+MD-main/data/
 # Extra numbers (.numbers): each one's data and session, clients' details included.
 MD-main/instances/
 **/instances/*.removed-*/

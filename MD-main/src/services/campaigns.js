@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const re = require("./realestate");
+const brandphoto = require("./brandphoto");
 const leads = require("./leads");
 const requests = require("./requests");
 const interest = require("./interest");
@@ -446,7 +447,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     return attempt(lead.id, lead.phone, async (jid) => {
       const text = reviveText(app.state, lead, fresh);
       const [photo] = re.photos(app.config, fresh);
-      await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
+      await app.sock.sendMessage(jid, photo ? { image: (await brandphoto.forClients(app, fresh)) || fs.readFileSync(photo), caption: text } : { text });
       leads.markSent(app.state, lead.id, fresh.id, c.by, `إعادة تواصل: أُرسل له العقار #${fresh.id} (حملة #${c.id})`, now);
     });
   }
@@ -480,7 +481,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     } else {
       const text = message(listing, lead, re.agent(app.state), c.mode);
       const [photo] = re.photos(app.config, listing);
-      await app.sock.sendMessage(jid, photo ? { image: fs.readFileSync(photo), caption: text } : { text });
+      await app.sock.sendMessage(jid, photo ? { image: (await brandphoto.forClients(app, listing)) || fs.readFileSync(photo), caption: text } : { text });
       leads.markSent(app.state, lead.id, listing.id, c.by, `أُرسل له ${c.mode === "drop" ? "تخفيض سعر " : ""}العقار #${listing.id} (${c.mode === "back" ? "رجع متاح تاني، " : ""}حملة #${c.id})`, now);
       if (c.mode === "drop") leads.update(app.state, lead.id, { dropNotified: { ...(lead.dropNotified || {}), [listing.id]: listing.price } }, now);
       if (c.mode === "back") leads.update(app.state, lead.id, { backNotified: { ...(lead.backNotified || {}), [listing.id]: listing.back?.at } }, now);

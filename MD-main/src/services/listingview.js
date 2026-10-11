@@ -5,6 +5,7 @@ const re = require("./realestate");
 const english = require("./english");
 const leads = require("./leads");
 const rotation = require("./rotation");
+const brandphoto = require("./brandphoto");
 const { limiterFor } = require("../core/ratelimit");
 
 // Inquiry capture is triggered by strangers, so it is limited (per bot):
@@ -49,7 +50,9 @@ async function show(ctx, l, { allPhotos = false, lang = "ar" } = {}) {
   if (!pics.length) return ctx.reply(text);
   const shown = allPhotos ? pics : pics.slice(0, 1);
   for (const [i, p] of shown.entries()) {
-    await ctx.reply({ image: fs.readFileSync(p), caption: i === 0 ? text : undefined });
+    // With ".agent watermark on", your name and number on it (brandphoto.js).
+    const photo = await brandphoto.forClients(ctx, l, Number(require("node:path").basename(p, ".jpg")));
+    await ctx.reply({ image: photo || fs.readFileSync(p), caption: i === 0 ? text : undefined });
   }
   if (!allPhotos && pics.length > 1) await ctx.send(`📷 ${pics.length} صور — ${ctx.prefix}listing ${l.id} photos`);
   return undefined;

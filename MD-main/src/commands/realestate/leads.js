@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const leads = require("../../services/leads");
 const re = require("../../services/realestate");
+const brandphoto = require("../../services/brandphoto");
 const { parseWhen } = require("../../services/reminders");
 const { getText } = require("../../core/context");
 const { UserError } = require("../../core/errors");
@@ -228,7 +229,7 @@ module.exports = [
         const a = re.agent(ctx.state);
         const [photo] = re.photos(ctx.config, listing);
         const greeting = lead.name ? `أهلاً ${lead.name} 👋\n\n` : "";
-        if (photo) await ctx.sock.sendMessage(jid, { image: fs.readFileSync(photo), caption: greeting + re.card(listing, a) });
+        if (photo) await ctx.sock.sendMessage(jid, { image: (await brandphoto.forClients(ctx, listing)) || fs.readFileSync(photo), caption: greeting + re.card(listing, a) });
         else await ctx.sock.sendMessage(jid, { text: greeting + re.card(listing, a) });
         leads.markSent(ctx.state, id, listing.id, ctx.sender, `أُرسل له العقار #${listing.id}`);
         return ctx.reply(`📤 Listing #${listing.id} sent to #${id} ${lead.name || ""} (+${lead.phone}).`);

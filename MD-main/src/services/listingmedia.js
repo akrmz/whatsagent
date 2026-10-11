@@ -60,6 +60,7 @@ function removePhoto(state, config, id, n) {
   shiftDown((i) => re.photoPath(config, id, i), n, l.photos);
   re.update(state, id, { photos: l.photos - 1 }, l.updated);
   require("./photohash").forget(state, id); // fingerprinted again in the background
+  require("./brandphoto").clearCache(config, id);
 }
 
 /** The n-th photo becomes the first (the cover); the first takes its place. */
@@ -75,6 +76,7 @@ function setCover(state, config, id, n) {
   fs.renameSync(b, a);
   fs.renameSync(tmp, b);
   require("./photohash").forget(state, id);
+  require("./brandphoto").clearCache(config, id);
 }
 
 module.exports = { addVideo, removeVideo, removePhoto, setCover, videos, videoPath, isVideo, checkVideo, MAX_VIDEOS, MAX_VIDEO_BYTES };
