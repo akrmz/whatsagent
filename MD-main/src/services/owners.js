@@ -1,6 +1,7 @@
 "use strict";
 
 const re = require("./realestate");
+const { reportsOff } = require("./ownerreport");
 
 /**
  * Asking listings' owners whether a property is still available (.listing ask), and reading
@@ -56,12 +57,46 @@ function askText(state, l) {
     .join("\n");
 }
 
-/** Sends the question to the owner and opens the ask. */
-async function ask(ctx, l, now = Date.now()) {
+/** Sends the question to the owner and opens the ask; the answer goes to `chat`. */
+async function deliver({ sock, state }, l, { chat, by, auto = false }, now = Date.now()) {
   const c = contactOf(l);
   if (!c) throw new Error(`#${l.id} has no owner or broker number`);
-  await ctx.sock.sendMessage(`${c.phone}@s.whatsapp.net`, { text: askText(ctx.state, l) });
-  re.update(ctx.state, l.id, { ask: { at: now, chat: ctx.chatId, by: ctx.sender, to: c.phone, kind: c.kind } }, l.updated); // asking isn't an update
+  await sock.sendMessage(`${c.phone}@s.whatsapp.net`, { text: askText(state, l) });
+  re.update(state, l.id, { ask: { at: now, chat, by, to: c.phone, kind: c.kind, ...(auto ? { auto: true } : {}) } }, l.updated); // asking isn't an update
+}
+
+/** ".listing ask": the answer comes back to the chat it was asked from. */
+const ask = (ctx, l, now = Date.now()) => deliver(ctx, l, { chat: ctx.chatId, by: ctx.sender }, now);
+
+// ---- asked by themselves (.agent autoask on) ----------------------------------------------
+
+const DAY = 24 * 3600 * 1000;
+const STALE_AFTER = 30 * DAY; // not updated (or confirmed) for 30 days
+const ASK_EVERY = 30 * DAY; // and not asked about in the last 30 days
+const AUTO_PER_DAY = 5;
+
+/** The listing still needs asking about: available, someone to ask, quiet for 30 days, not asked lately. */
+const autoDue = (state, l, now = Date.now()) =>
+  l.status === "available" && Boolean(contactOf(l)) && now - (l.updated || l.created || 0) >= STALE_AFTER && !(l.ask && now - l.ask.at < ASK_EVERY);
+
+/**
+ * Today's automatic questions: the listings longest without news first, one per number (a
+ * second question to the same person would make "متاح" ambiguous), none to a number with a
+ * question still open or that asked for no more messages (وقف التقارير), at most 5.
+ */
+function autoTargets(state, now = Date.now()) {
+  const seen = new Set();
+  return re
+    .all(state)
+    .filter((l) => autoDue(state, l, now))
+    .sort((a, b) => (a.updated || a.created || 0) - (b.updated || b.created || 0) || a.id - b.id)
+    .filter((l) => {
+      const phone = contactOf(l).phone;
+      if (seen.has(phone) || reportsOff(state, phone) || openAsks(state, phone, now).length) return false;
+      seen.add(phone);
+      return true;
+    })
+    .slice(0, AUTO_PER_DAY);
 }
 
 /** Listings with a question still open to this number (the one it was sent to), newest first. */
@@ -107,4 +142,4 @@ async function handleReply(ctx, phone, now = Date.now()) {
   return true;
 }
 
-module.exports = { classify, askText, ask, openAsks, handleReply, contactOf, OPEN_FOR, MAX_AT_ONCE };
+module.exports = { classify, askText, ask, deliver, autoDue, autoTargets, openAsks, handleReply, contactOf, OPEN_FOR, MAX_AT_ONCE, STALE_AFTER, AUTO_PER_DAY };

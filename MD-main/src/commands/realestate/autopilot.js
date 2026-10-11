@@ -3,6 +3,7 @@
 const re = require("../../services/realestate");
 const campaigns = require("../../services/campaigns");
 const ownerReport = require("../../services/ownerreport");
+const owners = require("../../services/owners");
 const booking = require("../../services/selfbooking");
 const rotation = require("../../services/rotation");
 const sellers = require("../../services/sellers");
@@ -52,6 +53,7 @@ module.exports = {
     const welcomeWaiting = campaigns.welcomeTargets(s).length;
     const nudgeWaiting = campaigns.nudgeTargets(s, now).length;
     const ownersWaiting = ownerReport.weeklyTargets(s, now).length;
+    const asksWaiting = owners.autoTargets(s, now).length;
 
     const lines = [
       "🤖 *الأتمتة — كل اللي البوت بيعمله لوحده*",
@@ -71,6 +73,7 @@ module.exports = {
       `${on(a.autoblast)} حملة تلقائية لكل عقار جديد — ${p}agent autoblast on|off`,
       `${on(a.nudge)} متابعة اللي ما ردوش (3–14 يوم)${nudgeWaiting ? ` — ${nudgeWaiting} مستحق` : ""} — ${p}agent nudge on|off`,
       `${on(a.ownerreports)} تقرير أسبوعي لملاك العقارات (السبت)${a.ownerreports ? ` — ${ownersWaiting} مستحق` : ""} — ${p}agent ownerreports on|off`,
+      `${on(a.autoask)} سؤال الملاك "لسه متاح؟" عن العقارات اللي ملهاش تحديث من 30 يوم (5 في اليوم)${a.autoask ? ` — ${asksWaiting} مستحق` : ""} — ${p}agent autoask on|off`,
       `👋 عملاء جدد بدون ترحيب: ${welcomeWaiting}${welcomeWaiting ? ` — ${p}leads welcome` : ""}`,
       `📣 رسائل الحملات النهارده: ${sentToday} من ${set.perDay} · ${set.from}–${set.to} — ${p}blast limit · ${p}blast hours`,
       ...(running.length

@@ -8,6 +8,7 @@ const leads = require("./leads");
 const requests = require("./requests");
 const interest = require("./interest");
 const ownerReport = require("./ownerreport");
+const ownerAsk = require("./owners");
 const { parseClock } = require("./reminders");
 const { zoneNow } = require("./gcschedule");
 const { UserError } = require("../core/errors");
@@ -113,7 +114,7 @@ function estimate(state, count) {
 }
 
 const summary = (c) =>
-  `📣 ${c.kind === "revive" ? `إعادة تواصل #${c.id} مع العملاء القدام` : c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : c.mode === "back" ? "رجوع " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
+  `📣 ${c.kind === "revive" ? `إعادة تواصل #${c.id} مع العملاء القدام` : c.kind === "message" ? `رسالة #${c.id} للعملاء` : c.kind === "owners" ? `تقارير الملاك #${c.id}` : c.kind === "asks" ? `سؤال الملاك عن الإتاحة #${c.id}` : c.kind === "nudge" ? `متابعة #${c.id} للعملاء اللي ما ردوش` : c.kind === "welcome" ? `ترحيب #${c.id} بالعملاء الجدد` : `حملة ${c.mode === "drop" ? "تخفيض " : c.mode === "back" ? "رجوع " : ""}#${c.id} للعقار #${c.listing}`}: ✅ ${c.sent.length} أُرسلت${c.failed.length ? ` · ❌ ${c.failed.length} فشلت` : ""}${c.skipped ? ` · ⏭️ ${c.skipped} تخطي` : ""} من ${c.total}`;
 
 // ---- welcoming new clients (.leads welcome) -----------------------------------------------
 
@@ -352,6 +353,20 @@ function planOwnerReports(app, now = Date.now()) {
   return queueAuto(app, "owners", ownerReport.weeklyTargets(app.state, now).map((l) => l.id), now);
 }
 
+/**
+ * Every day, from the start of the sending hours: ask the owners (or brokers) of up to 5 listings
+ * quiet for 30 days whether they are still available (owners.autoTargets). The answers come to
+ * the owner's private chat, as with .listing ask.
+ */
+function planOwnerAsks(app, now = Date.now()) {
+  if (!re.agent(app.state).autoask) return null;
+  const s = store(app.state);
+  const { day, minutes } = zoneNow(app.config.bot.timezone, now);
+  if (s.data.asksDay === day || minutes < parseClock(settings(app.state).from)) return null;
+  s.update((d) => (d.asksDay = day));
+  return queueAuto(app, "asks", ownerAsk.autoTargets(app.state, now).map((l) => l.id), now);
+}
+
 function startWelcome(state, { by, chat }, now = Date.now()) {
   if (running(state).some((c) => c.kind === "welcome")) throw new UserError("A welcome is already being sent (.campaigns).");
   if (running(state).length >= MAX_RUNNING) throw new UserError(`${MAX_RUNNING} campaigns are already running. Wait for one to finish or stop one (.campaigns).`);
@@ -390,6 +405,7 @@ async function tick(app, now = Date.now(), rand = Math.random) {
   if (minutes < parseClock(set.from) || minutes >= parseClock(set.to)) return "hours";
   planNudges(app, now);
   planOwnerReports(app, now);
+  planOwnerAsks(app, now);
   if (s.data.day.count >= set.perDay) return "cap";
   if (now < (s.data.next || 0)) return "gap";
   // The oldest running campaign that is due (an automatic one waits 30 minutes for photos).
@@ -446,6 +462,13 @@ async function tick(app, now = Date.now(), rand = Math.random) {
     const l = re.get(app.state, nextId);
     if (!l || !ownerReport.weeklyDue(app.state, l, now)) return skip();
     return attempt(l.id, l.owner.phone, () => ownerReport.deliver(app, l, now));
+  }
+
+  if (c.kind === "asks") {
+    // Skipped if it was sold, updated or asked about by hand meanwhile.
+    const l = re.get(app.state, nextId);
+    if (!l || !ownerAsk.autoDue(app.state, l, now)) return skip();
+    return attempt(l.id, ownerAsk.contactOf(l).phone, () => ownerAsk.deliver(app, l, { chat: c.chat, by: "bot", auto: true }, now));
   }
 
   const lead = leads.get(app.state, nextId);
@@ -516,4 +539,4 @@ function startCampaignLoop(app) {
   return () => clearInterval(timer);
 }
 
-module.exports = { targets, start, startWelcome, startMessage, startRevive, reviveTargets, reviveText, freshMatch, lastTouch, REVIVE_AFTER, occasion, OCCASIONS, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
+module.exports = { targets, start, startWelcome, startMessage, startRevive, reviveTargets, reviveText, freshMatch, lastTouch, REVIVE_AFTER, occasion, OCCASIONS, messageTargets, messageText, parseAudience, audienceText, dropImage, imagePath, MAX_MESSAGE, welcomeTargets, welcomeText, DEFAULT_WELCOME, nudgeTargets, nudgeText, planNudges, planOwnerReports, planOwnerAsks, DEFAULT_NUDGE, stop, get, all, running, settings, setLimit, setHours, estimate, summary, message, tick, startCampaignLoop, OPT_OUT_LINE, DEFAULTS };
