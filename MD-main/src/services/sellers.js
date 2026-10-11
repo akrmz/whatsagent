@@ -3,6 +3,7 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const re = require("./realestate");
+const places = require("./places");
 const img = require("./reimages");
 const { limiterFor } = require("../core/ratelimit");
 const { UserError } = require("../core/errors");
@@ -77,7 +78,7 @@ const openFor = (state, phone, now = Date.now()) => Object.values(store(state).d
 function summary(state, o) {
   const f = o.fields || {};
   const cur = re.agent(state).currency;
-  return [`${f.type || "عقار"} لل${o.deal}`, f.location, f.size && `${re.group(f.size)} م²`, f.rooms && `${f.rooms} غرف`, f.price && re.money(f.price, cur)].filter(Boolean).join(" · ");
+  return [`${f.type || "عقار"} لل${o.deal}`, f.location, f.size && `${re.group(f.size)} م²`, f.rooms && `${f.rooms} غرف`, f.price && re.money(f.price, cur), f.geo && "📍 معاه لوكيشن"].filter(Boolean).join(" · ");
 }
 
 function upsert(state, { phone, name, deal, text }, now) {
@@ -142,6 +143,16 @@ async function handle(ctx, now = Date.now()) {
     store(ctx.state).update((d) => Object.assign(d.items[open.id], { photos: n, updated: now, openUntil: now + OPEN_FOR }));
     if (n === 1) await ctx.reply("📸 وصلت، ابعت باقي الصور والتفاصيل براحتك.");
     if (text) upsert(ctx.state, { phone, text }, now); // a caption is details too
+    return true;
+  }
+  // A pin while collecting: where the home is (the listing gets it). Only the point: the name
+  // someone gives a pin can be their address.
+  const pin = open && ctx.content?.locationMessage && places.fromMessage({ locationMessage: ctx.content.locationMessage });
+  if (pin) {
+    if (!flood(ctx.state, phone)) return true;
+    const first = !open.fields.geo;
+    store(ctx.state).update((d) => Object.assign(d.items[open.id], { fields: { ...d.items[open.id].fields, geo: { lat: pin.lat, lng: pin.lng } }, updated: now, openUntil: now + OPEN_FOR }));
+    if (first) await ctx.reply("📍 وصل الموقع، شكراً.");
     return true;
   }
   if (!text) return false;

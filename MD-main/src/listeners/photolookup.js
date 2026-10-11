@@ -13,9 +13,7 @@ const WINDOW = 10 * 60 * 1000;
 // The client's own limit first: one number over its limit doesn't use up everyone's.
 const lookups = (state, key) =>
   limiterFor(state, "photo-lookup", { max: 5, windowMs: WINDOW })(key) &&
-  limiterFor(state, "photo-lookup-all", { max: 60, windowMs: WINDOW, size: 1 })(
-    "all",
-  );
+  limiterFor(state, "photo-lookup-all", { max: 60, windowMs: WINDOW, size: 1 })("all");
 
 /**
  * A client sends a photo in a private chat (a unit they saw: forwarded from a group, saved from
