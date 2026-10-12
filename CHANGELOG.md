@@ -2,6 +2,35 @@
 
 All notable changes. Finding IDs (P-01, B-02, …) refer to [docs/SECURITY_AUDIT.md](docs/SECURITY_AUDIT.md).
 
+## 3.85.0 — 2026-10-12
+
+### Fixed — "هبعتهالك أول ما توصل" was a promise nobody kept
+- A client who asked for photos or the exact location of a unit without them was told "مفيش صور لـ #12 لسه، هبعتهالك أول ما توصل" or "اللوكيشن بالظبط هبعتهولك". Nothing followed.
+- "#12 فيديو" for a unit without a video said only "مفيش فيديو".
+
+### Added — what a client is promised reaches them by itself
+- **Remembered:** the bot now keeps who asked, for photos, the video or the pin, and **tells you once a day** per unit and kind: "📸 عميل مستني الصور بتاعة #12 … أول ما تضيفها هتتبعتلهم لوحدها: .listing photo 12".
+- **Sent by itself:** when you add it (`.listing photo`, `.listing video`, `.listing loc`), everyone who asked gets it with "اللي طلبتها": the first 5 photos (with your watermark when it is on), the video, or the pin.
+  - It goes 10 minutes after it first appears, so photos added one by one go together.
+  - It is sent within the campaign sending hours, and noted on the client's card.
+- "#12 فيديو" now promises too: "مفيش فيديو للعقار #12 لسه، هبعتهولك أول ما يوصل 🙏". The promise is only made when it is remembered.
+- **Dropped:**
+  - requests older than 2 weeks;
+  - units sold, rented or reserved meanwhile;
+  - clients who said وقف.
+  - At most 30 clients per unit and kind.
+  - Not for the team or groups.
+- `.autopilot` lists what clients are waiting for. `.rehelp` mentions it.
+
+### Checked
+- 2 tests (494 in total). They cover:
+  - photos, video and pin promised, the agent told once, and the 10 minutes to settle;
+  - delivery to two clients, once;
+  - the team not remembered;
+  - waiting outside the sending hours;
+  - a client who said وقف skipped;
+  - a unit sold meanwhile dropped.
+
 ## 3.84.0 — 2026-10-12
 
 ### Added — a Google Maps link gets the nearest units too

@@ -428,6 +428,16 @@ Locations only (values intentionally omitted):
 - **Fix:** a post added by `auto` never starts a campaign. The notice says "📣 بعد ما تراجعها ابعتها للعملاء: .blast 12". Links other than Google Maps are removed from its description (`newlisting.withoutLinks`; a Maps link still becomes the pin). Drafts saved by hand (`.drafts save`) keep their text, since the owner saw it in the review.
 - **Tests:** `test/channelsafety.test.js` (fails on the code before the fix).
 
+### Design note — promised media sent later (3.85.0)
+- **What is kept:** the chat of each client who asked for a listing's missing photos, video or pin, with when they asked (`media-wait.json`). This is client data in DATA_DIR.
+  - Bounded: 300 listing-and-kind entries, 30 chats each, 14 days.
+  - Removed once sent, or when the listing is gone or no longer available.
+- **What goes out:** only to a chat that asked, only what it asked for, once. It is checked first against the client's وقف, and sent within the campaign hours, at most 20 a minute.
+  - Photos carry the watermark when it is on.
+  - Never the owner or the source.
+- **Not kept:** requests from the team or from groups. The agent's notice names no client, only how many are waiting.
+- **Tests:** `test/mediawait.test.js`.
+
 ### Design note — automatic availability questions to owners (3.81.0)
 - **What goes out:** messages to owners and brokers who aren't clients, started by the bot. It is off by default (`.agent autoask on`, owner or sudo).
 - **Bounded:**
