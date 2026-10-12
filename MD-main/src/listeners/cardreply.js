@@ -5,6 +5,7 @@ const cardreply = require("../services/cardreply");
 const { show, sendVideos, captureInquiry } = require("../services/listingview");
 const { alternatives, offerText } = require("../services/alternatives");
 const { allowLookup } = require("../services/lookuplimits");
+const mediawait = require("../services/mediawait");
 
 /**
  * A client's reply to a listing's card: is it still available, more photos, the video, where it
@@ -28,12 +29,15 @@ module.exports = {
     if (intent === "video") await sendVideos(ctx, listing);
     else if (intent === "photos") {
       if ((listing.photos || 0) > 1) await show(ctx, listing, { allPhotos: true });
-      else await ctx.reply(listing.photos ? `دي كل صور #${listing.id} 🙏${listing.videos ? `\nوفيه فيديو: ابعت #${listing.id} فيديو` : ""}` : `مفيش صور لـ #${listing.id} لسه، هبعتهالك أول ما توصل 🙏`);
+      else if (listing.photos) await ctx.reply(`دي كل صور #${listing.id} 🙏${listing.videos ? `\nوفيه فيديو: ابعت #${listing.id} فيديو` : ""}`);
+      // The promise is kept: they get them once they are added (services/mediawait).
+      else await ctx.reply((await mediawait.add(ctx, listing, "photos")) ? `مفيش صور لـ #${listing.id} لسه، هبعتهالك أول ما توصل 🙏` : `مفيش صور لـ #${listing.id} لسه 🙏`);
     } else if (intent === "location") {
       if (listing.geo) {
         await ctx.reply({ location: { degreesLatitude: listing.geo.lat, degreesLongitude: listing.geo.lng, name: `#${listing.id} ${listing.type || "عقار"}${listing.location ? ` — ${listing.location}` : ""}`.slice(0, 100) } });
       } else {
-        await ctx.reply(`📍 #${listing.id} في ${listing.location || "المنطقة اللي في الإعلان"}. اللوكيشن بالظبط هبعتهولك 🙏`);
+        const promised = await mediawait.add(ctx, listing, "location");
+        await ctx.reply(`📍 #${listing.id} في ${listing.location || "المنطقة اللي في الإعلان"}.${promised ? " اللوكيشن بالظبط هبعتهولك أول ما يوصل 🙏" : ""}`);
       }
     } else if (listing.status === "available") {
       await ctx.reply(`✅ أيوه، #${listing.id} لسه متاحة.${a.booking ? `\n🗓️ لحجز معاينة ابعت: معاينة ${listing.id}` : ""}`);

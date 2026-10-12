@@ -258,6 +258,7 @@ function startViewingsLoop(app) {
     try {
       await runDue(app);
       await require("./viewingfeedback").askDue(app); // .agent feedback on: the client's own word
+      await require("./mediawait").runDue(app); // photos, videos and pins clients were promised
     } catch (err) {
       app.log.error({ err }, "viewing reminder loop failed");
     } finally {

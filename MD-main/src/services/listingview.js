@@ -123,7 +123,12 @@ async function captureInquiry(ctx, listing, { alts = [] } = {}) {
 /** A listing's videos ("#12 فيديو", ".listing 12 video"). */
 async function sendVideos(ctx, l, { lang = "ar" } = {}) {
   const files = require("./listingmedia").videos(ctx.config, l);
-  if (!files.length) return ctx.reply(lang === "en" ? `#${l.id} has no video yet.` : `مفيش فيديو للعقار #${l.id} لسه.`);
+  if (!files.length) {
+    // A client in a private chat gets it once it is added (services/mediawait).
+    const promised = await require("./mediawait").add(ctx, l, "video");
+    if (lang === "en") return ctx.reply(`#${l.id} has no video yet.${promised ? " I'll send it to you as soon as it's in 🙏" : ""}`);
+    return ctx.reply(`مفيش فيديو للعقار #${l.id} لسه${promised ? "، هبعتهولك أول ما يوصل 🙏" : "."}`);
+  }
   if (!ctx.isSudoOrOwner) re.count(ctx.state, l.id, "views");
   const title = `🎥 #${l.id} ${l.type || "عقار"}${l.location ? ` — ${l.location.slice(0, 40)}` : ""}`;
   for (const [i, f] of files.entries()) await ctx.reply({ video: fs.readFileSync(f), mimetype: "video/mp4", caption: i === 0 ? title : undefined });

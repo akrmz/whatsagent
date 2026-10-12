@@ -4,6 +4,7 @@ const re = require("../../services/realestate");
 const campaigns = require("../../services/campaigns");
 const ownerReport = require("../../services/ownerreport");
 const owners = require("../../services/owners");
+const mediawait = require("../../services/mediawait");
 const booking = require("../../services/selfbooking");
 const rotation = require("../../services/rotation");
 const sellers = require("../../services/sellers");
@@ -54,6 +55,7 @@ module.exports = {
     const nudgeWaiting = campaigns.nudgeTargets(s, now).length;
     const ownersWaiting = ownerReport.weeklyTargets(s, now).length;
     const asksWaiting = owners.autoTargets(s, now).length;
+    const mediaWaiting = mediawait.waiting(s);
 
     const lines = [
       "🤖 *الأتمتة — كل اللي البوت بيعمله لوحده*",
@@ -74,6 +76,7 @@ module.exports = {
       `${on(a.nudge)} متابعة اللي ما ردوش (3–14 يوم)${nudgeWaiting ? ` — ${nudgeWaiting} مستحق` : ""} — ${p}agent nudge on|off`,
       `${on(a.ownerreports)} تقرير أسبوعي لملاك العقارات (السبت)${a.ownerreports ? ` — ${ownersWaiting} مستحق` : ""} — ${p}agent ownerreports on|off`,
       `${on(a.autoask)} سؤال الملاك "لسه متاح؟" عن العقارات اللي ملهاش تحديث من 30 يوم (5 في اليوم)${a.autoask ? ` — ${asksWaiting} مستحق` : ""} — ${p}agent autoask on|off`,
+      ...(mediaWaiting.length ? [`📬 عملاء مستنيين حاجة وعدناهم بيها (بتتبعت لوحدها أول ما تضيفها): ${mediaWaiting.slice(0, 6).map((w) => `#${w.listing} ${mediawait.KINDS[w.kind]} (${w.count})`).join("، ")}`] : []),
       `👋 عملاء جدد بدون ترحيب: ${welcomeWaiting}${welcomeWaiting ? ` — ${p}leads welcome` : ""}`,
       `📣 رسائل الحملات النهارده: ${sentToday} من ${set.perDay} · ${set.from}–${set.to} — ${p}blast limit · ${p}blast hours`,
       ...(running.length
